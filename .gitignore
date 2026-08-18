@@ -1,0 +1,39 @@
+# ==========================================
+# .NET & MSBuild Build Outputs
+# ==========================================
+[Bb]in/
+[Oo]bj/
+[Rr]elease/
+[Dd]ebug/
+*.exe
+*.dll
+*.pdb
+*.nlp
+*.baml
+*.g.cs
+*.g.resources
+*.cache
+*.FileListAbsolute.txt
+
+# ==========================================
+# Visual Studio & IDE Artifacts
+# ==========================================
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/
+.idea/
+
+# ==========================================
+# Temporary & Diagnostic Artifacts
+# ==========================================
+*.log
+*.tmp
+
+# ==========================================
+# Release Packages & Local User Config
+# ==========================================
+releases/
+config.user.json

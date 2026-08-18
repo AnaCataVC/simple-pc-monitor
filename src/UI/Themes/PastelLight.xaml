@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Backgrounds -->
+    <SolidColorBrush x:Key="BgApp" Color="#F4F6FB"/>
+    <SolidColorBrush x:Key="BgSurface" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BgCard" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BgCardHover" Color="#F8FAFC"/>
+    <SolidColorBrush x:Key="BgControl" Color="#EDF2F7"/>
+    <SolidColorBrush x:Key="BgControlHover" Color="#E2E8F0"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="BorderCard" Color="#E2E8F0"/>
+    <SolidColorBrush x:Key="BorderSubtle" Color="#F1F5F9"/>
+
+    <!-- Typography -->
+    <SolidColorBrush x:Key="TextPrimary" Color="#1E293B"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#64748B"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#94A3B8"/>
+
+    <!-- Accents (Pastel Spectrum Light) -->
+    <SolidColorBrush x:Key="AccentCpu" Color="#6366F1"/>
+    <SolidColorBrush x:Key="AccentMem" Color="#8B5CF6"/>
+    <SolidColorBrush x:Key="AccentDisk" Color="#0EA5E9"/>
+    <SolidColorBrush x:Key="AccentNet" Color="#10B981"/>
+    <SolidColorBrush x:Key="AccentHardware" Color="#D97706"/>
+
+    <!-- Health / Status -->
+    <SolidColorBrush x:Key="StatusOk" Color="#10B981"/>
+    <SolidColorBrush x:Key="StatusWarn" Color="#F59E0B"/>
+    <SolidColorBrush x:Key="StatusCrit" Color="#EF4444"/>
+</ResourceDictionary>
