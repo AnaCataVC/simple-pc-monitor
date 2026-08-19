@@ -1,9 +1,10 @@
-# Automated Binary & Health Tests for Simple PC Monitor (C# Standalone Edition)
-# Validates binary integrity, memory working set, responsiveness, and startup latency.
+# Automated Binary & Health Tests for Simple PC Monitor (C# Standalone & Setup Edition)
+# Validates binary integrity, memory working set, responsiveness, and interactive core modules.
 
 $testsRoot = $PSScriptRoot
 $projectRoot = Split-Path $testsRoot -Parent
 $exePath = Join-Path (Join-Path $projectRoot "releases") "SimplePCMonitor.exe"
+$setupPath = Join-Path (Join-Path $projectRoot "releases") "SimplePCMonitor-Setup.exe"
 
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Running Simple PC Monitor Native Health Tests  " -ForegroundColor Cyan
@@ -15,7 +16,7 @@ $failed = 0
 function Assert-Test([string]$Name, [scriptblock]$TestBlock) {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        $result = & $TestBlock
+        $result = [bool](& $TestBlock)
         $sw.Stop()
         if ($result -eq $true) {
             Write-Host "  [PASS] $Name ($($sw.ElapsedMilliseconds) ms)" -ForegroundColor Green
@@ -58,6 +59,112 @@ Assert-Test "Process: Launches cleanly and responds on UI thread" {
 Assert-Test "Brand Asset: icon.ico exists in project root" {
     $icoPath = Join-Path $projectRoot "icon.ico"
     return (Test-Path $icoPath)
+}
+
+# 4. Test Core Assembly Types Reflection
+Assert-Test "Architecture: Core classes loadable via reflection" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    
+    $types = @(
+        "SimplePCMonitor.Core.PowerPlanManager",
+        "SimplePCMonitor.Core.ProcessManager",
+        "SimplePCMonitor.Core.ProcessMetadataCache",
+        "SimplePCMonitor.Core.SafeTempCleaner",
+        "SimplePCMonitor.Core.MemoryOptimizer",
+        "SimplePCMonitor.Core.SnapshotExporter",
+        "SimplePCMonitor.Core.DxgiHelper",
+        "SimplePCMonitor.Core.SetupApiHelper",
+        "SimplePCMonitor.Core.WindowsAcceleratorEngine",
+        "SimplePCMonitor.Core.LocalizationManager",
+        "SimplePCMonitor.Modules.GpuCollector",
+        "SimplePCMonitor.Modules.NpuCollector",
+        "SimplePCMonitor.Modules.StartupCollector",
+        "SimplePCMonitor.UI.ProcessDetailsWindow"
+    )
+
+    foreach ($t in $types) {
+        $found = $asm.GetType($t)
+        if (-not $found) { 
+            Write-Host "         -> Missing type: $t" -ForegroundColor Red
+            return $false 
+        }
+    }
+    return $true
+}
+
+# 5. Test Bilingual Localization Manager
+Assert-Test "Localization: Provides consistent strings for ES and EN" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $locType = $asm.GetType("SimplePCMonitor.Core.LocalizationManager")
+    $getMethod = $locType.GetMethods() | Where-Object { $_.Name -eq "Get" } | Select-Object -First 1
+    
+    $esTrim = $getMethod.Invoke($null, @("TrimRam", "es"))
+    $enTrim = $getMethod.Invoke($null, @("TrimRam", "en"))
+    $esGpu = $getMethod.Invoke($null, @("CardGpuTitle", "es"))
+    $enGpu = $getMethod.Invoke($null, @("CardGpuTitle", "en"))
+
+    Write-Host "         -> esTrim: '$esTrim', enTrim: '$enTrim', esGpu: '$esGpu', enGpu: '$enGpu'" -ForegroundColor Gray
+
+    $esOk = ($esTrim -eq "Optimizar RAM" -and $esGpu.StartsWith("GR"))
+    $enOk = ($enTrim -eq "Trim RAM" -and $enGpu -eq "GPU")
+
+    return ($esOk -and $enOk)
+}
+
+# 6. Test Process Metadata Cache Resolution
+Assert-Test "Process Metadata: Resolves friendly names and company signatures" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $cacheType = $asm.GetType("SimplePCMonitor.Core.ProcessMetadataCache")
+    
+    $metaSvchost = $cacheType.GetMethod("GetMetadata").Invoke($null, @(0, "svchost"))
+    $metaMcAfee  = $cacheType.GetMethod("GetMetadata").Invoke($null, @(0, "mc-fw-host"))
+    $metaChrome  = $cacheType.GetMethod("GetMetadata").Invoke($null, @(0, "chrome"))
+
+    $svcOk   = ($metaSvchost.FriendlyName -eq "Host Process for Windows Services")
+    $mcOk    = ($metaMcAfee.FriendlyName -eq "McAfee Core Firewall Host")
+    $chrOk   = ($metaChrome.FriendlyName -eq "Google Chrome")
+
+    return ($svcOk -and $mcOk -and $chrOk)
+}
+
+# 7. Test Process Protection Blacklist Logic
+Assert-Test "Security: Protected process blacklist blocks system processes" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $procMgr = $asm.GetType("SimplePCMonitor.Core.ProcessManager")
+    
+    $isCsrssProtected = $procMgr.GetMethod("IsProtected").Invoke($null, @("csrss"))
+    $isSvchostProtected = $procMgr.GetMethod("IsProtected").Invoke($null, @("svchost"))
+    $isNotepadProtected = $procMgr.GetMethod("IsProtected").Invoke($null, @("notepad"))
+
+    return ($isCsrssProtected -eq $true -and $isSvchostProtected -eq $true -and $isNotepadProtected -eq $false)
+}
+
+# 8. Test DxgiHelper & SetupApiHelper
+Assert-Test "Accelerators: DxgiHelper enumerates physical/integrated GPU" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $dxgiType = $asm.GetType("SimplePCMonitor.Core.DxgiHelper")
+    $adapters = $dxgiType.GetMethod("GetAdapters").Invoke($null, $null)
+    return ($adapters.Count -gt 0)
+}
+
+Assert-Test "Accelerators: SetupApiHelper probes NPU without throwing" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $setupType = $asm.GetType("SimplePCMonitor.Core.SetupApiHelper")
+    $npus = $setupType.GetMethod("GetNpuDevices").Invoke($null, $null)
+    return ($npus -ne $null)
+}
+
+# 9. Test Setup Wizard Executable
+Assert-Test "Installer: SimplePCMonitor-Setup.exe exists and is valid" {
+    if (-not (Test-Path $setupPath)) { return $false }
+    $file = Get-Item $setupPath
+    return ($file.Length -gt 200000)
 }
 
 Write-Host "=================================================" -ForegroundColor Cyan
