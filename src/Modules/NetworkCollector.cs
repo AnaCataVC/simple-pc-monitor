@@ -1,6 +1,7 @@
 using System;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using SimplePCMonitor.Models;
 
 namespace SimplePCMonitor.Modules
@@ -12,10 +13,54 @@ namespace SimplePCMonitor.Modules
         private DateTime _prevTimestamp;
         private bool _initialized;
 
+        private long _lastLatencyMs = -1;
+        private bool _isPingRunning;
+
         public NetworkCollector()
         {
             _prevTimestamp = DateTime.UtcNow;
             Sample();
+        }
+
+        private void TriggerAsyncPing()
+        {
+            if (_isPingRunning) return;
+            _isPingRunning = true;
+
+            Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    using (var ping = new Ping())
+                    {
+                        var reply = ping.Send("1.1.1.1", 1200);
+                        if (reply != null && reply.Status == IPStatus.Success)
+                        {
+                            _lastLatencyMs = reply.RoundtripTime;
+                        }
+                        else
+                        {
+                            var replyFallback = ping.Send("8.8.8.8", 1200);
+                            if (replyFallback != null && replyFallback.Status == IPStatus.Success)
+                            {
+                                _lastLatencyMs = replyFallback.RoundtripTime;
+                            }
+                            else
+                            {
+                                _lastLatencyMs = -1;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    _lastLatencyMs = -1;
+                }
+                finally
+                {
+                    _isPingRunning = false;
+                }
+            });
         }
 
         public NetworkMetric Sample()
@@ -63,6 +108,11 @@ namespace SimplePCMonitor.Modules
             }
             catch { }
 
+            // Trigger background ping periodically
+            TriggerAsyncPing();
+
+            string pingDisplay = _lastLatencyMs >= 0 ? string.Format("{0} ms", _lastLatencyMs) : "-- ms";
+
             if (!_initialized)
             {
                 _prevRxBytes = totalRx;
@@ -79,7 +129,9 @@ namespace SimplePCMonitor.Modules
                     TotalRxGB         = Math.Round((double)totalRx / (1024.0 * 1024.0 * 1024.0), 2),
                     TotalTxGB         = Math.Round((double)totalTx / (1024.0 * 1024.0 * 1024.0), 2),
                     AdapterName       = primaryAdapter,
-                    IPv4Address       = primaryIp
+                    IPv4Address       = primaryIp,
+                    LatencyMs         = _lastLatencyMs,
+                    PingDisplay       = pingDisplay
                 };
             }
 
@@ -108,7 +160,9 @@ namespace SimplePCMonitor.Modules
                 TotalRxGB         = Math.Round((double)totalRx / (1024.0 * 1024.0 * 1024.0), 2),
                 TotalTxGB         = Math.Round((double)totalTx / (1024.0 * 1024.0 * 1024.0), 2),
                 AdapterName       = primaryAdapter,
-                IPv4Address       = primaryIp
+                IPv4Address       = primaryIp,
+                LatencyMs         = _lastLatencyMs,
+                PingDisplay       = pingDisplay
             };
         }
     }

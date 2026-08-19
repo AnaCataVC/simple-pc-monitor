@@ -12,6 +12,7 @@ namespace SimplePCMonitor.Modules
         private string _osBuild;
         private string _cpuModel;
         private string _gpuModel;
+        private string _npuModel;
         private bool _staticLoaded;
 
         public HardwareCollector()
@@ -21,6 +22,7 @@ namespace SimplePCMonitor.Modules
             _osBuild = "";
             _cpuModel = "";
             _gpuModel = "";
+            _npuModel = "";
             LoadStaticInfo();
         }
 
@@ -59,8 +61,33 @@ namespace SimplePCMonitor.Modules
             }
             catch { }
 
+            try
+            {
+                var adapters = DxgiHelper.GetAdapters();
+                foreach (var a in adapters)
+                {
+                    if (!a.IsSoftware)
+                    {
+                        _gpuModel = a.Description;
+                        break;
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                var npus = SetupApiHelper.GetNpuDevices();
+                if (npus.Count > 0)
+                {
+                    _npuModel = npus[0].Name;
+                }
+            }
+            catch { }
+
             if (string.IsNullOrEmpty(_cpuModel)) _cpuModel = "x64 Processor";
             if (string.IsNullOrEmpty(_gpuModel)) _gpuModel = "Integrated / Discrete GPU";
+            if (string.IsNullOrEmpty(_npuModel)) _npuModel = "None (Not Detected)";
 
             _staticLoaded = true;
         }
@@ -95,6 +122,7 @@ namespace SimplePCMonitor.Modules
                 OsBuild        = _osBuild,
                 CpuModel       = _cpuModel,
                 GpuModel       = _gpuModel,
+                NpuModel       = _npuModel,
                 HasBattery     = hasBattery,
                 BatteryPercent = batteryPercent,
                 IsCharging     = isCharging,

@@ -37,6 +37,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Xaml">
@@ -71,6 +72,18 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="UI\Themes\PastelNeon.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\Themes\PastelRose.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\ProcessDetailsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -79,17 +92,38 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="UI\ProcessDetailsWindow.xaml.cs">
+      <DependentUpon>ProcessDetailsWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Core\NativeMethods.cs" />
+    <Compile Include="Core\WindowPlacementHelper.cs" />
+    <Compile Include="Core\DxgiHelper.cs" />
+    <Compile Include="Core\SetupApiHelper.cs" />
+    <Compile Include="Core\WindowsAcceleratorEngine.cs" />
     <Compile Include="Core\ConfigManager.cs" />
+    <Compile Include="Core\LocalizationManager.cs" />
     <Compile Include="Core\ToolLauncher.cs" />
+    <Compile Include="Core\PowerPlanManager.cs" />
+    <Compile Include="Core\ProcessManager.cs" />
+    <Compile Include="Core\ProcessMetadataCache.cs" />
+    <Compile Include="Core\SafeTempCleaner.cs" />
+    <Compile Include="Core\MemoryOptimizer.cs" />
+    <Compile Include="Core\SnapshotExporter.cs" />
+    <Compile Include="Core\TrayManager.cs" />
+    <Compile Include="Core\StartupHelper.cs" />
     <Compile Include="Models\SystemMetrics.cs" />
     <Compile Include="Modules\CpuCollector.cs" />
+    <Compile Include="Modules\GpuCollector.cs" />
+    <Compile Include="Modules\NpuCollector.cs" />
     <Compile Include="Modules\MemoryCollector.cs" />
     <Compile Include="Modules\DiskCollector.cs" />
     <Compile Include="Modules\NetworkCollector.cs" />
     <Compile Include="Modules\ProcessCollector.cs" />
     <Compile Include="Modules\ServiceCollector.cs" />
     <Compile Include="Modules\HardwareCollector.cs" />
+    <Compile Include="Modules\StartupCollector.cs" />
+    <Compile Include="Modules\TaskCollector.cs" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="..\icon.png">

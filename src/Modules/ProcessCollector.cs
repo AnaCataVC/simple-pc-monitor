@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SimplePCMonitor.Core;
 using SimplePCMonitor.Models;
 
 namespace SimplePCMonitor.Modules
@@ -34,14 +35,27 @@ namespace SimplePCMonitor.Modules
                         int threads = 0;
                         try { threads = p.Threads.Count; } catch { }
 
+                        bool isProtected = ProcessManager.IsProtected(p.ProcessName);
+                        bool isHeavy = memPercent >= 15.0;
+
+                        var meta = ProcessMetadataCache.GetMetadata(p.Id, p.ProcessName);
+                        string winTitle = string.Empty;
+                        try { winTitle = p.MainWindowTitle; } catch { }
+
                         results.Add(new ProcessMetric
                         {
-                            Id            = p.Id,
-                            Name          = p.ProcessName,
-                            MemoryMB      = memMB,
-                            MemoryDisplay = string.Format("{0:N1} MB", memMB),
-                            MemoryPercent = memPercent,
-                            Threads       = threads
+                            Id              = p.Id,
+                            Name            = p.ProcessName,
+                            FriendlyName    = meta.FriendlyName,
+                            CompanyName     = meta.CompanyName,
+                            ExecutablePath  = meta.ExecutablePath,
+                            WindowTitle     = winTitle,
+                            MemoryMB        = memMB,
+                            MemoryDisplay   = string.Format("{0:N1} MB", memMB),
+                            MemoryPercent   = memPercent,
+                            Threads         = threads,
+                            IsProtected     = isProtected,
+                            IsHeavyConsumer = isHeavy
                         });
                     }
                     catch { }
