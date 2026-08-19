@@ -6,14 +6,33 @@
         <Setter Property="Background" Value="{DynamicResource BgCard}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderCard}"/>
         <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="Margin" Value="4"/>
+    </Style>
+
+    <!-- Bento Hardware Card Style -->
+    <Style x:Key="BentoCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource BgCard}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderCard}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Margin" Value="3"/>
+    </Style>
+
+    <!-- Floating Widget Container Style -->
+    <Style x:Key="WidgetCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource BgApp}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderCard}"/>
+        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="12"/>
-        <Setter Property="Padding" Value="14"/>
-        <Setter Property="Margin" Value="6"/>
+        <Setter Property="Padding" Value="10,6"/>
     </Style>
 
     <!-- Modern Rounded ProgressBar -->
     <Style x:Key="PastelProgressBarStyle" TargetType="ProgressBar">
-        <Setter Property="Height" Value="6"/>
+        <Setter Property="Height" Value="5"/>
         <Setter Property="Minimum" Value="0"/>
         <Setter Property="Maximum" Value="100"/>
         <Setter Property="Background" Value="{DynamicResource BgControl}"/>
@@ -22,8 +41,27 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ProgressBar">
                     <Grid>
-                        <Border Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="3"/>
-                        <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="3" HorizontalAlignment="Left"/>
+                        <Border Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="2.5"/>
+                        <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="2.5" HorizontalAlignment="Left"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Micro-Meter ProgressBar for Widget Mode -->
+    <Style x:Key="MicroProgressBarStyle" TargetType="ProgressBar">
+        <Setter Property="Height" Value="3"/>
+        <Setter Property="Minimum" Value="0"/>
+        <Setter Property="Maximum" Value="100"/>
+        <Setter Property="Background" Value="{DynamicResource BgControl}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="1.5"/>
+                        <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="1.5" HorizontalAlignment="Left"/>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
@@ -49,13 +87,13 @@
         </Setter>
     </Style>
 
-    <!-- Tool Launcher Quick Action Button -->
+    <!-- Ribbon Quick Action Button Style -->
     <Style x:Key="QuickActionButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource BgControl}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="10,6"/>
-        <Setter Property="Margin" Value="3,0"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="Margin" Value="2,0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontSize" Value="11"/>
@@ -70,6 +108,64 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
                         </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource BgControlActive}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Small Pill Action Button -->
+    <Style x:Key="PillActionButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource BgControl}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Margin" Value="1,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Name="pillBorder" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="pillBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Segmented Mode / Power Pill Button -->
+    <Style x:Key="SegmentedPillButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="7,3"/>
+        <Setter Property="Margin" Value="1,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Name="sBorder" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="sBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -81,10 +177,10 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="12,6"/>
-        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Padding" Value="9,4"/>
+        <Setter Property="Margin" Value="1.5,0"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontSize" Value="10.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -94,7 +190,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource BgControl}"/>
+                            <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
                             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
@@ -103,13 +199,39 @@
         </Setter>
     </Style>
 
-    <!-- Window Control Button (Min/Close) -->
-    <Style x:Key="WindowControlButtonStyle" TargetType="Button">
+    <!-- Active Tab Header Button Style -->
+    <Style x:Key="ActiveTabHeaderButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource BgControl}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentCpu}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="9,4"/>
+        <Setter Property="Margin" Value="1.5,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="10.5"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Name="tabBorder" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Window Caption Button Style (Minimize / Maximize / Pin) -->
+    <Style x:Key="WindowCaptionButtonStyle" TargetType="Button">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Width" Value="32"/>
-        <Setter Property="Height" Value="28"/>
+        <Setter Property="Height" Value="26"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -121,6 +243,152 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="wBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
                             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Window Close Button Style (Windows Red Hover) -->
+    <Style x:Key="WindowCloseButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Name="closeBorder" Background="{TemplateBinding Background}" CornerRadius="4">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="closeBorder" Property="Background" Value="#E81123"/>
+                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Legacy Style alias for WindowControlButtonStyle -->
+    <Style x:Key="WindowControlButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowCaptionButtonStyle}"/>
+
+    <!-- Context Menu Style -->
+    <Style TargetType="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource BgCard}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderCard}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Padding" Value="4"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="16" ShadowDepth="4" Opacity="0.4" Color="#000000"/>
+                        </Border.Effect>
+                        <StackPanel IsItemsHost="True"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Menu Item Style -->
+    <Style TargetType="MenuItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border Name="mBorder" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter Grid.Column="0" ContentSource="Icon" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                            <!-- Check indicator for IsCheckable items -->
+                            <Border Name="CheckBadge" Grid.Column="2" 
+                                    Background="#267EE7B8" 
+                                    BorderBrush="{DynamicResource StatusOk}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="8" 
+                                    Padding="5,1,6,1" 
+                                    VerticalAlignment="Center" 
+                                    Margin="8,0,2,0" 
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M 0,3.5 L 3,6.5 L 8.5,1" 
+                                          Stroke="{DynamicResource StatusOk}" 
+                                          StrokeThickness="2" 
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Width="9" Height="8" 
+                                          VerticalAlignment="Center" 
+                                          Margin="0,0,3,0"/>
+                                    <TextBlock Text="ON" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusOk}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Arrow for submenu headers -->
+                            <Path Name="SubmenuArrow" Grid.Column="2"
+                                  Data="M 0,0 L 4,4 L 0,8"
+                                  Stroke="{DynamicResource TextSecondary}"
+                                  StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  Width="6" Height="8"
+                                  VerticalAlignment="Center"
+                                  Margin="8,0,2,0"
+                                  Visibility="Collapsed"/>
+
+                            <!-- Submenu Popup -->
+                            <Popup Name="SubMenuPopup" AllowsTransparency="True" Placement="Right" 
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}" 
+                                   Focusable="False" PopupAnimation="Fade">
+                                <Border Background="{DynamicResource BgCard}"
+                                        BorderBrush="{DynamicResource BorderCard}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="4">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="16" ShadowDepth="4" Opacity="0.4" Color="#000000"/>
+                                    </Border.Effect>
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="HasItems" Value="True">
+                            <Setter TargetName="SubmenuArrow" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckBadge" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="mBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

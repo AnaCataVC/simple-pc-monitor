@@ -7,6 +7,7 @@
     <SolidColorBrush x:Key="BgCardHover" Color="#F8FAFC"/>
     <SolidColorBrush x:Key="BgControl" Color="#EDF2F7"/>
     <SolidColorBrush x:Key="BgControlHover" Color="#E2E8F0"/>
+    <SolidColorBrush x:Key="BgControlActive" Color="#CBD5E1"/>
 
     <!-- Borders -->
     <SolidColorBrush x:Key="BorderCard" Color="#E2E8F0"/>
@@ -19,9 +20,17 @@
 
     <!-- Accents (Pastel Spectrum Light) -->
     <SolidColorBrush x:Key="AccentCpu" Color="#6366F1"/>
-    <SolidColorBrush x:Key="AccentMem" Color="#8B5CF6"/>
+    <SolidColorBrush x:Key="AccentCpuAlpha" Color="#226366F1"/>
+    <SolidColorBrush x:Key="AccentGpu" Color="#0284C7"/>
+    <SolidColorBrush x:Key="AccentGpuAlpha" Color="#220284C7"/>
+    <SolidColorBrush x:Key="AccentNpu" Color="#8B5CF6"/>
+    <SolidColorBrush x:Key="AccentNpuAlpha" Color="#228B5CF6"/>
+    <SolidColorBrush x:Key="AccentMem" Color="#D97706"/>
+    <SolidColorBrush x:Key="AccentMemAlpha" Color="#22D97706"/>
     <SolidColorBrush x:Key="AccentDisk" Color="#0EA5E9"/>
+    <SolidColorBrush x:Key="AccentDiskAlpha" Color="#220EA5E9"/>
     <SolidColorBrush x:Key="AccentNet" Color="#10B981"/>
+    <SolidColorBrush x:Key="AccentNetAlpha" Color="#2210B981"/>
     <SolidColorBrush x:Key="AccentHardware" Color="#D97706"/>
 
     <!-- Health / Status -->

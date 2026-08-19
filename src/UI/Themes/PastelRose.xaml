@@ -1,0 +1,40 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Backgrounds -->
+    <SolidColorBrush x:Key="BgApp" Color="#181318"/>
+    <SolidColorBrush x:Key="BgSurface" Color="#221B23"/>
+    <SolidColorBrush x:Key="BgCard" Color="#2B222D"/>
+    <SolidColorBrush x:Key="BgCardHover" Color="#372C3A"/>
+    <SolidColorBrush x:Key="BgControl" Color="#3F3242"/>
+    <SolidColorBrush x:Key="BgControlHover" Color="#4E3E52"/>
+    <SolidColorBrush x:Key="BgControlActive" Color="#5F4B63"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="BorderCard" Color="#47384A"/>
+    <SolidColorBrush x:Key="BorderSubtle" Color="#302633"/>
+
+    <!-- Typography -->
+    <SolidColorBrush x:Key="TextPrimary" Color="#FFF0F5"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#E8B4CB"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#997387"/>
+
+    <!-- Accents (Pastel Rose / Sakura & Matcha) -->
+    <SolidColorBrush x:Key="AccentCpu" Color="#FF8DA1"/>
+    <SolidColorBrush x:Key="AccentCpuAlpha" Color="#22FF8DA1"/>
+    <SolidColorBrush x:Key="AccentGpu" Color="#A8E6CF"/>
+    <SolidColorBrush x:Key="AccentGpuAlpha" Color="#22A8E6CF"/>
+    <SolidColorBrush x:Key="AccentNpu" Color="#F4A6CD"/>
+    <SolidColorBrush x:Key="AccentNpuAlpha" Color="#22F4A6CD"/>
+    <SolidColorBrush x:Key="AccentMem" Color="#FFD3B6"/>
+    <SolidColorBrush x:Key="AccentMemAlpha" Color="#22FFD3B6"/>
+    <SolidColorBrush x:Key="AccentDisk" Color="#FFAAA5"/>
+    <SolidColorBrush x:Key="AccentDiskAlpha" Color="#22FFAAA5"/>
+    <SolidColorBrush x:Key="AccentNet" Color="#DCEDC1"/>
+    <SolidColorBrush x:Key="AccentNetAlpha" Color="#22DCEDC1"/>
+    <SolidColorBrush x:Key="AccentHardware" Color="#FFD3B6"/>
+
+    <!-- Health / Status -->
+    <SolidColorBrush x:Key="StatusOk" Color="#A8E6CF"/>
+    <SolidColorBrush x:Key="StatusWarn" Color="#FFD3B6"/>
+    <SolidColorBrush x:Key="StatusCrit" Color="#FF8DA1"/>
+</ResourceDictionary>

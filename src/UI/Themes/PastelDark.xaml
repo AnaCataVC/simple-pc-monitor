@@ -1,27 +1,36 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Backgrounds -->
-    <SolidColorBrush x:Key="BgApp" Color="#12131A"/>
-    <SolidColorBrush x:Key="BgSurface" Color="#1A1C26"/>
-    <SolidColorBrush x:Key="BgCard" Color="#212433"/>
-    <SolidColorBrush x:Key="BgCardHover" Color="#2A2E40"/>
-    <SolidColorBrush x:Key="BgControl" Color="#2D3245"/>
-    <SolidColorBrush x:Key="BgControlHover" Color="#3A3F55"/>
+    <SolidColorBrush x:Key="BgApp" Color="#10121A"/>
+    <SolidColorBrush x:Key="BgSurface" Color="#181B26"/>
+    <SolidColorBrush x:Key="BgCard" Color="#1F2333"/>
+    <SolidColorBrush x:Key="BgCardHover" Color="#282D42"/>
+    <SolidColorBrush x:Key="BgControl" Color="#2A2F45"/>
+    <SolidColorBrush x:Key="BgControlHover" Color="#383F5C"/>
+    <SolidColorBrush x:Key="BgControlActive" Color="#434B6E"/>
 
     <!-- Borders -->
-    <SolidColorBrush x:Key="BorderCard" Color="#2E3348"/>
-    <SolidColorBrush x:Key="BorderSubtle" Color="#232738"/>
+    <SolidColorBrush x:Key="BorderCard" Color="#2D334A"/>
+    <SolidColorBrush x:Key="BorderSubtle" Color="#222738"/>
 
     <!-- Typography -->
     <SolidColorBrush x:Key="TextPrimary" Color="#F2F5FB"/>
     <SolidColorBrush x:Key="TextSecondary" Color="#8F97B2"/>
-    <SolidColorBrush x:Key="TextMuted" Color="#606884"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#5D6582"/>
 
     <!-- Accents (Pastel Spectrum) -->
     <SolidColorBrush x:Key="AccentCpu" Color="#93A8FD"/>
-    <SolidColorBrush x:Key="AccentMem" Color="#BBA3F9"/>
-    <SolidColorBrush x:Key="AccentDisk" Color="#7AE5F5"/>
-    <SolidColorBrush x:Key="AccentNet" Color="#7EE7B8"/>
+    <SolidColorBrush x:Key="AccentCpuAlpha" Color="#2293A8FD"/>
+    <SolidColorBrush x:Key="AccentGpu" Color="#7AE5F5"/>
+    <SolidColorBrush x:Key="AccentGpuAlpha" Color="#227AE5F5"/>
+    <SolidColorBrush x:Key="AccentNpu" Color="#BBA3F9"/>
+    <SolidColorBrush x:Key="AccentNpuAlpha" Color="#22BBA3F9"/>
+    <SolidColorBrush x:Key="AccentMem" Color="#FFC371"/>
+    <SolidColorBrush x:Key="AccentMemAlpha" Color="#22FFC371"/>
+    <SolidColorBrush x:Key="AccentDisk" Color="#7EE7B8"/>
+    <SolidColorBrush x:Key="AccentDiskAlpha" Color="#227EE7B8"/>
+    <SolidColorBrush x:Key="AccentNet" Color="#68D391"/>
+    <SolidColorBrush x:Key="AccentNetAlpha" Color="#2268D391"/>
     <SolidColorBrush x:Key="AccentHardware" Color="#FBD38D"/>
 
     <!-- Health / Status -->
