@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="pastel-dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple PC Monitor • Monitor de Sistema Ligero para Windows</title>
+  <meta name="description" content="Monitor de recursos nativo en C# WPF para Windows 10 y 11. 585 KB standalone, telemetría Win32 en sub-milisegundos, gestión segura de procesos y conmutador de energía.">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand-link">
+        <img src="icon.png" alt="Simple PC Monitor Icon" class="brand-icon">
+        <span class="brand-text">Simple PC Monitor</span>
+        <span class="brand-badge">v1.1.0</span>
+      </div>
+
+      <ul class="nav-menu">
+        <li><a href="#features" class="nav-link" data-i18n="nav_features">Características</a></li>
+        <li><a href="#specs" class="nav-link" data-i18n="nav_specs">Especificaciones</a></li>
+        <li><a href="#downloads" class="nav-link" data-i18n="nav_downloads">Descargas</a></li>
+        <li><a href="#faq" class="nav-link" data-i18n="nav_faq">FAQ</a></li>
+      </ul>
+
+      <div class="header-actions">
+        <!-- Language Toggle Button (No Flags) -->
+        <button id="lang-toggle-btn" class="lang-btn" aria-label="Cambiar idioma">EN</button>
+
+        <!-- GitHub Repository Link -->
+        <a href="https://github.com/AnaCataVC/simple-pc-monitor" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" aria-label="Repositorio en GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+        <!-- CTA Nav -->
+        <a href="#downloads" class="btn btn-primary btn-sm" data-i18n="btn_download_nav">Descargar v1.1.0</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="container">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+            </svg>
+            <span data-i18n="hero_badge">Versión 1.1.0 • 585 KB Standalone</span>
+          </div>
+
+          <h1 class="hero-title" data-i18n="hero_title">Monitor ultra ligero para Windows</h1>
+          <p class="hero-subtitle" data-i18n="hero_subtitle">Telemetría en tiempo real, gestión de procesos, optimizador de memoria RAM y control de planes de energía en un único ejecutable sin dependencias.</p>
+
+          <div class="hero-actions">
+            <a href="releases/SimplePCMonitor-Setup.exe" class="btn btn-primary btn-lg" download>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span data-i18n="btn_setup">Descargar Instalador (.exe)</span>
+            </a>
+            <a href="releases/SimplePCMonitor.exe" class="btn btn-secondary btn-lg" download>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span data-i18n="btn_standalone">Ejecutable Standalone (585 KB)</span>
+            </a>
+            <a href="releases/Simple-PC-Monitor-v1.1.0-Portable.zip" class="btn btn-secondary btn-lg" download>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                <rect x="1" y="3" width="22" height="5"></rect>
+                <line x1="10" y1="12" x2="14" y2="12"></line>
+              </svg>
+              <span data-i18n="btn_portable_zip">Portable ZIP (1.9 MB)</span>
+            </a>
+          </div>
+
+          <div class="hero-highlights">
+            <div class="highlight-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span data-i18n="hl_no_install">Sin instalación requerida</span>
+            </div>
+            <div class="highlight-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span data-i18n="hl_low_cpu">0.0% CPU en reposo</span>
+            </div>
+            <div class="highlight-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span data-i18n="hl_win_compat">Windows 10 / 11 Nativo</span>
+            </div>
+            <div class="highlight-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span data-i18n="hl_mit">100% Código Abierto (MIT)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Features Section -->
+    <section id="features" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag" data-i18n="feat_tag">Capacidades Nativas</span>
+          <h2 class="section-title" data-i18n="feat_title">Diseñado para máximo rendimiento sin sobrecarga</h2>
+          <p class="section-desc" data-i18n="feat_desc">Sin Electron, sin WebViews y sin frameworks pesados. C# y XAML puro compilado para Windows.</p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Feature 1 -->
+          <div class="feature-card">
+            <div class="feature-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+                <line x1="20" y1="9" x2="23" y2="9"></line>
+                <line x1="20" y1="14" x2="23" y2="14"></line>
+                <line x1="1" y1="9" x2="4" y2="9"></line>
+                <line x1="1" y1="14" x2="4" y2="14"></line>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="feat1_title">Telemetría Win32 P/Invoke</h3>
+            <p class="feature-text" data-i18n="feat1_desc">Cálculos delta de alta precisión con GetSystemTimes y GlobalMemoryStatusEx con lectura en menos de 1 ms.</p>
+            <span class="feature-badge">kernel32.dll / PInvoke</span>
+          </div>
+
+          <!-- Feature 2 -->
+          <div class="feature-card">
+            <div class="feature-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="feat2_title">Inspector 360° de Procesos</h3>
+            <p class="feature-text" data-i18n="feat2_desc">Nombres descriptivos reales, rutas de binarios y protección con lista negra para evitar cerrar procesos vitales del sistema operativo.</p>
+            <span class="feature-badge">Blacklist Protection</span>
+          </div>
+
+          <!-- Feature 3 -->
+          <div class="feature-card">
+            <div class="feature-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="feat3_title">Conmutador de Energía Win32</h3>
+            <p class="feature-text" data-i18n="feat3_desc">Cambio instantáneo de planes de energía (Equilibrado, Alto Rendimiento, Ahorro) en 0.01 ms sin requerir permisos de Administrador.</p>
+            <span class="feature-badge">powrprof.dll / 0ms UAC</span>
+          </div>
+
+          <!-- Feature 4 -->
+          <div class="feature-card">
+            <div class="feature-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="feat4_title">Limpiador Temp & RAM Optimizer</h3>
+            <p class="feature-text" data-i18n="feat4_desc">Limpieza segura de archivos temporales antiguos (>24h) y vaciado de páginas en desuso con EmptyWorkingSet.</p>
+            <span class="feature-badge">Safe WorkingSet Trim</span>
+          </div>
+
+          <!-- Feature 5 -->
+          <div class="feature-card">
+            <div class="feature-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="feat5_title">Ping ICMP & Monitoreo de Discos</h3>
+            <p class="feature-text" data-i18n="feat5_desc">Medición constante de latencia de red y soporte para múltiples unidades y particiones de disco en tiempo real.</p>
+            <span class="feature-badge">Non-blocking ICMP</span>
+          </div>
+
+          <!-- Feature 6 -->
+          <div class="feature-card">
+            <div class="feature-icon-box">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"></circle>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="feat6_title">4 Temas & 3 Modos de Ventana</h3>
+            <p class="feature-text" data-i18n="feat6_desc">Personaliza la interfaz con temas Pastel Dark, Pastel Light, Cyberpunk Neon y Sakura Rose, conmutables en 1 clic.</p>
+            <span class="feature-badge">Vector XAML Tokens</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Downloads Section -->
+    <section id="downloads" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag" data-i18n="dl_tag">Descarga Gratuita</span>
+          <h2 class="section-title" data-i18n="dl_title">Elige la edición ideal para tu equipo</h2>
+          <p class="section-desc" data-i18n="dl_desc">Todos los paquetes son 100% gratuitos, seguros y libres de software publicitario.</p>
+        </div>
+
+        <div class="downloads-grid">
+          <!-- Setup Installer -->
+          <div class="download-card featured">
+            <div class="card-ribbon" data-i18n="dl_card1_tag">Recomendado</div>
+            <div>
+              <h3 class="download-type" data-i18n="dl_card1_title">Instalador Guiado</h3>
+              <div class="download-size">1.1 MB</div>
+              <p class="download-info" data-i18n="dl_card1_info">Instalación estándar con accesos directos en el menú inicio y escritorio.</p>
+              <ul class="download-specs">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Instalador oficial de Windows (.exe)
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Desinstalador integrado en Panel de Control
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Soporte multilingüe (ES / EN)
+                </li>
+              </ul>
+            </div>
+            <a href="releases/SimplePCMonitor-Setup.exe" class="btn btn-primary" download data-i18n="btn_download">Descargar Ahora</a>
+          </div>
+
+          <!-- Standalone Binary -->
+          <div class="download-card">
+            <div class="card-ribbon" data-i18n="dl_card2_tag">El más popular</div>
+            <div>
+              <h3 class="download-type" data-i18n="dl_card2_title">Standalone .EXE</h3>
+              <div class="download-size">585 KB</div>
+              <p class="download-info" data-i18n="dl_card2_info">Un solo archivo ejecutable de 585 KB. Llévalo en una memoria USB y ejecútalo sin instalar.</p>
+              <ul class="download-specs">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Cero instalación ni extracción previa
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Ultra-portátil (585 Kilobytes)
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  No requiere permisos de Administrador
+                </li>
+              </ul>
+            </div>
+            <a href="releases/SimplePCMonitor.exe" class="btn btn-secondary" download data-i18n="btn_download">Descargar Ahora</a>
+          </div>
+
+          <!-- Portable ZIP -->
+          <div class="download-card">
+            <div class="card-ribbon" data-i18n="dl_card3_tag">Completo</div>
+            <div>
+              <h3 class="download-type" data-i18n="dl_card3_title">Portable ZIP</h3>
+              <div class="download-size">1.9 MB</div>
+              <p class="download-info" data-i18n="dl_card3_info">Incluye todos los ensamblados y recursos de idioma (Español e Inglés) empaquetados.</p>
+              <ul class="download-specs">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Paquete comprimido autónomo (.zip)
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Ensamblados satélite localizados (es/)
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Archivos de documentación incluidos
+                </li>
+              </ul>
+            </div>
+            <a href="releases/Simple-PC-Monitor-v1.1.0-Portable.zip" class="btn btn-secondary" download data-i18n="btn_download">Descargar Ahora</a>
+          </div>
+        </div>
+
+        <!-- Security Guarantee Banner -->
+        <div class="security-banner">
+          <div class="security-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 style="margin-bottom: 8px;" data-i18n="sec_title">Garantía de Seguridad y Privacidad</h3>
+            <p data-i18n="sec_desc">Simple PC Monitor no recopila datos, no se conecta a servidores externos para analíticas y no instala servicios en segundo plano. Código 100% auditable y transparente.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Specs Section -->
+    <section id="specs" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag" data-i18n="nav_specs">Especificaciones</span>
+          <h2 class="section-title" data-i18n="specs_title">Ficha Técnica y Compatibilidad</h2>
+        </div>
+
+        <div class="specs-table-wrap">
+          <table class="specs-table">
+            <thead>
+              <tr>
+                <th data-i18n="spec_h_param">Parámetro</th>
+                <th data-i18n="spec_h_val">Especificación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-i18n="spec_row1_p">Sistema Operativo</td>
+                <td data-i18n="spec_row1_v">Windows 10 (versión 1809 o superior) / Windows 11 (64-bit y 32-bit)</td>
+              </tr>
+              <tr>
+                <td data-i18n="spec_row2_p">Arquitectura</td>
+                <td data-i18n="spec_row2_v">C# / .NET Framework 4.8.1 (Nativo WPF XAML)</td>
+              </tr>
+              <tr>
+                <td data-i18n="spec_row3_p">Tamaño del Binario</td>
+                <td data-i18n="spec_row3_v">585 KB (Standalone Ejecutable único)</td>
+              </tr>
+              <tr>
+                <td data-i18n="spec_row4_p">Consumo de RAM</td>
+                <td data-i18n="spec_row4_v">~28 MB en segundo plano (optimizado)</td>
+              </tr>
+              <tr>
+                <td data-i18n="spec_row5_p">Permisos de Usuario</td>
+                <td data-i18n="spec_row5_v">Usuario estándar (No requiere elevación UAC para telemetría ni planes de energía)</td>
+              </tr>
+              <tr>
+                <td data-i18n="spec_row6_p">Licencia</td>
+                <td data-i18n="spec_row6_v">MIT License (Código abierto)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag" data-i18n="faq_tag">Dudas Habituales</span>
+          <h2 class="section-title" data-i18n="faq_title">Preguntas Frecuentes</h2>
+        </div>
+
+        <div class="faq-list">
+          <div class="faq-item active">
+            <button class="faq-question">
+              <span data-i18n="faq1_q">¿Requiere privilegios de Administrador (UAC) para funcionar?</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              <p data-i18n="faq1_a">No. Toda la telemetría de CPU, RAM, discos, red, conmutación de planes de energía y limpieza de archivos temporales de usuario opera con permisos normales de usuario estándar.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span data-i18n="faq2_q">¿Por qué el ejecutable es tan ligero (585 KB)?</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              <p data-i18n="faq2_a">A diferencia de monitores modernos construidos con Electron que empaquetan un navegador Chromium entero (>150 MB), Simple PC Monitor está compilado directamente en C# nativo utilizando las librerías integradas de Windows.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span data-i18n="faq3_q">¿Cómo protege el sistema contra el cierre accidental de procesos?</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              <p data-i18n="faq3_a">El gestor de procesos cuenta con una lista negra interna estricta que bloquea la finalización de componentes críticos como dwm.exe, csrss.exe, svchost.exe y explorer.exe.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span data-i18n="faq4_q">¿Dónde se guardan las configuraciones?</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="faq-answer">
+              <p data-i18n="faq4_a">Tus preferencias de tema, idioma y modo de visualización se guardan localmente en un archivo de configuración dentro de tu carpeta de usuario (%APPDATA%\SimplePCMonitor).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="brand-link" style="margin-bottom: 8px;">
+            <img src="icon.png" alt="Simple PC Monitor Icon" class="brand-icon">
+            <span class="brand-text">Simple PC Monitor</span>
+          </div>
+          <p data-i18n="footer_desc">Monitor de recursos y suite de control de alto rendimiento para Windows.</p>
+        </div>
+
+        <div class="footer-col">
+          <h4 data-i18n="footer_links_title">Navegación</h4>
+          <ul class="footer-links">
+            <li><a href="#features" data-i18n="nav_features">Características</a></li>
+            <li><a href="#specs" data-i18n="nav_specs">Especificaciones</a></li>
+            <li><a href="#downloads" data-i18n="nav_downloads">Descargas</a></li>
+            <li><a href="#faq" data-i18n="nav_faq">FAQ</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4 data-i18n="footer_repo_title">Comunidad & Código</h4>
+          <ul class="footer-links">
+            <li><a href="https://github.com/AnaCataVC/simple-pc-monitor" target="_blank" rel="noopener noreferrer">GitHub Repository</a></li>
+            <li><a href="https://github.com/AnaCataVC/simple-pc-monitor/releases" target="_blank" rel="noopener noreferrer">Releases & Changelog</a></li>
+            <li><a href="https://github.com/AnaCataVC/simple-pc-monitor/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Licencia MIT</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span data-i18n="footer_copy">Simple PC Monitor • Publicado bajo Licencia MIT.</span>
+        <span>Made with C# WPF & Vanilla Web</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
