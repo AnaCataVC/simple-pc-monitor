@@ -1,4 +1,4 @@
-﻿# ⚡ Simple PC Monitor — Command Center & Action Buttons Technical Manual
+# ⚡ Simple PC Monitor — Command Center & Action Buttons Technical Manual
 
 This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, and security guardrails implemented in **Simple PC Monitor v2.0.0**.
 
@@ -27,8 +27,7 @@ This document provides a comprehensive technical breakdown of the interactive co
 
 Simple PC Monitor v2.0.0 is engineered with an ** Active Command Center** philosophy:
 - **Zero Heavy Runtimes:** Executes as a single compiled C# WPF binary (<600 KB) with zero third-party dependencies.
-- **Sub-Millisecond Direct OS Integration:** Interacts directly with native Windows dynamic-link libraries (
-tdll.dll, kernel32.dll, powrprof.dll, dnsapi.dll, psapi.dll).
+- **Sub-Millisecond Direct OS Integration:** Interacts directly with native Windows dynamic-link libraries (`ntdll.dll`, `kernel32.dll`, `powrprof.dll`, `dnsapi.dll`, `psapi.dll`).
 - **Zero-Elevation Where Possible:** Critical actions like Power Plan switching, DNS flushing, memory trimming, and process suspension operate cleanly in standard user context without triggering aggressive UAC prompts.
 
 ---
@@ -37,7 +36,7 @@ tdll.dll, kernel32.dll, powrprof.dll, dnsapi.dll, psapi.dll).
 
 The following Mermaid diagram illustrates how user actions propagate through the UI layer, background worker threads, and native Win32/kernel APIs:
 
-`mermaid
+```mermaid
 sequenceDiagram
     autonumber
     actor User as User
@@ -63,7 +62,7 @@ sequenceDiagram
     Core->>OS: P/Invoke NtSuspendProcess(processHandle)
     Core-->>UI: Updates ProcessState = Suspended
     UI-->>User: Badge shifts to Amber [Paused]
-`
+```
 
 ---
 
@@ -108,24 +107,23 @@ sequenceDiagram
 
 ## 4. Deep Dive: Real-Time Process Management
 
-### 4.1 Thread Freezing (NtSuspendProcess) & Resuming (NtResumeProcess)
-- **Native Kernel APIs (
-tdll.dll):**
-  - NtSuspendProcess(IntPtr processHandle): Freezes all active execution threads of the target process at the kernel scheduling level.
-  - NtResumeProcess(IntPtr processHandle): Unfreezes the threads, restoring active execution.
+### 4.1 Thread Freezing (`NtSuspendProcess`) & Resuming (`NtResumeProcess`)
+- **Native Kernel APIs (`ntdll.dll`):**
+  - `NtSuspendProcess(IntPtr processHandle)`: Freezes all active execution threads of the target process at the kernel scheduling level.
+  - `NtResumeProcess(IntPtr processHandle)`: Unfreezes the threads, restoring active execution.
 - **Operational Flow:**
-  - Unlike Process.Kill() which causes permanent data loss, NtSuspendProcess drops CPU consumption to **0.0%** instantly without closing the window or losing unsaved work.
-  - When the user is ready to continue, clicking NtResumeProcess or the global *🚨 Resume All* safety button reactivates all suspended threads.
+  - Unlike `Process.Kill()` which causes permanent data loss, `NtSuspendProcess` drops CPU consumption to **0.0%** instantly without closing the window or losing unsaved work.
+  - When the user is ready to continue, clicking `NtResumeProcess` or the global *"🚨 Resume All"* safety button reactivates all suspended threads.
 
 ### 4.2 Dynamic CPU Scheduler Priority Control
 - **Mechanism:**
-  - Modifies the process base priority in the Windows scheduler via process.PriorityClass:
-    - RealTime (Priority 24 — Requires elevation, reserved for critical timing).
-    - High (Priority 13 — Prioritized for compilation, gaming, rendering).
-    - AboveNormal (Priority 10).
-    - Normal (Priority 8 — Standard Windows default).
-    - BelowNormal (Priority 6 — Background renderers).
-    - Idle (Priority 4 — Runs only when CPU has idle cycles).
+  - Modifies the process base priority in the Windows scheduler via `process.PriorityClass`:
+    - `RealTime` (Priority 24 — Requires elevation, reserved for critical timing).
+    - `High` (Priority 13 — Prioritized for compilation, gaming, rendering).
+    - `AboveNormal` (Priority 10).
+    - `Normal` (Priority 8 — Standard Windows default).
+    - `BelowNormal` (Priority 6 — Background renderers).
+    - `Idle` (Priority 4 — Runs only when CPU has idle cycles).
 
 ### 4.3 Debounced Real-Time Search & CPU % Delta Math
 - **Debounced UI Search:**
@@ -138,19 +136,26 @@ tdll.dll):**
 ## 5. Security Invariants & Crash Prevention
 
 ### 5.1 Protected System Process Blacklist
-To prevent accidental system crashes or Blue Screens of Death (BSOD), ProcessManager.cs enforces an inviolable blacklist. The following processes **CANNOT** be killed, suspended, or demoted:
+To prevent accidental system crashes or Blue Screens of Death (BSOD), `ProcessManager.cs` enforces an inviolable blacklist combined with `proc.SessionId == 0` and `pid <= 4` boundary checks. The following 16 processes **CANNOT** be killed, suspended, or demoted:
 
 | Protected Process | Subsystem Role | Consequence of Termination |
 | :--- | :--- | :--- |
-| csrss | Client Server Runtime Subsystem | Immediate BSOD (CRITICAL_PROCESS_DIED) |
-| dwm | Desktop Window Manager | Desktop visual collapse and display reset |
-| lsass | Local Security Authority | Security shutdown / reboot prompt |
-| services | Service Control Manager | Fatal background services failure |
-| svchost | Generic Host for Windows Services | Network and driver crash |
-| xplorer | Windows Shell & Taskbar | Loss of Desktop and Start Menu |
-| smss | Session Manager Subsystem | Immediate kernel halt |
-| wininit | Windows Initialization Process | Critical OS initialization failure |
-| winlogon | Windows Logon Process | Session termination |
+| `system` (PID 4) | NT Kernel & System Threads | Immediate BSOD (`CRITICAL_PROCESS_DIED`) |
+| `idle` (PID 0) | System Idle Process | Unscheduled CPU state corruption |
+| `smss` | Session Manager Subsystem | Immediate kernel halt |
+| `csrss` | Client Server Runtime Subsystem | Immediate BSOD (`CRITICAL_PROCESS_DIED`) |
+| `wininit` | Windows Initialization Process | Critical OS initialization failure |
+| `services` | Service Control Manager | Fatal background services failure |
+| `lsass` | Local Security Authority | Security shutdown / reboot prompt |
+| `svchost` | Generic Host for Windows Services | Network, audio, and core driver failure |
+| `fontdrvhost` | Usermode Font Driver Host | Typography subsystem crash |
+| `dwm` | Desktop Window Manager | Desktop visual collapse and display reset |
+| `explorer` | Windows Shell & Taskbar | Loss of Desktop and Start Menu |
+| `sihost` | Shell Infrastructure Host | Windows UI component breakdown |
+| `taskhostw` | Host Process for Windows Tasks | Background task dispatch disruption |
+| `RuntimeBroker` | Windows App Permissions Manager | UWP application security failure |
+| `audiodg` | Windows Audio Device Graph | Immediate loss of system audio |
+| `spoolsv` | Print Spooler Service | Printing queue subsystem crash |
 
 ### 5.2 NTFS Reparse Point (Junction / Symlink) Isolation
 Traditional recursive directory cleaners traverse NTFS Directory Junctions (mklink /J) or symbolic links, inadvertently wandering into protected user folders (such as user Documents or Desktop) and deleting files older than 24 hours.

@@ -10,16 +10,23 @@ This document serves as the operational manual, architecture reference, and work
 
 ### Core Architecture & Modules (`src/`):
 - **`Core/`**:
-  - `NativeMethods.cs`: Win32 P/Invoke declarations (`GetSystemTimes`, `GlobalMemoryStatusEx`, `EmptyWorkingSet`, `QueryFullProcessImageName`).
+  - `NativeMethods.cs`: Win32 & NT kernel P/Invoke (`NtSuspendProcess`, `NtResumeProcess`, `DnsFlushResolverCache`, `GetSystemTimes`, `GlobalMemoryStatusEx`, `EmptyWorkingSet`, `SetProcessWorkingSetSize`).
   - `PowerPlanManager.cs`: Native Win32 power scheme switcher via `PowrProf.dll` (Balanced, High Performance, Power Saver).
-  - `ProcessManager.cs`: Protected process manager with critical system blacklist (`csrss`, `dwm`, `svchost`, `explorer`).
-  - `ProcessMetadataCache.cs`: High-performance 0ms metadata caching (`FileDescription`, `CompanyName`).
-  - `SafeTempCleaner.cs`: Safe `%TEMP%` and `%LOCALAPPDATA%\Temp` file cleaner (>24h files).
+  - `ProcessManager.cs`: Protected process manager with 16-process blacklist, Session 0 isolation, priority setter, and suspend/resume engine.
+  - `ProcessMetadataCache.cs`: High-performance 0ms metadata caching (`FileDescription`, `CompanyName`, icon extraction).
+  - `SafeTempCleaner.cs`: Multizone storage cleaner with anti-Junction traversal guard and dual-timestamp protection (>24h).
+  - `MemoryOptimizer.cs`: Working set RAM trimmer and CLR garbage collection invoker.
+  - `LocalizationManager.cs`: Real-time bilingual localization provider (ES/EN).
+  - `DxgiHelper.cs` & `SetupApiHelper.cs`: DirectX DXGI GPU telemetry and SetupAPI NPU hardware discovery.
+  - `SnapshotExporter.cs`: Markdown diagnostic report generator.
+  - `TrayManager.cs` & `ConfigManager.cs`: System tray icon controller and persistent user settings in `%APPDATA%`.
+- **`Modules/`**:
+  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Debounced delta % math), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
 - **`UI/` & `Views/`**:
-  - `MainWindow.xaml`: Main HUD analytics, custom ArcSegment radial gauges, and Sparkline wave renderers.
+  - `MainWindow.xaml`: Interactive Bento HUD, Ribbon action buttons, Drives storage visualizer, responsive 100% width layout.
   - `ProcessDetailsWindow.xaml`: 360° modal inspector for individual processes.
   - `App.xaml`: Dynamic 4-theme palette hot-swapper (Pastel Dark, Pastel Light, Cyberpunk, Sakura).
-- **`scripts/Build-Package.ps1`**: Automated build, single-file compilation, and Inno Setup installer packaging.
+- **`scripts/Build-Package.ps1`**: Automated build, single-file compilation, and Setup Wizard installer packaging.
 
 ---
 
@@ -28,18 +35,18 @@ This document serves as the operational manual, architecture reference, and work
 ```text
 simple-pc-monitor/
 ├── src/
-│   ├── SimplePCMonitor.csproj     # C# WPF project file
+│   ├── SimplePCMonitor.csproj     # C# WPF project file (.NET Framework 4.8)
 │   ├── App.xaml / App.xaml.cs     # App entrypoint and 4-theme manager
-│   ├── Core/                      # Win32 P/Invoke, power plans, process guards
+│   ├── Core/                      # Win32 P/Invoke, power plans, process guards (16 modules)
 │   ├── Models/                    # Telemetry data models and hardware structs
-│   ├── Modules/                   # Metric collectors (CPU, Memory, Network, Disk)
-│   └── UI/                        # XAML vector gauges, custom controls, dialogs
+│   ├── Modules/                   # Metric collectors (11 collectors: CPU, RAM, GPU, NPU, Disks...)
+│   └── UI/                        # XAML vector gauges, custom Bento controls, dialogs
 ├── scripts/
-│   └── Build-Package.ps1          # Release build and installer packaging script
+│   └── Build-Package.ps1          # Dynamic MSBuild discovery and packaging pipeline
 ├── tests/
-│   └── Metrics.Tests.ps1          # Pester / PowerShell unit tests
+│   └── Metrics.Tests.ps1          # 11-Test Pester automated validation suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
-├── docs/                          # Architecture decisions and benchmark notes
+├── docs/                          # Architecture guides, command center manual, benchmarks
 └── README.md                      # Bilingual project documentation (EN/ES)
 ```
 
