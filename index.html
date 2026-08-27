@@ -16,11 +16,12 @@
       <div class="brand-link">
         <img src="icon.png" alt="Simple PC Monitor Icon" class="brand-icon">
         <span class="brand-text">Simple PC Monitor</span>
-        <span class="brand-badge">v1.1.0</span>
+        <span class="brand-badge">v2.0.0</span>
       </div>
 
       <ul class="nav-menu">
         <li><a href="#features" class="nav-link" data-i18n="nav_features">Características</a></li>
+        <li><a href="#actions" class="nav-link" data-i18n="nav_actions">Acciones</a></li>
         <li><a href="#specs" class="nav-link" data-i18n="nav_specs">Especificaciones</a></li>
         <li><a href="#downloads" class="nav-link" data-i18n="nav_downloads">Descargas</a></li>
         <li><a href="#faq" class="nav-link" data-i18n="nav_faq">FAQ</a></li>
@@ -39,7 +40,7 @@
         </a>
 
         <!-- CTA Nav -->
-        <a href="#downloads" class="btn btn-primary btn-sm" data-i18n="btn_download_nav">Descargar v1.1.0</a>
+        <a href="#downloads" class="btn btn-primary btn-sm" data-i18n="btn_download_nav">Descargar v2.0.0</a>
       </div>
     </div>
   </header>
@@ -54,7 +55,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
             </svg>
-            <span data-i18n="hero_badge">Versión 1.1.0 • 585 KB Standalone</span>
+            <span data-i18n="hero_badge">Versión 2.0.0 • 585 KB Standalone</span>
           </div>
 
           <h1 class="hero-title" data-i18n="hero_title">Monitor ultra ligero para Windows</h1>
@@ -75,7 +76,7 @@
               </svg>
               <span data-i18n="btn_standalone">Ejecutable Standalone (585 KB)</span>
             </a>
-            <a href="releases/Simple-PC-Monitor-v1.1.0-Portable.zip" class="btn btn-secondary btn-lg" download>
+            <a href="releases/Simple-PC-Monitor-v2.0.0-Portable.zip" class="btn btn-secondary btn-lg" download>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="21 8 21 21 3 21 3 8"></polyline>
                 <rect x="1" y="3" width="22" height="5"></rect>
@@ -205,6 +206,98 @@
       </div>
     </section>
 
+    <!-- Command Center Quick Actions Section -->
+    <section id="actions" class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag" data-i18n="act_tag">Centro de Mando Activo</span>
+          <h2 class="section-title" data-i18n="act_title">Guía de Botones de Acción y Control Nativo</h2>
+          <p class="section-desc" data-i18n="act_desc">Pasa de la observación pasiva al control directo. Cada botón ejecuta llamadas nativas directas al kernel y subsistemas de Windows.</p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Action 1: Turbo Mode -->
+          <div class="feature-card">
+            <div class="feature-icon-box" style="color: #fbbf24; background: rgba(251, 191, 36, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="act1_title">🚀 Modo Turbo</h3>
+            <p class="feature-text" data-i18n="act1_desc">Conmuta el plan de energía a Alto Rendimiento (desestaciona núcleos de CPU) y purga agresivamente la memoria RAM física en procesos de usuario.</p>
+            <span class="feature-badge">PowrProf.dll + EmptyWorkingSet</span>
+          </div>
+
+          <!-- Action 2: Flush DNS -->
+          <div class="feature-card">
+            <div class="feature-icon-box" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="act2_title">🌐 Vaciar DNS</h3>
+            <p class="feature-text" data-i18n="act2_desc">Purga instantáneamente la caché de nombres DNS del sistema operativo en 0.01 ms para solucionar errores de red y webs no disponibles.</p>
+            <span class="feature-badge">dnsapi.dll / DnsFlushResolverCache</span>
+          </div>
+
+          <!-- Action 3: Clean Temp -->
+          <div class="feature-card">
+            <div class="feature-icon-box" style="color: #34d399; background: rgba(52, 211, 153, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="act3_title">🧹 Limpiar Temporales</h3>
+            <p class="feature-text" data-i18n="act3_desc">Purga archivos residuales en %TEMP%, Windows\Temp y WinSxS (>24h). Blindado contra escape de Junctions NTFS y guarda de doble timestamp.</p>
+            <span class="feature-badge">Multizone SafeTempCleaner</span>
+          </div>
+
+          <!-- Action 4: Hung Rescue -->
+          <div class="feature-card">
+            <div class="feature-icon-box" style="color: #fb7185; background: rgba(251, 113, 133, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="act4_title">⚠️ Rescatar Proceso Colgado</h3>
+            <p class="feature-text" data-i18n="act4_desc">Watchdog en tiempo real que detecta aplicaciones congeladas que no responden a los eventos de Windows (IsResponding == false) con botón de rescate 1-clic.</p>
+            <span class="feature-badge">Win32 IsResponding Watchdog</span>
+          </div>
+
+          <!-- Action 5: Suspend / Resume -->
+          <div class="feature-card">
+            <div class="feature-icon-box" style="color: #a78bfa; background: rgba(167, 139, 250, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="act5_title">⏸️ Suspender y Reanudar</h3>
+            <p class="feature-text" data-i18n="act5_desc">Congela procesos desbocados bajando su consumo a 0% CPU sin cerrarlos ni perder información, con reactivación instantánea y botón de rescate masivo.</p>
+            <span class="feature-badge">ntdll.dll / NtSuspendProcess</span>
+          </div>
+
+          <!-- Action 6: CPU Priority & Search -->
+          <div class="feature-card">
+            <div class="feature-icon-box" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <h3 class="feature-title" data-i18n="act6_title">⚡ Prioridades y Búsqueda</h3>
+            <p class="feature-text" data-i18n="act6_desc">Ajuste de prioridades del procesador en tiempo real (Tiempo Real a Inactiva) y filtrado instantáneo de tareas con retardo de 200 ms.</p>
+            <span class="feature-badge">SetPriorityClass &amp; Debounce</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Downloads Section -->
     <section id="downloads" class="section">
       <div class="container">
@@ -287,7 +380,7 @@
                 </li>
               </ul>
             </div>
-            <a href="releases/Simple-PC-Monitor-v1.1.0-Portable.zip" class="btn btn-secondary" download data-i18n="btn_download">Descargar Ahora</a>
+            <a href="releases/Simple-PC-Monitor-v2.0.0-Portable.zip" class="btn btn-secondary" download data-i18n="btn_download">Descargar Ahora</a>
           </div>
         </div>
 
