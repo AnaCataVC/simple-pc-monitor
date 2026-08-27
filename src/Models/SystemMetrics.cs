@@ -169,12 +169,16 @@ namespace SimplePCMonitor.Models
         public string CompanyName { get; set; }
         public string ExecutablePath { get; set; }
         public string WindowTitle { get; set; }
+        public double CpuPercent { get; set; }
+        public string CpuDisplay { get; set; }
         public double MemoryMB { get; set; }
         public string MemoryDisplay { get; set; }
         public double MemoryPercent { get; set; }
         public int Threads { get; set; }
         public bool IsProtected { get; set; }
         public bool IsHeavyConsumer { get; set; }
+        public bool IsResponding { get; set; }
+        public string PriorityClass { get; set; }
 
         public string DisplayTitle
         {
@@ -200,7 +204,10 @@ namespace SimplePCMonitor.Models
             CompanyName = "";
             ExecutablePath = "";
             WindowTitle = "";
+            CpuDisplay = "0.0%";
             MemoryDisplay = "";
+            IsResponding = true;
+            PriorityClass = "Normal";
         }
     }
 

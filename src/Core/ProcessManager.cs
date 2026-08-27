@@ -26,7 +26,9 @@ namespace SimplePCMonitor.Core
             "explorer",
             "sihost",
             "taskhostw",
-            "RuntimeBroker"
+            "RuntimeBroker",
+            "audiodg",
+            "spoolsv"
         };
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -40,11 +42,204 @@ namespace SimplePCMonitor.Core
         private static extern bool CloseHandle(IntPtr hObject);
 
         private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        private const uint PROCESS_SUSPEND_RESUME = 0x0800;
+        private const uint PROCESS_SET_INFORMATION = 0x0200;
 
         public static bool IsProtected(string processName)
         {
             if (string.IsNullOrEmpty(processName)) return true;
             return ProtectedProcesses.Contains(processName);
+        }
+
+        public static bool IsSafeToControl(int pid, string processName)
+        {
+            if (pid <= 4) return false;
+            if (IsProtected(processName)) return false;
+
+            try
+            {
+                var proc = Process.GetProcessById(pid);
+                if (proc.SessionId == 0) return false; // System session guard
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool SuspendProcess(int pid, string processName, out string message)
+        {
+            message = string.Empty;
+            if (!IsSafeToControl(pid, processName))
+            {
+                message = string.Format("Process '{0}' (PID: {1}) is a protected system service and cannot be suspended.", processName, pid);
+                return false;
+            }
+
+            IntPtr hProcess = IntPtr.Zero;
+            try
+            {
+                hProcess = OpenProcess(PROCESS_SUSPEND_RESUME, false, pid);
+                if (hProcess == IntPtr.Zero)
+                {
+                    message = string.Format("Access denied opening process '{0}' (requires elevation).", processName);
+                    return false;
+                }
+
+                int status = NativeMethods.NtSuspendProcess(hProcess);
+                if (status == NativeMethods.STATUS_SUCCESS)
+                {
+                    message = string.Format("Process '{0}' (PID: {1}) suspended successfully.", processName, pid);
+                    return true;
+                }
+                else
+                {
+                    message = string.Format("Failed to suspend '{0}'. NTSTATUS: 0x{1:X8}", processName, status);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = string.Format("Error suspending '{0}': {1}", processName, ex.Message);
+                return false;
+            }
+            finally
+            {
+                if (hProcess != IntPtr.Zero)
+                {
+                    CloseHandle(hProcess);
+                }
+            }
+        }
+
+        public static bool ResumeProcess(int pid, string processName, out string message)
+        {
+            message = string.Empty;
+            if (pid <= 4)
+            {
+                message = "Invalid process ID.";
+                return false;
+            }
+
+            IntPtr hProcess = IntPtr.Zero;
+            try
+            {
+                hProcess = OpenProcess(PROCESS_SUSPEND_RESUME, false, pid);
+                if (hProcess == IntPtr.Zero)
+                {
+                    message = string.Format("Access denied opening process '{0}'.", processName);
+                    return false;
+                }
+
+                int status = NativeMethods.NtResumeProcess(hProcess);
+                if (status == NativeMethods.STATUS_SUCCESS)
+                {
+                    message = string.Format("Process '{0}' (PID: {1}) resumed successfully.", processName, pid);
+                    return true;
+                }
+                else
+                {
+                    message = string.Format("Failed to resume '{0}'. NTSTATUS: 0x{1:X8}", processName, status);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = string.Format("Error resuming '{0}': {1}", processName, ex.Message);
+                return false;
+            }
+            finally
+            {
+                if (hProcess != IntPtr.Zero)
+                {
+                    CloseHandle(hProcess);
+                }
+            }
+        }
+
+        private static readonly HashSet<int> _suspendedPids = new HashSet<int>();
+
+        public static bool IsSuspended(int pid)
+        {
+            lock (_suspendedPids)
+            {
+                return _suspendedPids.Contains(pid);
+            }
+        }
+
+        public static bool SuspendProcess(int pid)
+        {
+            string name = string.Empty;
+            try { name = Process.GetProcessById(pid).ProcessName; } catch { }
+            string msg;
+            bool ok = SuspendProcess(pid, name, out msg);
+            if (ok)
+            {
+                lock (_suspendedPids) { _suspendedPids.Add(pid); }
+            }
+            return ok;
+        }
+
+        public static bool ResumeProcess(int pid)
+        {
+            string name = string.Empty;
+            try { name = Process.GetProcessById(pid).ProcessName; } catch { }
+            string msg;
+            bool ok = ResumeProcess(pid, name, out msg);
+            if (ok)
+            {
+                lock (_suspendedPids) { _suspendedPids.Remove(pid); }
+            }
+            return ok;
+        }
+
+        public static int ResumeAllSuspended()
+        {
+            int count = 0;
+            List<int> pids;
+            lock (_suspendedPids)
+            {
+                pids = new List<int>(_suspendedPids);
+            }
+
+            foreach (var pid in pids)
+            {
+                if (ResumeProcess(pid))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        public static bool SetProcessPriority(int pid, ProcessPriorityClass priority, out string message)
+        {
+            message = string.Empty;
+            try
+            {
+                var proc = Process.GetProcessById(pid);
+                if (IsProtected(proc.ProcessName))
+                {
+                    message = string.Format("'{0}' is a system-critical process and its priority cannot be altered.", proc.ProcessName);
+                    return false;
+                }
+
+                proc.PriorityClass = priority;
+                message = string.Format("Priority for '{0}' set to {1}.", proc.ProcessName, priority);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = string.Format("Failed to set priority: {0}", ex.Message);
+                return false;
+            }
+        }
+
+        public static bool SetProcessPriority(int pid, ProcessPriorityClass priority)
+        {
+            string msg;
+            return SetProcessPriority(pid, priority, out msg);
         }
 
         public static bool TerminateProcess(int pid, string processName, out string message)

@@ -98,20 +98,51 @@ if (Test-Path $pngPath) {
     $fs.Dispose()
 }
 
-# 3. Locate MSBuild
-$msbuildPath = @(
-    'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe',
-    'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe',
-    'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe'
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+# 3. Locate MSBuild dynamically
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuildPath = $null
+
+if (Test-Path $vswhere) {
+    $vsPath = & $vswhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+    if ($vsPath -and (Test-Path $vsPath)) {
+        $msbuildPath = $vsPath
+    }
+}
+
+if (-not $msbuildPath) {
+    $candidates = @(
+        'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe',
+        'C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe'
+    )
+    $msbuildPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
 
 if (-not $msbuildPath) {
     throw "MSBuild.exe was not found on the system."
 }
 
+Write-Host "  Using MSBuild: $msbuildPath" -ForegroundColor DarkGray
+
+function Invoke-MSBuildCompile([string]$projectPath) {
+    $success = $false
+    try {
+        & $msbuildPath $projectPath /p:Configuration=Release /p:Platform=AnyCPU /v:m
+        if ($LASTEXITCODE -eq 0) { $success = $true }
+    } catch { }
+
+    if (-not $success -and (Test-Path 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe')) {
+        Write-Host "  Retrying with Framework64 MSBuild..." -ForegroundColor DarkGray
+        & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe' $projectPath /p:Configuration=Release /p:Platform=AnyCPU /v:m
+    }
+}
+
 # 4. Compile Standalone Main Executable
 Write-Host "[2/5] Compiling standalone C# WPF binary with MSBuild..." -ForegroundColor Yellow
-& $msbuildPath $AppCsprojPath /p:Configuration=Release /p:Platform=AnyCPU /v:m
+Invoke-MSBuildCompile $AppCsprojPath
 
 $compiledExe = Join-Path (Join-Path (Join-Path $SrcDir "bin") "Release") "SimplePCMonitor.exe"
 if (-not (Test-Path $compiledExe)) {
@@ -120,11 +151,15 @@ if (-not (Test-Path $compiledExe)) {
 
 # 5. Compile Setup Wizard Installer
 Write-Host "[3/5] Compiling Setup Wizard Installer executable..." -ForegroundColor Yellow
-& $msbuildPath $InstCsproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
+Invoke-MSBuildCompile $InstCsproj
 
 $setupExe = Join-Path $ReleasesDir "SimplePCMonitor-Setup.exe"
 if (-not (Test-Path $setupExe)) {
-    throw "Build failed: $setupExe was not produced."
+    # Check if built into Installer/bin/Release
+    $altSetup = Join-Path (Join-Path (Join-Path (Join-Path $SrcDir "Installer") "bin") "Release") "SimplePCMonitor-Setup.exe"
+    if (Test-Path $altSetup) {
+        Copy-Item -Path $altSetup -Destination $setupExe -Force
+    }
 }
 
 # Copy to Staging and Releases root

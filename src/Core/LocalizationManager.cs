@@ -29,8 +29,12 @@ namespace SimplePCMonitor.Core
             // Ribbon Actions
             { "TrimRam", "Optimizar RAM" },
             { "TrimRamTooltip", "Reducir conjunto de trabajo y liberar memoria RAM" },
-            { "CleanTemp", "Limpiar Temp" },
-            { "CleanTempTooltip", "Limpiar archivos temporales de forma segura (%TEMP%)" },
+            { "CleanTemp", "Limpieza Profunda" },
+            { "CleanTempTooltip", "Limpieza profunda y segura de temporales, Windows Update y caché de navegadores" },
+            { "TurboMode", "Modo Turbo" },
+            { "TurboModeTooltip", "1-Clic: Activa Máximo Rendimiento + Purga de Memoria RAM" },
+            { "FlushDns", "Vaciar DNS" },
+            { "FlushDnsTooltip", "Limpiar la caché del solucionador DNS de Windows" },
             { "Snapshot", "Captura" },
             { "SnapshotTooltip", "Copiar informe de diagnóstico en Markdown al portapapeles" },
 
@@ -100,18 +104,30 @@ namespace SimplePCMonitor.Core
             { "TabServices", "⚙️ Servicios" },
             { "TabTasks", "⏱️ Tareas Programadas" },
             { "TabStartup", "🚀 Apps de Inicio" },
+            { "TabDrives", "💾 Discos & Almacenamiento" },
 
             { "TabProcessesSummary", "Principales Procesos en Ejecución" },
             { "TabAcceleratorsSummary", "Diagnóstico de Aceleradores GPU y NPU" },
             { "TabServicesSummary", "Estado de Servicios del Sistema" },
             { "TabTasksSummary", "Tareas Programadas de Windows" },
             { "TabStartupSummary", "Aplicaciones de Inicio Automático" },
+            { "TabDrivesSummary", "Unidades de Disco y Particiones" },
+
+            // Process Controls & Filters
+            { "SearchPlaceholder", "🔍 Buscar proceso por nombre o PID..." },
+            { "SortByCpu", "⚡ Orden: CPU %" },
+            { "SortByRam", "🧠 Orden: RAM MB" },
+            { "UnresponsiveWarning", "⚠️ {0} Proceso(s) colgado(s)" },
+            { "RescueUnresponsive", "Rescatar / Cerrar" },
 
             // Table & Column Headers
             { "ColPid", "PID" },
             { "ColApp", "APLICACIÓN" },
+            { "ColCpu", "CPU %" },
             { "ColWorkingSet", "MEMORIA" },
             { "ColRamPercent", "% RAM" },
+            { "ColState", "ESTADO" },
+            { "ColPriority", "PRIORIDAD" },
             { "ColActions", "ACCIONES" },
             { "ColServiceName", "SERVICIO DE WINDOWS" },
             { "ColServiceStatus", "ESTADO" },
@@ -145,10 +161,14 @@ namespace SimplePCMonitor.Core
 
             // Context Menus & Action Tooltips
             { "MenuDetails", "Ver Detalles del Proceso" },
+            { "MenuSuspend", "⏸ Pausar Proceso (Suspend)" },
+            { "MenuResume", "▶ Reanudar Proceso (Resume)" },
+            { "MenuPriority", "⚡ Prioridad de CPU" },
             { "MenuOpenFolder", "Abrir Carpeta del Archivo" },
             { "MenuSearchOnline", "Buscar en Google" },
             { "MenuEndProcess", "Finalizar Proceso" },
             { "MenuOpenDrive", "Abrir Unidad en Explorador" },
+            { "MenuCleanDrive", "Limpiar Unidad (Storage Sense)" },
             { "MenuServiceStart", "▶️ Iniciar Servicio" },
             { "MenuServiceStop", "⏹️ Detener Servicio" },
             { "MenuServiceRestart", "🔄 Reiniciar Servicio" },
@@ -174,7 +194,9 @@ namespace SimplePCMonitor.Core
 
             // Toast Messages
             { "ToastRamTrimmed", "⚡ Memoria RAM optimizada ({0} procesos liberados)" },
-            { "ToastTempCleaned", "🧹 Se limpiaron {0} de archivos temporales ({1} elementos)" },
+            { "ToastTempCleaned", "🧹 Se liberaron {0} en Limpieza Profunda ({1} archivos)" },
+            { "ToastTurboMode", "🚀 ¡Modo Turbo Activado! (Alto Rendimiento + Purga RAM)" },
+            { "ToastDnsFlushed", "🌐 ¡Caché DNS vaciada con éxito!" },
             { "ToastSnapshotCopied", "📸 ¡Informe de diagnóstico copiado al portapapeles!" },
             { "ToastPowerPlan", "⚡ Plan de energía: {0}" },
             { "ToastTheme", "🎨 Tema: {0}" },
@@ -183,6 +205,9 @@ namespace SimplePCMonitor.Core
             { "ToastUnpinned", "📌 Ventana desanclada" },
             { "ToastWidgetDocked", "📍 Widget acoplado a la esquina inferior derecha" },
             { "ToastProcessEnded", "🔴 Proceso finalizado: {0}" },
+            { "ToastProcessSuspended", "⏸ Proceso suspendido: {0}" },
+            { "ToastProcessResumed", "▶ Proceso reanudado: {0}" },
+            { "ToastPriorityChanged", "⚡ Prioridad de {0} cambiada a {1}" },
             { "ToastServiceStarted", "▶️ Servicio iniciado: {0}" },
             { "ToastServiceStopped", "⏹️ Servicio detenido: {0}" },
             { "ToastTaskExecuted", "📅 Tarea ejecutada: {0}" },
@@ -206,8 +231,12 @@ namespace SimplePCMonitor.Core
             // Ribbon Actions
             { "TrimRam", "Trim RAM" },
             { "TrimRamTooltip", "Trim process working sets and optimize RAM" },
-            { "CleanTemp", "Clean Temp" },
-            { "CleanTempTooltip", "Safely clean temporary files (%TEMP%)" },
+            { "CleanTemp", "Deep Clean" },
+            { "CleanTempTooltip", "Safely clean temporary files, Windows Update downloads, and browser caches" },
+            { "TurboMode", "Turbo Mode" },
+            { "TurboModeTooltip", "1-Click: Activate High Performance + Purge RAM" },
+            { "FlushDns", "Flush DNS" },
+            { "FlushDnsTooltip", "Flush Windows DNS resolver cache" },
             { "Snapshot", "Snapshot" },
             { "SnapshotTooltip", "Copy Markdown diagnostic snapshot to clipboard" },
 
@@ -277,18 +306,30 @@ namespace SimplePCMonitor.Core
             { "TabServices", "⚙️ Services" },
             { "TabTasks", "⏱️ Scheduled Tasks" },
             { "TabStartup", "🚀 Startup Apps" },
+            { "TabDrives", "💾 Storage & Drives" },
 
             { "TabProcessesSummary", "Top Running Processes" },
             { "TabAcceleratorsSummary", "GPU & NPU Accelerator Diagnostics" },
             { "TabServicesSummary", "System Services Status" },
             { "TabTasksSummary", "Scheduled Windows Tasks" },
             { "TabStartupSummary", "Startup Applications" },
+            { "TabDrivesSummary", "Disk Volumes & Partitions" },
+
+            // Process Controls & Filters
+            { "SearchPlaceholder", "🔍 Search process by name or PID..." },
+            { "SortByCpu", "⚡ Sort: CPU %" },
+            { "SortByRam", "🧠 Sort: RAM MB" },
+            { "UnresponsiveWarning", "⚠️ {0} Unresponsive Process(es)" },
+            { "RescueUnresponsive", "Rescue / Close" },
 
             // Table & Column Headers
             { "ColPid", "PID" },
             { "ColApp", "APPLICATION" },
+            { "ColCpu", "CPU %" },
             { "ColWorkingSet", "WORKING SET" },
             { "ColRamPercent", "% RAM" },
+            { "ColState", "STATUS" },
+            { "ColPriority", "PRIORITY" },
             { "ColActions", "ACTIONS" },
             { "ColServiceName", "WINDOWS SERVICE" },
             { "ColServiceStatus", "STATUS" },
@@ -322,10 +363,14 @@ namespace SimplePCMonitor.Core
 
             // Context Menus & Action Tooltips
             { "MenuDetails", "View Process Details" },
+            { "MenuSuspend", "⏸ Suspend Process" },
+            { "MenuResume", "▶ Resume Process" },
+            { "MenuPriority", "⚡ CPU Priority" },
             { "MenuOpenFolder", "Open File Location" },
             { "MenuSearchOnline", "Search Online" },
             { "MenuEndProcess", "End Process" },
             { "MenuOpenDrive", "Open Drive in Explorer" },
+            { "MenuCleanDrive", "Clean Drive (Storage Sense)" },
             { "MenuServiceStart", "▶️ Start Service" },
             { "MenuServiceStop", "⏹️ Stop Service" },
             { "MenuServiceRestart", "🔄 Restart Service" },
@@ -351,7 +396,9 @@ namespace SimplePCMonitor.Core
 
             // Toast Messages
             { "ToastRamTrimmed", "⚡ RAM Optimized ({0} processes trimmed)" },
-            { "ToastTempCleaned", "🧹 Cleaned {0} Temporary Files ({1} items)" },
+            { "ToastTempCleaned", "🧹 Cleaned {0} in Deep Clean ({1} files)" },
+            { "ToastTurboMode", "🚀 Turbo Mode Activated! (High Performance + RAM Purge)" },
+            { "ToastDnsFlushed", "🌐 DNS resolver cache flushed successfully!" },
             { "ToastSnapshotCopied", "📸 Diagnostic Snapshot Copied to Clipboard!" },
             { "ToastPowerPlan", "⚡ Power Plan: {0}" },
             { "ToastTheme", "🎨 Theme: {0}" },
@@ -360,6 +407,9 @@ namespace SimplePCMonitor.Core
             { "ToastUnpinned", "📌 Window Unpinned" },
             { "ToastWidgetDocked", "📍 Widget Docked to Bottom-Right Corner" },
             { "ToastProcessEnded", "🔴 Process Ended: {0}" },
+            { "ToastProcessSuspended", "⏸ Process Suspended: {0}" },
+            { "ToastProcessResumed", "▶ Process Resumed: {0}" },
+            { "ToastPriorityChanged", "⚡ Priority for {0} changed to {1}" },
             { "ToastServiceStarted", "▶️ Service Started: {0}" },
             { "ToastServiceStopped", "⏹️ Service Stopped: {0}" },
             { "ToastTaskExecuted", "📅 Task Executed: {0}" },

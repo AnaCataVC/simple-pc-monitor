@@ -1,0 +1,39 @@
+﻿name: Build & Test CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Compile Simple PC Monitor
+        run: msbuild src/SimplePCMonitor.csproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
+
+      - name: Compile Setup Wizard Installer
+        run: msbuild src/Installer/Installer.csproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
+
+      - name: Run Packaging Script
+        run: powershell -ExecutionPolicy Bypass -File scripts/Build-Package.ps1
+
+      - name: Run Pester Health Tests
+        run: powershell -ExecutionPolicy Bypass -File tests/Metrics.Tests.ps1
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimplePCMonitor-Binaries
+          path: |
+            releases/SimplePCMonitor.exe
+            releases/SimplePCMonitor-Setup.exe
+            releases/*.zip

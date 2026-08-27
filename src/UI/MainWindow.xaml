@@ -10,7 +10,7 @@
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <ContextMenu x:Key="TrayContextMenu" Placement="MousePoint">
-            <MenuItem Name="TrayMenuOpen" Header="🖥️ Abrir Simple PC Monitor" FontWeight="Bold" Click="TrayMenuOpen_Click"/>
+            <MenuItem Name="TrayMenuOpen" Header="🖥️ Abrir Simple PC Monitor" FontWeight="Bold" Click="TrayMenuRestore_Click"/>
             <Separator Margin="0,3"/>
             <MenuItem Name="TrayMenuPower" Header="⚡ Plan de Energía">
                 <MenuItem Name="TrayMenuPlanSaver" Header="🌱 Modo Ahorro (Eco)" Click="BtnPlanSaver_Click"/>
@@ -82,13 +82,28 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Image Name="ImgAppLogo" Width="18" Height="18" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="Simple PC Monitor" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
-                        <Border Background="{DynamicResource BgControl}" CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0">
+                        
+                        <!-- Compact Hardware Specs Badge with full ToolTip -->
+                        <Border Name="BorderHwSummary" Background="{DynamicResource BgControl}" CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0" ToolTip="Especificaciones de hardware del equipo">
+                            <TextBlock Name="TxtHwSummaryBadge" Text="💻 System Hardware" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                        </Border>
+
+                        <Border Background="{DynamicResource BgControl}" CornerRadius="4" Padding="6,1.5" Margin="5,0,0,0">
                             <TextBlock Name="TxtCpuCoresBadge" Text="16 Cores" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
                         </Border>
+                        
                         <Border Name="BorderUptime" Background="{DynamicResource BgControl}" CornerRadius="4" Padding="6,1.5" Margin="5,0,0,0" ToolTip="Tiempo continuo que la computadora lleva encendida desde el último reinicio">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⏱️ " FontSize="8.5" VerticalAlignment="Center"/>
                                 <TextBlock Name="TxtUptime" Text="Uptime: 0d 0h" FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Dynamic Alert for Unresponsive Processes -->
+                        <Border Name="BorderUnresponsiveAlert" Background="#33FF4444" BorderBrush="#88FF4444" BorderThickness="1" CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Name="TxtUnresponsiveAlert" Text="⚠️ 1 Proceso Colgado" FontSize="9.5" FontWeight="Bold" Foreground="#FFFF5555" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <Button Name="BtnRescueUnresponsive" Content="Rescatar" Style="{DynamicResource PillActionButtonStyle}" Height="18" Padding="4,0" FontSize="8.5" Click="BtnRescueUnresponsive_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -127,23 +142,37 @@
 
                     <!-- Left: Core Performance Actions & Segmented Power Plan -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Name="BtnOptimize" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Trim Working Set &amp; Optimize RAM" Click="BtnOptimize_Click">
+                        <Button Name="BtnTurboMode" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="1-Clic: Activa Modo Turbo (Alto Rendimiento + Purga de RAM)" Click="BtnTurboMode_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{DynamicResource IconPower}" Fill="{DynamicResource AccentCpu}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0"/>
+                                <TextBlock Name="TxtBtnTurboMode" Text="Modo Turbo" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Name="BtnOptimize" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Reducir conjunto de trabajo y optimizar RAM" Click="BtnOptimize_Click">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{DynamicResource IconPower}" Fill="{DynamicResource AccentMem}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0"/>
                                 <TextBlock Name="TxtBtnOptimize" Text="Optimizar RAM"/>
                             </StackPanel>
                         </Button>
 
-                        <Button Name="BtnCleanTemp" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Safely Clean Temporary Files (%TEMP%)" Click="BtnCleanTemp_Click">
+                        <Button Name="BtnCleanTemp" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Limpieza profunda y segura de temporales, Windows Update y caché web" Click="BtnCleanTemp_Click">
                             <StackPanel Orientation="Horizontal">
                                 <Path Data="{DynamicResource IconBroom}" Fill="{DynamicResource AccentDisk}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0"/>
-                                <TextBlock Name="TxtBtnCleanTemp" Text="Limpiar Temp"/>
+                                <TextBlock Name="TxtBtnCleanTemp" Text="Limpieza Profunda"/>
                             </StackPanel>
                         </Button>
 
-                        <Button Name="BtnSnapshotTop" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Copy Diagnostic Snapshot (Markdown) to Clipboard" Click="BtnSnapshot_Click">
+                        <Button Name="BtnFlushDns" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Vaciar caché DNS de Windows (DnsFlushResolverCache)" Click="BtnFlushDns_Click">
                             <StackPanel Orientation="Horizontal">
-                                <Path Data="{DynamicResource IconCamera}" Fill="{DynamicResource AccentCpu}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0"/>
+                                <Path Data="{DynamicResource IconNetwork}" Fill="{DynamicResource AccentNet}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0"/>
+                                <TextBlock Name="TxtBtnFlushDns" Text="Vaciar DNS"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Name="BtnSnapshotTop" Style="{DynamicResource QuickActionButtonStyle}" ToolTip="Copiar informe de diagnóstico (Markdown) al portapapeles" Click="BtnSnapshot_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{DynamicResource IconCamera}" Fill="{DynamicResource TextSecondary}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0"/>
                                 <TextBlock Name="TxtBtnSnapshot" Text="Captura"/>
                             </StackPanel>
                         </Button>
@@ -154,9 +183,9 @@
                         <Border Background="{DynamicResource BgControl}" CornerRadius="6" Padding="2,1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="⚡" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="4,0,2,0"/>
-                                <Button Name="BtnPlanSaver" Content="Eco" Style="{DynamicResource SegmentedPillButtonStyle}" ToolTip="Switch to Power Saver Mode" Click="BtnPlanSaver_Click"/>
-                                <Button Name="BtnPlanBalanced" Content="Balanced" Style="{DynamicResource SegmentedPillButtonStyle}" ToolTip="Switch to Balanced Mode" Click="BtnPlanBalanced_Click"/>
-                                <Button Name="BtnPlanHighPerf" Content="Turbo" Style="{DynamicResource SegmentedPillButtonStyle}" ToolTip="Switch to High Performance Mode" Click="BtnPlanHighPerf_Click"/>
+                                <Button Name="BtnPlanSaver" Content="Eco" Style="{DynamicResource SegmentedPillButtonStyle}" ToolTip="Cambiar al plan de ahorro de energía" Click="BtnPlanSaver_Click"/>
+                                <Button Name="BtnPlanBalanced" Content="Balanced" Style="{DynamicResource SegmentedPillButtonStyle}" ToolTip="Cambiar al plan equilibrado de Windows" Click="BtnPlanBalanced_Click"/>
+                                <Button Name="BtnPlanHighPerf" Content="Turbo" Style="{DynamicResource SegmentedPillButtonStyle}" ToolTip="Cambiar al plan de alto rendimiento" Click="BtnPlanHighPerf_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -267,7 +296,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- 1. CPU CARD -->
-                    <Border Grid.Column="0" Style="{DynamicResource BentoCardStyle}">
+                    <Border Name="CardCpu" Grid.Column="0" Style="{DynamicResource BentoCardStyle}" Cursor="Hand" ToolTip="Clic para ver y ordenar procesos por mayor consumo de CPU" MouseLeftButtonDown="CardCpu_Click">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -293,7 +322,7 @@
                     </Border>
 
                     <!-- 2. GPU CARD -->
-                    <Border Grid.Column="1" Style="{DynamicResource BentoCardStyle}">
+                    <Border Name="CardGpu" Grid.Column="1" Style="{DynamicResource BentoCardStyle}" Cursor="Hand" ToolTip="Clic para ver pestaña de Aceleradores Gráficos y Motores 3D" MouseLeftButtonDown="CardGpu_Click">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -318,8 +347,8 @@
                         </Grid>
                     </Border>
 
-                    <!-- 3. NPU (AI ACCELERATOR) CARD -->
-                    <Border Grid.Column="2" Style="{DynamicResource BentoCardStyle}" Name="CardNpu">
+                    <!-- 3. NPU (AI ACCELERATOR) CARD (Dynamic visibility) -->
+                    <Border Grid.Column="2" Style="{DynamicResource BentoCardStyle}" Name="CardNpu" Visibility="Collapsed" Cursor="Hand" ToolTip="Clic para ver diagnóstico del motor NPU" MouseLeftButtonDown="CardNpu_Click">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -345,7 +374,7 @@
                     </Border>
 
                     <!-- 4. MEMORY (RAM) CARD -->
-                    <Border Grid.Column="3" Style="{DynamicResource BentoCardStyle}">
+                    <Border Name="CardRam" Grid.Column="3" Style="{DynamicResource BentoCardStyle}" Cursor="Hand" ToolTip="Clic para ver y ordenar procesos por mayor consumo de memoria RAM" MouseLeftButtonDown="CardRam_Click">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -371,7 +400,7 @@
                     </Border>
 
                     <!-- 5. STORAGE DISK CARD -->
-                    <Border Grid.Column="4" Style="{DynamicResource BentoCardStyle}">
+                    <Border Name="CardDisk" Grid.Column="4" Style="{DynamicResource BentoCardStyle}" Cursor="Hand" ToolTip="Clic para ver unidades de almacenamiento y opciones de limpieza" MouseLeftButtonDown="CardDisk_Click">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -397,7 +426,7 @@
                     </Border>
 
                     <!-- 6. NETWORK CARD -->
-                    <Border Grid.Column="5" Style="{DynamicResource BentoCardStyle}">
+                    <Border Name="CardNet" Grid.Column="5" Style="{DynamicResource BentoCardStyle}" Cursor="Hand" ToolTip="Clic para comprobar latencia y vaciar DNS" MouseLeftButtonDown="CardNet_Click">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -470,94 +499,17 @@
                 </Grid>
 
                 <!-- ========================================================================= -->
-                <!-- ROW 4: DEEP DIVE WORKSPACE (STORAGE/HARDWARE + TABBED DETAILED VIEWS)     -->
+                <!-- ROW 4: FULL-WIDTH INTERACTIVE DEEP DIVE WORKSPACE (NO 270px STATIC COLUMN) -->
                 <!-- ========================================================================= -->
                 <Grid Grid.Row="4" Margin="-3,0" Name="ContainerDeepDive">
-                    <Grid.ColumnDefinitions>
-                        <!-- Left: Hardware & Drive Deck (270px) -->
-                        <ColumnDefinition Width="270"/>
-                        <!-- Right: Tabbed Deep-Dive Area -->
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- LEFT COLUMN: HARDWARE SUMMARY & DRIVES -->
-                    <StackPanel Grid.Column="0">
-                        <!-- Hardware Overview Card -->
-                        <Border Style="{DynamicResource MetricCardStyle}">
-                            <StackPanel>
-                                <DockPanel Margin="0,0,0,4">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Data="{DynamicResource IconHardware}" Fill="{DynamicResource AccentHardware}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Name="TxtHwDeckTitle" Text="SYSTEM &amp; HARDWARE" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                                    </StackPanel>
-                                    <TextBlock Name="TxtBatteryState" Text="AC Power" DockPanel.Dock="Right" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource StatusOk}"/>
-                                </DockPanel>
-
-                                <TextBlock Name="TxtHwCpuLabel" Text="PROCESSOR" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
-                                <TextBlock Name="TxtHwCpu" Text="Intel Core Ultra 7 155H" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,3" TextTrimming="CharacterEllipsis"/>
-
-                                <TextBlock Name="TxtHwGpuLabel" Text="GRAPHICS ADAPTER" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
-                                <TextBlock Name="TxtHwGpu" Text="Intel Arc Graphics" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,3" TextTrimming="CharacterEllipsis"/>
-
-                                <TextBlock Name="TxtHwNpuLabel" Text="NPU AI ENGINE" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
-                                <TextBlock Name="TxtHwNpu" Text="Intel AI Boost" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentNpu}" Margin="0,0,0,3" TextTrimming="CharacterEllipsis"/>
-
-                                <TextBlock Name="TxtHwOsLabel" Text="OPERATING SYSTEM" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
-                                <TextBlock Name="TxtHwOs" Text="Windows 11" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,3" TextTrimming="CharacterEllipsis"/>
-
-                                <DockPanel Margin="0,2,0,0">
-                                    <TextBlock Name="TxtHwPowerSchemeLabel" Text="POWER SCHEME" FontSize="8" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
-                                    <TextBlock Name="TxtActivePowerPlan" Text="Balanced" DockPanel.Dock="Right" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentHardware}"/>
-                                </DockPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Storage Volumes Card -->
-                        <Border Style="{DynamicResource MetricCardStyle}">
-                            <StackPanel>
-                                <DockPanel Margin="0,0,0,4">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Data="{DynamicResource IconDisk}" Fill="{DynamicResource AccentDisk}" Width="10" Height="10" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Name="TxtStorageDeckTitle" Text="STORAGE VOLUMES" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                                    </StackPanel>
-                                </DockPanel>
-
-                                <ItemsControl Name="ListDrives">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="{DynamicResource BgControl}" CornerRadius="5" Padding="6,4" Margin="0,2">
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
-                                                    <DockPanel Grid.Row="0">
-                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="10.5" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding VolumeLabel}" FontSize="9.5" Foreground="{DynamicResource TextMuted}" Margin="4,0,0,0" VerticalAlignment="Center"/>
-                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                                            <TextBlock Text="{Binding FreeGB, StringFormat='{}{0:N0} GB Free'}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <Button Content="📂" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Open in Explorer" Click="BtnDriveOpen_Click" Tag="{Binding}"/>
-                                                        </StackPanel>
-                                                    </DockPanel>
-                                                    <ProgressBar Grid.Row="1" Value="{Binding PercentUsed}" Style="{DynamicResource PastelProgressBarStyle}" Foreground="{DynamicResource AccentDisk}" Margin="0,3,0,0"/>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- RIGHT COLUMN: TABBED DEEP DIVE WORKSPACE -->
-                    <Border Grid.Column="1" Style="{DynamicResource MetricCardStyle}">
+                    <Border Style="{DynamicResource MetricCardStyle}">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Clean Tab Header without side box -->
+                            <!-- Clean Tab Header -->
                             <DockPanel Grid.Row="0" Margin="0,0,0,6">
                                 <StackPanel Orientation="Horizontal">
                                     <Button Name="TabBtnProcesses" Content="📊 Procesos" Style="{DynamicResource ActiveTabHeaderButtonStyle}" Click="TabBtnProcesses_Click"/>
@@ -565,47 +517,75 @@
                                     <Button Name="TabBtnServices" Content="⚙️ Servicios" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnServices_Click"/>
                                     <Button Name="TabBtnTasks" Content="⏱️ Tareas Programadas" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnTasks_Click"/>
                                     <Button Name="TabBtnStartup" Content="🚀 Apps de Inicio" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnStartup_Click"/>
+                                    <Button Name="TabBtnDrives" Content="💾 Discos &amp; Almacenamiento" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnDrives_Click"/>
                                 </StackPanel>
                             </DockPanel>
 
-                            <!-- 1. TOP PROCESSES VIEW -->
+                            <!-- 1. TOP PROCESSES VIEW WITH REAL-TIME SEARCH & ACTIONS -->
                             <Grid Grid.Row="1" Name="ViewProcesses" Visibility="Visible">
                                 <Grid.RowDefinitions>
+                                    <!-- Row 0: Search & Quick Sorting Filter Toolbar -->
                                     <RowDefinition Height="Auto"/>
+                                    <!-- Row 1: Table Header -->
+                                    <RowDefinition Height="Auto"/>
+                                    <!-- Row 2: Process List (Virtualizing) -->
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
+                                <!-- Process Toolbar: Search Box & Sort Switches -->
+                                <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                        <Button Name="BtnSortCpu" Content="⚡ CPU %" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Ordenar por mayor consumo de CPU" Click="BtnSortCpu_Click"/>
+                                        <Button Name="BtnSortRam" Content="🧠 RAM MB" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Ordenar por mayor consumo de memoria RAM" Click="BtnSortRam_Click"/>
+                                        <Button Name="BtnResumeAll" Content="▶ Reanudar Todos" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Reanudar todos los procesos suspendidos" Click="BtnResumeAll_Click"/>
+                                    </StackPanel>
+
+                                    <!-- Search Input with placeholder -->
+                                    <Border Background="{DynamicResource BgControl}" CornerRadius="5" Padding="8,3" Margin="0,0,8,0">
+                                        <Grid>
+                                            <TextBox Name="TxtSearchProcess" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimary}" FontSize="10.5" TextChanged="TxtSearchProcess_TextChanged" VerticalAlignment="Center"/>
+                                            <TextBlock Name="TxtSearchPlaceholder" Text="🔍 Buscar proceso por nombre o PID..." FontSize="9.5" Foreground="{DynamicResource TextMuted}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DockPanel>
+
                                 <!-- Table Header -->
-                                <Grid Grid.Row="0" Margin="4,0,4,4">
+                                <Grid Grid.Row="1" Margin="4,0,4,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="45"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="65"/>
                                         <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="50"/>
-                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="55"/>
+                                        <ColumnDefinition Width="75"/>
+                                        <ColumnDefinition Width="135"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Name="TxtColPid" Text="PID" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
                                     <TextBlock Grid.Column="1" Name="TxtColApp" Text="APLICACIÓN" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="4,0,0,0"/>
-                                    <TextBlock Grid.Column="2" Name="TxtColWorkingSet" Text="MEMORIA" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
-                                    <TextBlock Grid.Column="3" Name="TxtColRamPercent" Text="% RAM" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
-                                    <TextBlock Grid.Column="4" Name="TxtColActions" Text="ACCIONES" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Name="TxtColCpu" Text="CPU %" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="3" Name="TxtColWorkingSet" Text="MEMORIA" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="4" Name="TxtColRamPercent" Text="% RAM" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="5" Name="TxtColState" Text="ESTADO" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="6" Name="TxtColActions" Text="ACCIONES" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
                                 </Grid>
 
-                                <!-- Process List -->
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl Name="ListProcesses">
+                                <!-- Process List (Virtualizing & Anti-Jank) -->
+                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl Name="ListProcesses" VirtualizingStackPanel.IsVirtualizing="True" VirtualizingStackPanel.VirtualizationMode="Recycling">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Background="{DynamicResource BgControl}" CornerRadius="5" Padding="5,3.5" Margin="0,1.5" Cursor="Hand" MouseLeftButtonDown="ProcessRow_MouseLeftButtonDown" Tag="{Binding}">
                                                     <Border.ToolTip>
                                                         <ToolTip Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BorderCard}" BorderThickness="1" Foreground="{DynamicResource TextPrimary}" Padding="8">
-                                                            <StackPanel MaxWidth="300">
+                                                            <StackPanel MaxWidth="320">
                                                                 <TextBlock Text="{Binding DisplayTitle}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentMem}"/>
                                                                 <TextBlock Text="{Binding SubtitleText}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}" Margin="0,1,0,3"/>
                                                                 <Separator Background="{DynamicResource BorderCard}" Margin="0,1,0,3"/>
+                                                                <TextBlock Text="{Binding CpuDisplay, StringFormat='CPU: {0}'}" FontSize="9.5" Foreground="{DynamicResource AccentCpu}"/>
                                                                 <TextBlock Text="{Binding MemoryDisplay, StringFormat='RAM: {0}'}" FontSize="9.5" Foreground="{DynamicResource TextPrimary}"/>
+                                                                <TextBlock Text="{Binding PriorityClass, StringFormat='Prioridad: {0}'}" FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
                                                                 <TextBlock Text="{Binding ExecutablePath, StringFormat='Path: {0}'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap" Margin="0,1,0,0"/>
-                                                                <TextBlock Text="💡 Doble clic o clic derecho para opciones" FontSize="8.5" Foreground="{DynamicResource TextMuted}" Margin="0,3,0,0"/>
+                                                                <TextBlock Text="💡 Clic derecho para opciones completas" FontSize="8.5" Foreground="{DynamicResource TextMuted}" Margin="0,3,0,0"/>
                                                             </StackPanel>
                                                         </ToolTip>
                                                     </Border.ToolTip>
@@ -613,9 +593,20 @@
                                                     <Border.ContextMenu>
                                                         <ContextMenu>
                                                             <MenuItem Header="ℹ️ Ver Detalles y Propiedades" Click="MenuProcessDetails_Click" Tag="{Binding}"/>
+                                                            <Separator Background="{DynamicResource BorderCard}"/>
+                                                            <MenuItem Header="⏸ Pausar Proceso (Suspend)" Click="MenuProcessSuspend_Click" Tag="{Binding}"/>
+                                                            <MenuItem Header="▶ Reanudar Proceso (Resume)" Click="MenuProcessResume_Click" Tag="{Binding}"/>
+                                                            <MenuItem Header="⚡ Prioridad de CPU">
+                                                                <MenuItem Header="🚀 Tiempo Real (RealTime)" Click="MenuProcessPriority_Click" Tag="RealTime"/>
+                                                                <MenuItem Header="🔥 Alta (High)" Click="MenuProcessPriority_Click" Tag="High"/>
+                                                                <MenuItem Header="⬆️ Por Encima de Normal (AboveNormal)" Click="MenuProcessPriority_Click" Tag="AboveNormal"/>
+                                                                <MenuItem Header="⚖️ Normal" Click="MenuProcessPriority_Click" Tag="Normal"/>
+                                                                <MenuItem Header="⬇️ Por Debajo de Normal (BelowNormal)" Click="MenuProcessPriority_Click" Tag="BelowNormal"/>
+                                                                <MenuItem Header="🌱 Baja (Idle)" Click="MenuProcessPriority_Click" Tag="Idle"/>
+                                                            </MenuItem>
+                                                            <Separator Background="{DynamicResource BorderCard}"/>
                                                             <MenuItem Header="🔴 Finalizar Proceso (Kill Task)" Click="MenuProcessKill_Click" Tag="{Binding}"/>
                                                             <MenuItem Header="📂 Abrir Ubicación del Archivo" Click="MenuProcessOpenFolder_Click" Tag="{Binding}"/>
-                                                            <Separator Background="{DynamicResource BorderCard}"/>
                                                             <MenuItem Header="🔍 Buscar Proceso en Google" Click="MenuProcessSearch_Click" Tag="{Binding}"/>
                                                         </ContextMenu>
                                                     </Border.ContextMenu>
@@ -624,19 +615,51 @@
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="45"/>
                                                             <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="65"/>
                                                             <ColumnDefinition Width="80"/>
-                                                            <ColumnDefinition Width="50"/>
-                                                            <ColumnDefinition Width="90"/>
+                                                            <ColumnDefinition Width="55"/>
+                                                            <ColumnDefinition Width="75"/>
+                                                            <ColumnDefinition Width="135"/>
                                                         </Grid.ColumnDefinitions>
 
+                                                        <!-- PID -->
                                                         <TextBlock Text="{Binding Id}" FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+
+                                                        <!-- Name & Publisher -->
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,0,0">
                                                             <TextBlock Text="{Binding DisplayTitle}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                                                         </StackPanel>
-                                                        <TextBlock Grid.Column="2" Text="{Binding MemoryDisplay}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <TextBlock Grid.Column="3" Text="{Binding MemoryPercent, StringFormat='{}{0:N1}%'}" FontSize="10" Foreground="{DynamicResource AccentMem}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                                        <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                            <Button Content="ℹ️" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Detalles" Click="BtnProcessDetails_Click" Tag="{Binding}"/>
+
+                                                        <!-- CPU % -->
+                                                        <TextBlock Grid.Column="2" Text="{Binding CpuDisplay}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                                        <!-- RAM MB -->
+                                                        <TextBlock Grid.Column="3" Text="{Binding MemoryDisplay}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                                        <!-- RAM % -->
+                                                        <TextBlock Grid.Column="4" Text="{Binding MemoryPercent, StringFormat='{}{0:N1}%'}" FontSize="10" Foreground="{DynamicResource AccentMem}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                                        <!-- Status Badge (Responding vs Hang) -->
+                                                        <Border Grid.Column="5" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="4,1.5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding IsResponding, Converter={x:Null}}" FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource StatusOk}">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Text" Value="Activo"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsResponding}" Value="False">
+                                                                                <Setter Property="Text" Value="Colgado ⚠️"/>
+                                                                                <Setter Property="Foreground" Value="#FFFF5555"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+
+                                                        <!-- Direct Action Buttons -->
+                                                        <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Center">
+                                                            <Button Content="⏸" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Pausar / Reanudar Proceso" Click="BtnProcessSuspendToggle_Click" Tag="{Binding}"/>
+                                                            <Button Content="ℹ️" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Detalles del Proceso" Click="BtnProcessDetails_Click" Tag="{Binding}"/>
                                                             <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Finalizar Proceso" Click="BtnProcessKill_Click" Tag="{Binding}"/>
                                                         </StackPanel>
                                                     </Grid>
@@ -736,7 +759,7 @@
                                 </ScrollViewer>
                             </Grid>
 
-                            <!-- 3. SERVICES VIEW -->
+                            <!-- 3. SERVICES VIEW WITH QUICK TOGGLE ACTIONS -->
                             <Grid Grid.Row="1" Name="ViewServices" Visibility="Collapsed">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -748,9 +771,11 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Name="TxtColServiceName" Text="SERVICIO DE WINDOWS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="4,0,0,0"/>
                                     <TextBlock Grid.Column="1" Name="TxtColServiceStatus" Text="ESTADO" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="ACCIONES" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
                                 </Grid>
 
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
@@ -773,6 +798,7 @@
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="100"/>
+                                                            <ColumnDefinition Width="110"/>
                                                         </Grid.ColumnDefinitions>
                                                         <StackPanel VerticalAlignment="Center" Margin="4,0,6,0">
                                                             <TextBlock Text="{Binding DisplayName}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
@@ -781,6 +807,11 @@
                                                         <Border Grid.Column="1" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding Status}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusOk}"/>
                                                         </Border>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                                                            <Button Content="▶" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Iniciar Servicio" Click="BtnServiceStart_Click" Tag="{Binding}"/>
+                                                            <Button Content="⏹" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Detener Servicio" Click="BtnServiceStop_Click" Tag="{Binding}"/>
+                                                            <Button Content="🔄" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Reiniciar Servicio" Click="BtnServiceRestart_Click" Tag="{Binding}"/>
+                                                        </StackPanel>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
@@ -927,17 +958,55 @@
                                     </ItemsControl>
                                 </ScrollViewer>
                             </Grid>
+
+                            <!-- 6. DRIVES & STORAGE TAB VIEW (FULL-WIDTH EXPANDED) -->
+                            <Grid Grid.Row="1" Name="ViewDrives" Visibility="Collapsed">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
+                                        <ItemsControl Name="ListDrivesFull">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource BgControl}" CornerRadius="7" Padding="10,8" Margin="0,3">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+                                                            <DockPanel Grid.Row="0">
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Path Data="{DynamicResource IconDisk}" Fill="{DynamicResource AccentDisk}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0"/>
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                                                    <TextBlock Text="{Binding VolumeLabel}" FontSize="10.5" Foreground="{DynamicResource TextMuted}" Margin="6,0,0,0"/>
+                                                                    <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0">
+                                                                        <TextBlock Text="{Binding DriveFormat}" FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
+                                                                    </Border>
+                                                                </StackPanel>
+                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding FreeGB, StringFormat='{}{0:N1} GB Libres'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                    <Button Content="📂 Abrir" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Abrir en el Explorador de Windows" Click="BtnDriveOpen_Click" Tag="{Binding}" Margin="0,0,4,0"/>
+                                                                    <Button Content="🧹 Limpiar" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Abrir Sensor de Almacenamiento de Windows" Click="BtnDriveClean_Click" Tag="{Binding}"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                            <ProgressBar Grid.Row="1" Value="{Binding PercentUsed}" Style="{DynamicResource PastelProgressBarStyle}" Foreground="{DynamicResource AccentDisk}" Margin="0,6,0,0" Height="8"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
                         </Grid>
                     </Border>
                 </Grid>
 
                 <!-- ========================================================================= -->
-                <!-- ROW 5: MINIMAL STATUS FOOTER (FULL HUD ONLY)                              -->
+                <!-- ROW 5: ACTION STATUS FOOTER WITH DYNAMIC TOASTS                           -->
                 <!-- ========================================================================= -->
                 <Grid Grid.Row="5" Margin="0,6,0,0" Name="ContainerFooter">
                     <DockPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Name="TxtFooterLeft" Text="⚡ Native Zero-Dependency Telemetry" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Name="TxtStatusNotification" Text="⚡ Telemetría Win32 Activa • 0% CPU Overhead" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Name="TxtFooterRight" Text="Direct3D C# P/Invoke • Zero Ring-0 Risk" DockPanel.Dock="Right" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
                     </DockPanel>

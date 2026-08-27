@@ -167,6 +167,21 @@ Assert-Test "Installer: SimplePCMonitor-Setup.exe exists and is valid" {
     return ($file.Length -gt 200000)
 }
 
+# 10. Test Hardened SafeTempCleaner Invariants
+Assert-Test "Security: SafeTempCleaner blocks root traversal and protects exclusions" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $cleanerType = $asm.GetType("SimplePCMonitor.Core.SafeTempCleaner")
+    
+    $isClaudeExcluded = $cleanerType.GetMethod("IsExcluded").Invoke($null, @("C:\Users\test\.claude\settings.json"))
+    $isAntigravityExcluded = $cleanerType.GetMethod("IsExcluded").Invoke($null, @("C:\Users\test\.antigravity\brain"))
+    $isOneDriveExcluded = $cleanerType.GetMethod("IsExcluded").Invoke($null, @("C:\Users\test\OneDrive\doc.txt"))
+    $isTempFileExcluded = $cleanerType.GetMethod("IsExcluded").Invoke($null, @("C:\Users\test\AppData\Local\Temp\junk.tmp"))
+
+    $exOk = ($isClaudeExcluded -eq $true -and $isAntigravityExcluded -eq $true -and $isOneDriveExcluded -eq $true -and $isTempFileExcluded -eq $false)
+    return $exOk
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Results: $passed Passed, $failed Failed" -ForegroundColor $(if ($failed -eq 0) { "Green" } else { "Red" })
 Write-Host "=================================================" -ForegroundColor Cyan

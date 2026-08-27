@@ -8,8 +8,17 @@ namespace SimplePCMonitor.Modules
 {
     public class TaskCollector
     {
-        public List<TaskItem> Sample()
+        private List<TaskItem> _cachedItems = new List<TaskItem>();
+        private DateTime _lastSampleTime = DateTime.MinValue;
+        private readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(60);
+
+        public List<TaskItem> Sample(bool forceRefresh = false)
         {
+            if (!forceRefresh && _cachedItems.Count > 0 && (DateTime.UtcNow - _lastSampleTime) < _cacheDuration)
+            {
+                return _cachedItems;
+            }
+
             var items = new List<TaskItem>();
             try
             {
@@ -55,10 +64,16 @@ namespace SimplePCMonitor.Modules
                         proc.WaitForExit(1000);
                     }
                 }
+
+                if (items.Count > 0)
+                {
+                    _cachedItems = items;
+                    _lastSampleTime = DateTime.UtcNow;
+                }
             }
             catch { }
 
-            return items;
+            return items.Count > 0 ? items : _cachedItems;
         }
     }
 }

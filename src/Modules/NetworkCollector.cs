@@ -2,6 +2,7 @@ using System;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using SimplePCMonitor.Core;
 using SimplePCMonitor.Models;
 
 namespace SimplePCMonitor.Modules
@@ -13,8 +14,8 @@ namespace SimplePCMonitor.Modules
         private DateTime _prevTimestamp;
         private bool _initialized;
 
-        private long _lastLatencyMs = -1;
-        private bool _isPingRunning;
+        private volatile int _lastLatencyMs = -1;
+        private volatile bool _isPingRunning;
 
         public NetworkCollector()
         {
@@ -22,12 +23,24 @@ namespace SimplePCMonitor.Modules
             Sample();
         }
 
+        public static bool FlushDnsCache()
+        {
+            try
+            {
+                return NativeMethods.DnsFlushResolverCache();
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void TriggerAsyncPing()
         {
             if (_isPingRunning) return;
             _isPingRunning = true;
 
-            Task.Factory.StartNew(() =>
+            Task.Run(() =>
             {
                 try
                 {
@@ -36,14 +49,14 @@ namespace SimplePCMonitor.Modules
                         var reply = ping.Send("1.1.1.1", 1200);
                         if (reply != null && reply.Status == IPStatus.Success)
                         {
-                            _lastLatencyMs = reply.RoundtripTime;
+                            _lastLatencyMs = (int)reply.RoundtripTime;
                         }
                         else
                         {
                             var replyFallback = ping.Send("8.8.8.8", 1200);
                             if (replyFallback != null && replyFallback.Status == IPStatus.Success)
                             {
-                                _lastLatencyMs = replyFallback.RoundtripTime;
+                                _lastLatencyMs = (int)replyFallback.RoundtripTime;
                             }
                             else
                             {

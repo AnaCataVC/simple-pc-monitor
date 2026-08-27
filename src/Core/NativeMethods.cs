@@ -241,5 +241,34 @@ namespace SimplePCMonitor.Core
         public static extern bool SetProcessWorkingSetSize(IntPtr hProcess, IntPtr dwMinimumWorkingSetSize, IntPtr dwMaximumWorkingSetSize);
 
         #endregion
+
+        #region Process Control & NTDLL P/Invoke
+
+        public const uint PROCESS_TERMINATE = 0x0001;
+        public const uint PROCESS_SUSPEND_RESUME = 0x0800;
+        public const uint PROCESS_SET_INFORMATION = 0x0200;
+        public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        public const int STATUS_SUCCESS = 0x00000000;
+        public const int STATUS_ACCESS_DENIED = unchecked((int)0xC0000022);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(uint processAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, int processId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("ntdll.dll", SetLastError = true)]
+        public static extern int NtSuspendProcess(IntPtr processHandle);
+
+        [DllImport("ntdll.dll", SetLastError = true)]
+        public static extern int NtResumeProcess(IntPtr processHandle);
+
+        [DllImport("dnsapi.dll", EntryPoint = "DnsFlushResolverCache")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool DnsFlushResolverCache();
+
+        #endregion
     }
 }
