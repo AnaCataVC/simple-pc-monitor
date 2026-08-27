@@ -157,7 +157,7 @@ Assert-Test "Accelerators: SetupApiHelper probes NPU without throwing" {
     $asm = [System.Reflection.Assembly]::Load($bytes)
     $setupType = $asm.GetType("SimplePCMonitor.Core.SetupApiHelper")
     $npus = $setupType.GetMethod("GetNpuDevices").Invoke($null, $null)
-    return ($npus -ne $null)
+    return ($null -ne $npus)
 }
 
 # 9. Test Setup Wizard Executable
