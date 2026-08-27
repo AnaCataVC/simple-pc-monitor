@@ -44,6 +44,9 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 | **📌 Always on Top (Pin)** | Window Titlebar | WPF `Topmost` Property Toggle | Pins the telemetry window above fullscreen apps, games, or IDEs for uninterrupted monitoring. |
 | **🎨 4 Modern Themes** | Titlebar Palette | Dynamic XAML ResourceDictionary Hot-Swapper | Instantly swaps between **Pastel Dark**, **Pastel Light**, **Cyberpunk Neon**, and **Sakura Rose**. |
 
+> [!TIP]
+> 📖 **Deep Technical Architecture & Security Manual:** For full Mermaid execution sequence diagrams, Win32 P/Invoke invariants, and TOCTOU/Junction safety mechanics, see the dedicated **[Command Center Technical Manual](docs/command-center-guide.md)**.
+
 ---
 
 ### 3. Key Highlights & Capabilities:
@@ -151,6 +154,9 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 | **⚡ Optimizar RAM** | Tarjeta Memoria / Bandeja | Win32 `SetProcessWorkingSetSize` / `EmptyWorkingSet` | Vierte las páginas de memoria no referenciadas del proceso físico al archivo de paginación y ejecuta recolección de basura CLR. |
 | **📌 Fijar Ventana (Pin)** | Barra de Título | Propiedad `Topmost` de WPF | Mantiene la ventana por encima de juegos o aplicaciones a pantalla completa para monitorización continua. |
 | **🎨 4 Temas Visuales** | Paleta en Barra de Título | Conmutador dinámico de ResourceDictionary | Alterna al instante entre **Pastel Oscuro**, **Pastel Claro**, **Cyberpunk Neón** y **Sakura Rosa**. |
+
+> [!TIP]
+> 📖 **Manual Técnico y de Seguridad en Detalle:** Si deseas consultar los diagramas de secuencia Mermaid, invariantes de llamadas nativas P/Invoke y el blindaje TOCTOU/Junctions, revisa el **[Manual Técnico del Centro de Mando](docs/command-center-guide.md)**.
 
 ---
 
