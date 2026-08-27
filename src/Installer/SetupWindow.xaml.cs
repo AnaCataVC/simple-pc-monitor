@@ -280,7 +280,7 @@ namespace SimplePCMonitor.Installer
                     if (key != null)
                     {
                         key.SetValue("DisplayName", "Simple PC Monitor");
-                        key.SetValue("DisplayVersion", "1.1.0");
+                        key.SetValue("DisplayVersion", "2.0.0");
                         key.SetValue("Publisher", "AnaCata");
                         key.SetValue("DisplayIcon", exePath);
                         key.SetValue("UninstallString", string.Format("cmd.exe /c \"{0}\"", uninstallScript));
