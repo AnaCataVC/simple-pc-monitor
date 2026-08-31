@@ -1,10 +1,18 @@
 using System;
 using System.Windows;
+using SimplePCMonitor.Core;
 
 namespace SimplePCMonitor
 {
     public partial class App : Application
     {
+        protected override void OnStartup(StartupEventArgs e)
+        {
+            CrashLogger.Initialize();
+            CrashLogger.AttachDispatcher(Dispatcher);
+            base.OnStartup(e);
+        }
+
         public static void SetTheme(string themeName)
         {
             var dict = new ResourceDictionary();

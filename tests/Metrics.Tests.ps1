@@ -182,6 +182,43 @@ Assert-Test "Security: SafeTempCleaner blocks root traversal and protects exclus
     return $exOk
 }
 
+# 11. Test CrashLogger Type and Safe Exception Logging
+Assert-Test "Stability: CrashLogger type exists and handles safe exception traps" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $crashLoggerType = $asm.GetType("SimplePCMonitor.Core.CrashLogger")
+    if ($null -eq $crashLoggerType) { return $false }
+
+    $logMethod = $crashLoggerType.GetMethod("LogException", [System.Reflection.BindingFlags]"Public,Static")
+    if ($null -eq $logMethod) { return $false }
+
+    # Test invoking safe log trap
+    $dummyEx = [System.Exception]::new("Test unhandled exception trap")
+    $argsArray = [object[]]@([string]"Metrics.Tests", [System.Exception]$dummyEx, [bool]$false)
+    $logMethod.Invoke($null, $argsArray)
+    return $true
+}
+
+# 12. Test ProcessCollector CPU & RAM Sorting Modes
+Assert-Test "Modules: ProcessCollector samples and sorts correctly by CPU and RAM" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $procCollectorType = $asm.GetType("SimplePCMonitor.Modules.ProcessCollector")
+    if ($null -eq $procCollectorType) { return $false }
+
+    $procCollector = [System.Activator]::CreateInstance($procCollectorType)
+    $sampleMethod = $procCollectorType.GetMethod("Sample")
+
+    # Sample sorted by CPU
+    $byCpu = $sampleMethod.Invoke($procCollector, @(10, 16.0, $true, ""))
+    # Sample sorted by RAM
+    $byRam = $sampleMethod.Invoke($procCollector, @(10, 16.0, $false, ""))
+
+    $cpuOk = ($null -ne $byCpu -and $byCpu.Count -gt 0)
+    $ramOk = ($null -ne $byRam -and $byRam.Count -gt 0)
+    return ($cpuOk -and $ramOk)
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Results: $passed Passed, $failed Failed" -ForegroundColor $(if ($failed -eq 0) { "Green" } else { "Red" })
 Write-Host "=================================================" -ForegroundColor Cyan

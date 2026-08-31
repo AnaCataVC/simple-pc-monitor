@@ -10,7 +10,8 @@ This document serves as the operational manual, architecture reference, and work
 
 ### Core Architecture & Modules (`src/`):
 - **`Core/`**:
-  - `NativeMethods.cs`: Win32 & NT kernel P/Invoke (`NtSuspendProcess`, `NtResumeProcess`, `DnsFlushResolverCache`, `GetSystemTimes`, `GlobalMemoryStatusEx`, `EmptyWorkingSet`, `SetProcessWorkingSetSize`).
+  - `NativeMethods.cs`: Win32 & NT kernel P/Invoke (`NtSuspendProcess`, `NtResumeProcess`, `DnsFlushResolverCache`, `GetSystemTimes`, `GlobalMemoryStatusEx`, `EmptyWorkingSet`, `SetProcessWorkingSetSize`, `WM_GETMINMAXINFO`, `MonitorFromWindow`, `GetMonitorInfo`).
+  - `CrashLogger.cs`: Enterprise resilient crash logging with 1MB size cap, `.old` log rotation, sliding rate limiting (5 logs/10s), and global exception traps (`AppDomain`, `TaskScheduler`, `Dispatcher`).
   - `PowerPlanManager.cs`: Native Win32 power scheme switcher via `PowrProf.dll` (Balanced, High Performance, Power Saver).
   - `ProcessManager.cs`: Protected process manager with 16-process blacklist, Session 0 isolation, priority setter, and suspend/resume engine.
   - `ProcessMetadataCache.cs`: High-performance 0ms metadata caching (`FileDescription`, `CompanyName`, icon extraction).
@@ -21,11 +22,12 @@ This document serves as the operational manual, architecture reference, and work
   - `SnapshotExporter.cs`: Markdown diagnostic report generator.
   - `TrayManager.cs` & `ConfigManager.cs`: System tray icon controller and persistent user settings in `%APPDATA%`.
 - **`Modules/`**:
-  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Debounced delta % math), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
+  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Thread-safe debounced delta % math with `_syncLock` and fast in-memory sorting), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
 - **`UI/` & `Views/`**:
-  - `MainWindow.xaml`: Interactive Bento HUD, Ribbon action buttons, Drives storage visualizer, responsive 100% width layout.
+  - `MainWindow.xaml` & `MainWindow.xaml.cs`: Interactive Bento HUD, Ribbon action buttons, Drives storage visualizer, `WM_GETMINMAXINFO` multi-monitor DPI hook, and `ApplyProcessSortingFast`.
   - `ProcessDetailsWindow.xaml`: 360° modal inspector for individual processes.
-  - `App.xaml`: Dynamic 4-theme palette hot-swapper (Pastel Dark, Pastel Light, Cyberpunk, Sakura).
+  - `App.xaml` & `App.xaml.cs`: Application entrypoint, `CrashLogger` initialization, and dynamic 4-theme palette switcher (Pastel Dark, Pastel Light, Cyberpunk, Sakura).
+  - `Themes/CommonStyles.xaml`: Vector-based `ActivePillActionButtonStyle` and unified control templates.
 - **`scripts/Build-Package.ps1`**: Automated build, single-file compilation, and Setup Wizard installer packaging.
 
 ---
@@ -36,15 +38,15 @@ This document serves as the operational manual, architecture reference, and work
 simple-pc-monitor/
 ├── src/
 │   ├── SimplePCMonitor.csproj     # C# WPF project file (.NET Framework 4.8)
-│   ├── App.xaml / App.xaml.cs     # App entrypoint and 4-theme manager
-│   ├── Core/                      # Win32 P/Invoke, power plans, process guards (16 modules)
+│   ├── App.xaml / App.xaml.cs     # App entrypoint, CrashLogger traps, and 4-theme manager
+│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process guards (17 modules)
 │   ├── Models/                    # Telemetry data models and hardware structs
 │   ├── Modules/                   # Metric collectors (11 collectors: CPU, RAM, GPU, NPU, Disks...)
-│   └── UI/                        # XAML vector gauges, custom Bento controls, dialogs
+│   └── UI/                        # XAML vector gauges, custom Bento controls, themes, dialogs
 ├── scripts/
 │   └── Build-Package.ps1          # Dynamic MSBuild discovery and packaging pipeline
 ├── tests/
-│   └── Metrics.Tests.ps1          # 11-Test Pester automated validation suite
+│   └── Metrics.Tests.ps1          # 13-Test Pester automated validation suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
 ├── docs/                          # Architecture guides, command center manual, benchmarks
 └── README.md                      # Bilingual project documentation (EN/ES)

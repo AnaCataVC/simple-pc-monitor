@@ -29,8 +29,10 @@ namespace SimplePCMonitor.Core
             // Ribbon Actions
             { "TrimRam", "Optimizar RAM" },
             { "TrimRamTooltip", "Reducir conjunto de trabajo y liberar memoria RAM" },
-            { "CleanTemp", "Limpieza Profunda" },
+            { "CleanTemp", "Limpiar Temp" },
+            { "CleanDeep", "Limpiar Temp" },
             { "CleanTempTooltip", "Limpieza profunda y segura de temporales, Windows Update y caché de navegadores" },
+            { "CleanDeepTooltip", "Limpieza profunda y segura de temporales, Windows Update y caché de navegadores" },
             { "TurboMode", "Modo Turbo" },
             { "TurboModeTooltip", "1-Clic: Activa Máximo Rendimiento + Purga de Memoria RAM" },
             { "FlushDns", "Vaciar DNS" },
@@ -55,7 +57,7 @@ namespace SimplePCMonitor.Core
             { "ToolServices", "⚙️ Gestión de Servicios de Windows" },
 
             // View Modes Dropdown
-            { "ViewFull", "Modo Completo" },
+            { "ViewFull", "Completo" },
             { "ViewHero", "Modo Compacto" },
             { "ViewWidget", "Modo Mini Widget" },
             { "ViewModeTooltip", "Cambiar Modo de Vista (Completo / Compacto / Mini Widget)" },
@@ -231,8 +233,10 @@ namespace SimplePCMonitor.Core
             // Ribbon Actions
             { "TrimRam", "Trim RAM" },
             { "TrimRamTooltip", "Trim process working sets and optimize RAM" },
-            { "CleanTemp", "Deep Clean" },
+            { "CleanTemp", "Clean Temp" },
+            { "CleanDeep", "Clean Temp" },
             { "CleanTempTooltip", "Safely clean temporary files, Windows Update downloads, and browser caches" },
+            { "CleanDeepTooltip", "Safely clean temporary files, Windows Update downloads, and browser caches" },
             { "TurboMode", "Turbo Mode" },
             { "TurboModeTooltip", "1-Click: Activate High Performance + Purge RAM" },
             { "FlushDns", "Flush DNS" },
@@ -257,8 +261,8 @@ namespace SimplePCMonitor.Core
             { "ToolServices", "⚙️ Windows Services Management" },
 
             // View Modes Dropdown
-            { "ViewFull", "Full Mode" },
-            { "ViewHero", "Compact Mode" },
+            { "ViewFull", "Full" },
+            { "ViewHero", "Compact" },
             { "ViewWidget", "Mini Widget" },
             { "ViewModeTooltip", "Switch View Mode (Full / Compact / Mini Widget)" },
             { "MenuFullDesc", "🖥️ Full Mode (Dashboard + Processes)" },

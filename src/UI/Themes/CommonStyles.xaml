@@ -92,11 +92,11 @@
         <Setter Property="Background" Value="{DynamicResource BgControl}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="8,4"/>
-        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Padding" Value="6,3"/>
+        <Setter Property="Margin" Value="1.5,0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="FontFamily" Value="Segoe UI"/>
-        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontSize" Value="10.5"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -137,6 +137,39 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="pillBorder" Property="Background" Value="{DynamicResource BgControlHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Active/Selected Pill Action Button Style -->
+    <Style x:Key="ActivePillActionButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="{DynamicResource BgControlActive}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentCpu}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentCpu}"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Margin" Value="1,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Name="activePillBorder" 
+                            Background="{TemplateBinding Background}" 
+                            BorderBrush="{TemplateBinding BorderBrush}" 
+                            BorderThickness="{TemplateBinding BorderThickness}" 
+                            CornerRadius="4" 
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="activePillBorder" Property="Opacity" Value="0.9"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

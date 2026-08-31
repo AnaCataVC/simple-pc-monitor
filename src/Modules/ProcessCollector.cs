@@ -10,6 +10,7 @@ namespace SimplePCMonitor.Modules
     public class ProcessCollector
     {
         private readonly Dictionary<int, Tuple<TimeSpan, DateTime>> _prevCpuSamples = new Dictionary<int, Tuple<TimeSpan, DateTime>>();
+        private readonly object _syncLock = new object();
         private readonly int _processorCount = Environment.ProcessorCount > 0 ? Environment.ProcessorCount : 1;
 
         public List<ProcessMetric> Sample(int topCount, double totalRamGB, bool sortByCpu = false, string searchFilter = "")
@@ -43,17 +44,20 @@ namespace SimplePCMonitor.Modules
                         {
                             TimeSpan totalProcTime = p.TotalProcessorTime;
                             Tuple<TimeSpan, DateTime> prev;
-                            if (_prevCpuSamples.TryGetValue(p.Id, out prev))
+                            lock (_syncLock)
                             {
-                                double cpuDeltaMs = (totalProcTime - prev.Item1).TotalMilliseconds;
-                                double timeDeltaMs = (now - prev.Item2).TotalMilliseconds;
-                                if (timeDeltaMs > 100 && cpuDeltaMs >= 0)
+                                if (_prevCpuSamples.TryGetValue(p.Id, out prev))
                                 {
-                                    cpuPct = Math.Round((cpuDeltaMs / (timeDeltaMs * _processorCount)) * 100.0, 1);
-                                    if (cpuPct > 100.0) cpuPct = 100.0;
+                                    double cpuDeltaMs = (totalProcTime - prev.Item1).TotalMilliseconds;
+                                    double timeDeltaMs = (now - prev.Item2).TotalMilliseconds;
+                                    if (timeDeltaMs > 100 && cpuDeltaMs >= 0)
+                                    {
+                                        cpuPct = Math.Round((cpuDeltaMs / (timeDeltaMs * _processorCount)) * 100.0, 1);
+                                        if (cpuPct > 100.0) cpuPct = 100.0;
+                                    }
                                 }
+                                _prevCpuSamples[p.Id] = Tuple.Create(totalProcTime, now);
                             }
-                            _prevCpuSamples[p.Id] = Tuple.Create(totalProcTime, now);
                         }
                         catch { }
 
@@ -97,10 +101,13 @@ namespace SimplePCMonitor.Modules
                 }
 
                 // Cleanup dead PIDs from cache
-                var deadPids = _prevCpuSamples.Keys.Where(k => !activePids.Contains(k)).ToList();
-                foreach (var dead in deadPids)
+                lock (_syncLock)
                 {
-                    _prevCpuSamples.Remove(dead);
+                    var deadPids = _prevCpuSamples.Keys.Where(k => !activePids.Contains(k)).ToList();
+                    foreach (var dead in deadPids)
+                    {
+                        _prevCpuSamples.Remove(dead);
+                    }
                 }
             }
             catch { }

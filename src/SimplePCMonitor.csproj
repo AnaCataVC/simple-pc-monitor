@@ -97,6 +97,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Core\NativeMethods.cs" />
+    <Compile Include="Core\CrashLogger.cs" />
     <Compile Include="Core\WindowPlacementHelper.cs" />
     <Compile Include="Core\DxgiHelper.cs" />
     <Compile Include="Core\SetupApiHelper.cs" />

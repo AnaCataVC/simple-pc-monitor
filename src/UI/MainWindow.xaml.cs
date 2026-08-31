@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,6 +54,7 @@ namespace SimplePCMonitor.UI
         private bool _isTrayMode;
         private bool _isExiting;
         private WindowState _lastWindowState = WindowState.Normal;
+        private System.Windows.Media.Effects.Effect _cachedShadowEffect;
 
         // Cached telemetry for snapshots
         private CpuMetric _lastCpu;
@@ -121,6 +123,11 @@ namespace SimplePCMonitor.UI
             PowerPlanManager.GetActiveScheme(out activeScheme);
             UpdatePowerButtonsHighlight(activeScheme);
 
+            if (OuterBorder != null)
+            {
+                _cachedShadowEffect = OuterBorder.Effect;
+            }
+
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
             StateChanged += MainWindow_StateChanged;
@@ -167,7 +174,12 @@ namespace SimplePCMonitor.UI
 
         private IntPtr HwndMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == NativeMethods.WM_TRAYICON)
+            if (msg == NativeMethods.WM_GETMINMAXINFO)
+            {
+                WmGetMinMaxInfo(hwnd, lParam);
+                handled = true;
+            }
+            else if (msg == NativeMethods.WM_TRAYICON)
             {
                 int eventId = lParam.ToInt32() & 0xFFFF;
                 switch (eventId)
@@ -205,6 +217,39 @@ namespace SimplePCMonitor.UI
             return IntPtr.Zero;
         }
 
+        private static void WmGetMinMaxInfo(IntPtr hwnd, IntPtr lParam)
+        {
+            try
+            {
+                var mmi = (NativeMethods.MINMAXINFO)Marshal.PtrToStructure(lParam, typeof(NativeMethods.MINMAXINFO));
+                IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
+
+                if (hMonitor != IntPtr.Zero)
+                {
+                    var mi = new NativeMethods.MONITORINFO();
+                    mi.cbSize = Marshal.SizeOf(typeof(NativeMethods.MONITORINFO));
+
+                    if (NativeMethods.GetMonitorInfo(hMonitor, ref mi))
+                    {
+                        var rcWork = mi.rcWork;
+                        var rcMonitor = mi.rcMonitor;
+
+                        mmi.ptMaxPosition.X = Math.Abs(rcWork.Left - rcMonitor.Left);
+                        mmi.ptMaxPosition.Y = Math.Abs(rcWork.Top - rcMonitor.Top);
+                        mmi.ptMaxSize.X = Math.Abs(rcWork.Right - rcWork.Left);
+                        mmi.ptMaxSize.Y = Math.Abs(rcWork.Bottom - rcWork.Top);
+                        mmi.ptMaxTrackSize.X = mmi.ptMaxSize.X;
+                        mmi.ptMaxTrackSize.Y = mmi.ptMaxSize.Y;
+                        mmi.ptMinTrackSize.X = 380;
+                        mmi.ptMinTrackSize.Y = 88;
+                    }
+                }
+
+                Marshal.StructureToPtr(mmi, lParam, true);
+            }
+            catch { }
+        }
+
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             StartTelemetryLoop();
@@ -237,6 +282,7 @@ namespace SimplePCMonitor.UI
             if (WindowState == WindowState.Minimized && _config.MinimizeToTray)
             {
                 HideToTray();
+                return;
             }
             else if (WindowState != WindowState.Minimized)
             {
@@ -245,11 +291,39 @@ namespace SimplePCMonitor.UI
 
             if (WindowState == WindowState.Maximized)
             {
-                PathMaximize.Data = (Geometry)FindResource("IconRestore");
+                if (PathMaximize != null)
+                {
+                    PathMaximize.Data = TryFindResource("IconRestore") as Geometry ?? (Geometry)FindResource("IconRestore");
+                }
+                if (BtnMaximize != null)
+                {
+                    BtnMaximize.ToolTip = LocalizationManager.Get("BtnRestore", "Restaurar");
+                }
+                if (OuterBorder != null)
+                {
+                    OuterBorder.Margin = new Thickness(0);
+                    OuterBorder.CornerRadius = new CornerRadius(0);
+                    OuterBorder.BorderThickness = new Thickness(0);
+                    OuterBorder.Effect = null;
+                }
             }
-            else
+            else if (WindowState == WindowState.Normal)
             {
-                PathMaximize.Data = (Geometry)FindResource("IconMaximize");
+                if (PathMaximize != null)
+                {
+                    PathMaximize.Data = TryFindResource("IconMaximize") as Geometry ?? (Geometry)FindResource("IconMaximize");
+                }
+                if (BtnMaximize != null)
+                {
+                    BtnMaximize.ToolTip = LocalizationManager.Get("BtnMaximize", "Maximizar");
+                }
+                if (OuterBorder != null)
+                {
+                    OuterBorder.Margin = new Thickness(8);
+                    OuterBorder.CornerRadius = new CornerRadius(14);
+                    OuterBorder.BorderThickness = new Thickness(1);
+                    OuterBorder.Effect = _cachedShadowEffect;
+                }
             }
         }
 
@@ -970,7 +1044,7 @@ namespace SimplePCMonitor.UI
             ShowTab(ViewProcesses, TabBtnProcesses);
             _sortByCpu = true;
             UpdateSortButtonsHighlight();
-            RefreshProcessListManually();
+            ApplyProcessSortingFast();
             ShowToast("⚡ Filtrando procesos por mayor uso de CPU");
         }
 
@@ -991,7 +1065,7 @@ namespace SimplePCMonitor.UI
             ShowTab(ViewProcesses, TabBtnProcesses);
             _sortByCpu = false;
             UpdateSortButtonsHighlight();
-            RefreshProcessListManually();
+            ApplyProcessSortingFast();
             ShowToast("🧠 Filtrando procesos por mayor uso de memoria RAM");
         }
 
@@ -1291,6 +1365,7 @@ namespace SimplePCMonitor.UI
                 {
                     TxtCurrentTheme.Text = themeName;
                 }
+                UpdateSortButtonsHighlight();
             }
             catch { }
         }
@@ -1309,9 +1384,16 @@ namespace SimplePCMonitor.UI
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ClickCount == 2)
+            {
+                e.Handled = true;
+                BtnMaximize_Click(sender, e);
+                return;
+            }
+
             if (e.ButtonState == MouseButtonState.Pressed)
             {
-                DragMove();
+                try { DragMove(); } catch { }
             }
         }
 
@@ -1482,7 +1564,7 @@ namespace SimplePCMonitor.UI
         {
             _sortByCpu = true;
             UpdateSortButtonsHighlight();
-            RefreshProcessListManually();
+            ApplyProcessSortingFast();
             ShowToast("⚡ Ordenado por mayor uso de CPU");
         }
 
@@ -1490,17 +1572,53 @@ namespace SimplePCMonitor.UI
         {
             _sortByCpu = false;
             UpdateSortButtonsHighlight();
-            RefreshProcessListManually();
+            ApplyProcessSortingFast();
             ShowToast("🧠 Ordenado por mayor uso de RAM");
         }
 
         private void UpdateSortButtonsHighlight()
         {
-            var activeStyle = (Style)FindResource("ActivePillActionButtonStyle");
-            var defaultStyle = (Style)FindResource("PillActionButtonStyle");
+            try
+            {
+                var activeStyle = TryFindResource("ActivePillActionButtonStyle") as Style;
+                var defaultStyle = TryFindResource("PillActionButtonStyle") as Style;
 
-            if (BtnSortCpu != null) BtnSortCpu.Style = _sortByCpu ? (activeStyle ?? defaultStyle) : defaultStyle;
-            if (BtnSortRam != null) BtnSortRam.Style = !_sortByCpu ? (activeStyle ?? defaultStyle) : defaultStyle;
+                if (BtnSortCpu != null) BtnSortCpu.Style = _sortByCpu ? (activeStyle ?? defaultStyle) : defaultStyle;
+                if (BtnSortRam != null) BtnSortRam.Style = !_sortByCpu ? (activeStyle ?? defaultStyle) : defaultStyle;
+            }
+            catch { }
+        }
+
+        private void ApplyProcessSortingFast()
+        {
+            try
+            {
+                if (_lastProcs == null || _lastProcs.Count == 0)
+                {
+                    RefreshProcessListManually();
+                    return;
+                }
+
+                var query = _lastProcs.AsEnumerable();
+                if (!string.IsNullOrEmpty(_procSearchQuery))
+                {
+                    query = query.Where(x =>
+                        x.Name.IndexOf(_procSearchQuery, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        (x.FriendlyName != null && x.FriendlyName.IndexOf(_procSearchQuery, StringComparison.OrdinalIgnoreCase) >= 0) ||
+                        x.Id.ToString().Contains(_procSearchQuery)
+                    );
+                }
+
+                var sorted = _sortByCpu
+                    ? query.OrderByDescending(x => x.CpuPercent).ThenByDescending(x => x.MemoryMB).ToList()
+                    : query.OrderByDescending(x => x.MemoryMB).ThenByDescending(x => x.CpuPercent).ToList();
+
+                ListProcesses.ItemsSource = sorted;
+            }
+            catch
+            {
+                RefreshProcessListManually();
+            }
         }
 
         private void RefreshProcessListManually()

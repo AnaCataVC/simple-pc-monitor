@@ -124,6 +124,7 @@ namespace SimplePCMonitor.Core
         public const uint MONITOR_DEFAULTTONULL    = 0x00000000;
         public const uint MONITOR_DEFAULTTOPRIMARY = 0x00000001;
         public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+        public const int WM_GETMINMAXINFO = 0x0024;
 
         [StructLayout(LayoutKind.Sequential)]
         public struct RECT
@@ -143,6 +144,16 @@ namespace SimplePCMonitor.Core
             public RECT rcMonitor;
             public RECT rcWork;
             public uint dwFlags;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MINMAXINFO
+        {
+            public POINT ptReserved;
+            public POINT ptMaxSize;
+            public POINT ptMaxPosition;
+            public POINT ptMinTrackSize;
+            public POINT ptMaxTrackSize;
         }
 
         [DllImport("user32.dll")]
