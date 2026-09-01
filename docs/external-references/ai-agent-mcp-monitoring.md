@@ -75,4 +75,4 @@ $$\text{CPU\%}_{\text{session}} = \text{CPU\%}(\text{Parent}) + \sum_{i \in \tex
 - [Microsoft Docs - CreateToolhelp32Snapshot](https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/nf-tlhelp32-createtoolhelp32snapshot)
 - [Microsoft Docs - Process Tree Management in Win32](https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags)
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
-- [MR-Axel/monitor-sistema Architecture](https://github.com/MR-Axel/monitor-sistema)
+- [Win32 Console Control Handlers & Signaling](https://learn.microsoft.com/en-us/windows/console/handlerroutine)
