@@ -752,8 +752,13 @@
 
                                                             <!-- Session Subtitle Details -->
                                                             <DockPanel Grid.Row="1" Margin="2,4,0,6">
-                                                                <TextBlock Text="{Binding McpServersCount, StringFormat='{}Servidores MCP e Hijos Activos: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
-                                                                <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" DockPanel.Dock="Right" FontSize="9" Foreground="{DynamicResource TextMuted}"/>
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="0,0,8,0">
+                                                                        <TextBlock Text="{Binding SessionContext}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentCpu}" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding McpServersCount, StringFormat='{}Hijos/MCPs: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                                <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" DockPanel.Dock="Right" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
                                                             </DockPanel>
 
                                                             <!-- Nested MCP Subprocesses List -->

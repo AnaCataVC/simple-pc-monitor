@@ -46,6 +46,9 @@ namespace SimplePCMonitor.Models
         public bool IsOrphaned { get; set; }
         public string StatusDisplay { get; set; }
         public string StatusBadgeColor { get; set; }
+        public string SessionContext { get; set; }
+        public string WorkspaceName { get; set; }
+        public string ModelName { get; set; }
 
         public AiAgentSession()
         {
@@ -59,6 +62,9 @@ namespace SimplePCMonitor.Models
             ChildProcesses = new List<AiAgentMcpServer>();
             StatusDisplay = "Active";
             StatusBadgeColor = "#10B981"; // Emerald
+            SessionContext = string.Empty;
+            WorkspaceName = string.Empty;
+            ModelName = string.Empty;
         }
     }
 

@@ -222,18 +222,31 @@ Assert-Test "Modules: ProcessCollector samples and sorts correctly by CPU and RA
     return ($cpuOk -and $ramOk)
 }
 
-# 13. Test AI Agent & MCP Collector
-Assert-Test "AI Agents: AiAgentCollector samples sessions and consolidates MCP trees" {
+# 13. Test AI Agent & MCP Collector with Session Naming & Privacy
+Assert-Test "AI Agents: AiAgentCollector samples sessions and resolves SessionContext cleanly" {
     $bytes = [System.IO.File]::ReadAllBytes($exePath)
     $asm = [System.Reflection.Assembly]::Load($bytes)
     $aiCollectorType = $asm.GetType("SimplePCMonitor.Modules.AiAgentCollector")
-    if ($null -eq $aiCollectorType) { return $false }
+    $sessionType = $asm.GetType("SimplePCMonitor.Models.AiAgentSession")
+    if ($null -eq $aiCollectorType -or $null -eq $sessionType) { return $false }
+
+    $prop = $sessionType.GetProperty("SessionContext")
+    if ($null -eq $prop) { return $false }
 
     $collector = [System.Activator]::CreateInstance($aiCollectorType)
     $sampleMethod = $aiCollectorType.GetMethod("Sample")
     $metric = $sampleMethod.Invoke($collector, $null)
 
-    return ($null -ne $metric -and $metric.Sessions.Count -ge 0)
+    if ($null -eq $metric) { return $false }
+
+    # Privacy verification: Ensure no absolute path leaked in SessionContext
+    foreach ($session in $metric.Sessions) {
+        if (![string]::IsNullOrEmpty($session.SessionContext) -and $session.SessionContext.Contains("C:\Users\")) {
+            return $false
+        }
+    }
+
+    return $true
 }
 
 # 14. Test Two-Phase Process Close Invariants

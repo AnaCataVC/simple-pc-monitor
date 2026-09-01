@@ -66,6 +66,14 @@ namespace SimplePCMonitor.Modules
             "cmd"
         };
 
+        private class CachedSessionInfo
+        {
+            public string Context { get; set; }
+            public string Workspace { get; set; }
+            public string Model { get; set; }
+        }
+
+        private readonly Dictionary<string, CachedSessionInfo> _sessionContextCache = new Dictionary<string, CachedSessionInfo>();
         private readonly Dictionary<int, Tuple<TimeSpan, DateTime>> _prevCpuSamples = new Dictionary<int, Tuple<TimeSpan, DateTime>>();
         private readonly object _syncLock = new object();
         private readonly int _processorCount = Environment.ProcessorCount > 0 ? Environment.ProcessorCount : 1;
@@ -226,6 +234,12 @@ namespace SimplePCMonitor.Modules
                 session.StatusDisplay = session.IsIdle ? "Idle (Waiting)" : "Active (Working)";
                 session.StatusBadgeColor = session.IsIdle ? "#64748B" : "#10B981"; // Slate vs Emerald
 
+                // Resolve Context (Project Workspace / Model / CLI Session) with 0ms Cache
+                var sessionInfo = ResolveSessionContext(rootProc, rootPid, rootExe, rootStartTime, descendants);
+                session.SessionContext = sessionInfo.Context;
+                session.WorkspaceName = sessionInfo.Workspace;
+                session.ModelName = sessionInfo.Model;
+
                 metric.Sessions.Add(session);
                 grandTotalRamMB += session.TotalWorkingSetMB;
                 totalMcpCount += session.McpServersCount;
@@ -236,13 +250,29 @@ namespace SimplePCMonitor.Modules
             metric.TotalAggregatedRamMB = Math.Round(grandTotalRamMB, 1);
             metric.TotalAggregatedRamDisplay = string.Format("{0:N1} MB", grandTotalRamMB);
 
-            // Cleanup stale CPU samples
+            // Cleanup stale CPU samples and cached session contexts
             lock (_syncLock)
             {
                 var deadPids = _prevCpuSamples.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
                 foreach (var dead in deadPids)
                 {
                     _prevCpuSamples.Remove(dead);
+                }
+
+                var deadCacheKeys = _sessionContextCache.Keys.Where(k =>
+                {
+                    int pid;
+                    var parts = k.Split('_');
+                    if (parts.Length > 0 && int.TryParse(parts[0], out pid))
+                    {
+                        return !allRunningPids.Contains(pid);
+                    }
+                    return true;
+                }).ToList();
+
+                foreach (var deadKey in deadCacheKeys)
+                {
+                    _sessionContextCache.Remove(deadKey);
                 }
             }
 
@@ -356,6 +386,143 @@ namespace SimplePCMonitor.Modules
             if (string.Equals(procName, "git", StringComparison.OrdinalIgnoreCase)) return "Git Subprocess";
             if (string.Equals(procName, "pwsh", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "powershell", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "cmd", StringComparison.OrdinalIgnoreCase)) return "Terminal Shell Process";
             return procName;
+        }
+
+        private CachedSessionInfo ResolveSessionContext(Process rootProc, int rootPid, string rootExe, DateTime rootStartTime, List<int> descendantPids)
+        {
+            string cacheKey = string.Format("{0}_{1}", rootPid, rootStartTime.Ticks);
+            lock (_syncLock)
+            {
+                CachedSessionInfo cached;
+                if (_sessionContextCache.TryGetValue(cacheKey, out cached))
+                {
+                    return cached;
+                }
+            }
+
+            string rawTitle = string.Empty;
+            try
+            {
+                rawTitle = rootProc.MainWindowTitle;
+                if (string.IsNullOrWhiteSpace(rawTitle) && descendantPids != null)
+                {
+                    foreach (int childPid in descendantPids)
+                    {
+                        try
+                        {
+                            var cp = Process.GetProcessById(childPid);
+                            if (!string.IsNullOrWhiteSpace(cp.MainWindowTitle))
+                            {
+                                rawTitle = cp.MainWindowTitle;
+                                break;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+
+            string cleanWorkspace = CleanWindowTitle(rawTitle);
+            string context = string.Empty;
+            string modelName = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(cleanWorkspace))
+            {
+                context = "📂 " + cleanWorkspace;
+            }
+            else
+            {
+                context = FormatDefaultContext(rootExe, rootPid);
+            }
+
+            var info = new CachedSessionInfo
+            {
+                Context = context,
+                Workspace = cleanWorkspace,
+                Model = modelName
+            };
+
+            lock (_syncLock)
+            {
+                _sessionContextCache[cacheKey] = info;
+            }
+
+            return info;
+        }
+
+        private static string CleanWindowTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+
+            string s = title.Trim();
+            if (s.StartsWith("● ") || s.StartsWith("* "))
+            {
+                s = s.Substring(2).Trim();
+            }
+
+            string[] suffixes = new[]
+            {
+                " — Google Antigravity", " - Google Antigravity",
+                " — Antigravity", " - Antigravity",
+                " — Cursor", " - Cursor",
+                " — Windsurf", " - Windsurf",
+                " — Visual Studio Code", " - Visual Studio Code",
+                " — VS Code", " - VS Code",
+                " — Claude", " - Claude",
+                " — Aider", " - Aider"
+            };
+
+            foreach (var suffix in suffixes)
+            {
+                int idx = s.LastIndexOf(suffix, StringComparison.OrdinalIgnoreCase);
+                if (idx >= 0)
+                {
+                    s = s.Substring(0, idx).Trim();
+                }
+            }
+
+            if (s.Contains(" — "))
+            {
+                var parts = s.Split(new[] { " — " }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
+                {
+                    s = parts[parts.Length - 1].Trim();
+                }
+            }
+            else if (s.Contains(" - "))
+            {
+                var parts = s.Split(new[] { " - " }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 1)
+                {
+                    s = parts[parts.Length - 1].Trim();
+                }
+            }
+
+            // Path Privacy: Never leak absolute folder paths
+            if (s.Contains("\\") || s.Contains("/"))
+            {
+                try
+                {
+                    s = Path.GetFileName(s.TrimEnd('\\', '/'));
+                }
+                catch { }
+            }
+
+            return s.Length > 40 ? s.Substring(0, 37) + "..." : s;
+        }
+
+        private static string FormatDefaultContext(string exeName, int pid)
+        {
+            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "claude-code", StringComparison.OrdinalIgnoreCase)) return "🤖 Claude Code Assistant";
+            if (string.Equals(exeName, "gemini", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "gemini-cli", StringComparison.OrdinalIgnoreCase)) return "🤖 Gemini CLI Assistant";
+            if (string.Equals(exeName, "antigravity", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "agy", StringComparison.OrdinalIgnoreCase)) return "⚡ Antigravity Workspace";
+            if (string.Equals(exeName, "cursor", StringComparison.OrdinalIgnoreCase)) return "⚡ Cursor Workspace";
+            if (string.Equals(exeName, "windsurf", StringComparison.OrdinalIgnoreCase)) return "⚡ Windsurf Workspace";
+            if (string.Equals(exeName, "aider", StringComparison.OrdinalIgnoreCase)) return "💻 Aider Pair Session";
+            if (string.Equals(exeName, "ollama", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "ollama app", StringComparison.OrdinalIgnoreCase)) return "🧠 Ollama Local Inference";
+            if (string.Equals(exeName, "lm studio", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "lms", StringComparison.OrdinalIgnoreCase)) return "🧠 LM Studio Local Model";
+            return string.Format("⚡ Sesión Activa #{0}", pid);
         }
     }
 }
