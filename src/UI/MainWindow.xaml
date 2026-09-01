@@ -761,27 +761,31 @@
                                                                 <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" DockPanel.Dock="Right" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
                                                             </DockPanel>
 
-                                                            <!-- Nested MCP Subprocesses List -->
+                                                            <!-- Nested MCP Subprocesses List (Scrollable for 20+ Subprocesses) -->
                                                             <Border Grid.Row="2" Background="{DynamicResource BgCard}" CornerRadius="6" Padding="6,4" Margin="0,2,0,0">
-                                                                <ItemsControl ItemsSource="{Binding ChildProcesses}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <DockPanel Margin="0,2">
-                                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                                                    <TextBlock Text=" ↳ " FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
-                                                                                    <TextBlock Text="{Binding ProcessName}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
-                                                                                    <TextBlock Text="{Binding Description, StringFormat=' ({0})'}" FontSize="8.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
-                                                                                    <TextBlock Text="{Binding Pid, StringFormat=' [PID: {0}]'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                                                                </StackPanel>
-                                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                                    <TextBlock Text="{Binding MemoryDisplay}" FontSize="9" Foreground="{DynamicResource AccentMem}" Margin="0,0,8,0"/>
-                                                                                    <TextBlock Text="{Binding CpuDisplay}" FontSize="9" Foreground="{DynamicResource AccentCpu}" Margin="0,0,6,0"/>
-                                                                                    <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" Padding="4,0" Height="16" FontSize="8" ToolTip="Cerrar este subproceso MCP específico" Click="BtnAiMcpSubprocessKill_Click" Tag="{Binding}"/>
-                                                                                </StackPanel>
-                                                                            </DockPanel>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
+                                                                <ScrollViewer MaxHeight="210" VerticalScrollBarVisibility="Auto">
+                                                                    <ItemsControl ItemsSource="{Binding ChildProcesses}">
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <DockPanel Margin="0,2">
+                                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                        <TextBlock Text=" ↳ " FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                                                                        <TextBlock Text="{Binding ProcessName}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                                        <Border Background="{DynamicResource BgControl}" CornerRadius="3" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                                            <TextBlock Text="{Binding Description}" FontSize="8.5" Foreground="{DynamicResource TextSecondary}"/>
+                                                                                        </Border>
+                                                                                        <TextBlock Text="{Binding Pid, StringFormat=' [PID: {0}]'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                                                    </StackPanel>
+                                                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                        <TextBlock Text="{Binding MemoryDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentMem}" Margin="0,0,8,0"/>
+                                                                                        <TextBlock Text="{Binding CpuDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentCpu}" Margin="0,0,6,0"/>
+                                                                                        <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" Padding="4,0" Height="16" FontSize="8" ToolTip="Cerrar este subproceso MCP específico" Click="BtnAiMcpSubprocessKill_Click" Tag="{Binding}"/>
+                                                                                    </StackPanel>
+                                                                                </DockPanel>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </ScrollViewer>
                                                             </Border>
                                                         </Grid>
                                                     </Border>

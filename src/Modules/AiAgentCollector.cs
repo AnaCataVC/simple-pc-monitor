@@ -374,6 +374,14 @@ namespace SimplePCMonitor.Modules
 
         private static string FormatMcpDescription(string procName)
         {
+            if (string.Equals(procName, "claude", StringComparison.OrdinalIgnoreCase)) return "Worker Subprocess";
+            if (string.Equals(procName, "antigravity", StringComparison.OrdinalIgnoreCase)) return "Worker Subprocess";
+            if (string.Equals(procName, "cursor", StringComparison.OrdinalIgnoreCase)) return "Helper Process";
+            if (string.Equals(procName, "windsurf", StringComparison.OrdinalIgnoreCase)) return "Cascade Worker";
+            if (string.Equals(procName, "conhost", StringComparison.OrdinalIgnoreCase)) return "Console Host";
+            if (string.Equals(procName, "bash", StringComparison.OrdinalIgnoreCase)) return "Bash Shell";
+            if (string.Equals(procName, "sh", StringComparison.OrdinalIgnoreCase)) return "Shell Process";
+            if (string.Equals(procName, "wsl", StringComparison.OrdinalIgnoreCase)) return "WSL Subprocess";
             if (string.Equals(procName, "node", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Node.js)";
             if (string.Equals(procName, "python", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "python3", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "pythonw", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Python)";
             if (string.Equals(procName, "uvx", StringComparison.OrdinalIgnoreCase)) return "MCP Runner (uvx)";
