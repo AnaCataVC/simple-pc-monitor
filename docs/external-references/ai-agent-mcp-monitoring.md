@@ -1,11 +1,11 @@
 > **Created:** 2026-08-31
-> **Last Updated:** 2026-08-31
+> **Last Updated:** 2026-09-01
 
 # AI Agent Process Hierarchies, MCP Subprocess Architecture & Two-Phase Process Termination on Windows
 
 ## 1. Overview & Problem Definition
 
-Modern software development with AI agents (Claude Code, Gemini CLI, Codex, Aider, Open-Interpreter, Cursor, Copilot) relies on distributed multi-process architectures running locally. A parent CLI / orchestrator process spawns multiple long-lived and ephemeral child processes, predominantly Model Context Protocol (MCP) servers (running over `node.exe`, `python.exe`, `uvx.exe`, `docker.exe`, or custom executables).
+Modern software development with AI coding agents (Google Antigravity, Claude Code, Gemini CLI, OpenAI Codex, Aider, Cursor, Windsurf, Cline, Roo Code, Copilot, LM Studio, Ollama) relies on distributed multi-process architectures running locally on developer workstations. An orchestrator parent process spawns multiple long-lived and ephemeral child processes, predominantly Model Context Protocol (MCP) servers (running over `node.exe`, `python.exe`, `uvx.exe`, `bun.exe`, `deno.exe`, `docker.exe`, or specialized CLI utilities).
 
 Traditional Windows task managers fail in two critical ways:
 1. **Metric Fragmentation**: Child processes are displayed disconnected from their orchestrator root, obscuring total aggregated RAM (often 1.5–3.5 GB) and CPU consumption.
@@ -31,16 +31,40 @@ Traditional Windows task managers fail in two critical ways:
 
 ---
 
-## 3. AI Agent & MCP Signatures Matrix
+## 3. Verified AI Agent & MCP Signatures Matrix (2026 Full Catalog)
 
-| Agent / Tool | Root Process Name | Typical CLI Parameters | Child Process Ecosystem |
+### A. AI Agent & Coding Orchestrators
+| Agent / Tool | Root Executable Signatures | Category / Runtime | Typical Child Ecosystem |
 | :--- | :--- | :--- | :--- |
-| **Claude Code CLI** | `claude.exe`, `claude` | `--output-format stream-json`, `--resume=<uuid>` | `node.exe` (MCP servers), `git.exe`, `rg.exe` |
-| **Gemini CLI** | `gemini.exe`, `gemini` | `cli`, `--model` | `python.exe`, `node.exe`, `uvx.exe` (MCP servers) |
-| **Aider** | `aider.exe`, `python.exe` | `aider`, `main.py` | `git.exe`, `python.exe` |
-| **Codex / Open Interpreter**| `codex.exe`, `interpreter.exe`| `cli`, `--api-key` | `python.exe`, `uv.exe` |
-| **Ollama** | `ollama.exe`, `ollama_app.exe`| `serve`, `run` | `ollama_llama_server.exe` |
-| **Cursor / VSCode AI** | `cursor.exe`, `Code.exe` | `--ms-enable-electron-run-as-node` | Language servers, MCP connectors |
+| **Google Antigravity** | `Antigravity.exe`, `agy.exe` | AI IDE / CLI Orchestrator | Subagent workers, `node.exe` MCP servers, `rg.exe`, `git.exe` |
+| **Claude Code & Desktop** | `claude.exe`, `claude-code.exe` | CLI / Electron Desktop | Multiple MCP servers (`node.exe`, `python.exe`, `uvx.exe`), `bash.exe`, `rg.exe` |
+| **Gemini CLI** | `gemini.exe`, `gemini-cli.exe` | Python / Go CLI | `python.exe`, `uvx.exe`, MCP connector subprocesses |
+| **Cursor AI IDE** | `cursor.exe` | Electron / VS Code Fork | Extension hosts, language servers, MCP server child trees |
+| **Windsurf AI IDE** | `Windsurf.exe` | Electron / Codeium Fork | Cascade agent workers, language servers, MCP tools |
+| **Aider Pair Programming**| `aider.exe`, `python.exe` | Python CLI Pair Programmer | `git.exe`, local language servers, diff tools |
+| **OpenAI Codex / ChatGPT**| `codex.exe`, `chatgpt.exe` | Native / Electron Client | Search helpers, sandbox runners |
+| **Ollama Local LLM** | `ollama.exe`, `ollama app.exe` | Go / C++ Local Inference Server | `ollama_llama_server.exe`, model worker backends |
+| **LM Studio Local LLM** | `LM Studio.exe`, `lms.exe` | Electron / CLI Inference Host | Headless inference servers, local embeddings workers |
+| **Cline & Roo Code** | `cline.exe`, `roo-code.exe`, `roo.exe` | AI Developer Extension / CLI | Node.js MCP tools, shell subprocesses |
+| **GitHub Copilot** | `copilot.exe`, `copilot-agent.exe` | Language Server / CLI | `copilot-language-server`, Node.js runners |
+| **Open Interpreter** | `interpreter.exe`, `open-interpreter.exe`| Python CLI Interpreter | Terminal shells, Python execution kernels |
+| **LocalAI** | `localai.exe` | Multi-model Local Backend | gRPC worker backends, Python runners |
+| **Continue & Cody** | `continue.exe`, `cody.exe` | Extension Agents | Local embedding servers, indexing subprocesses |
+
+### B. Recognized MCP Runtimes & Subprocesses
+| Subprocess Name | Classification & Purpose |
+| :--- | :--- |
+| `node.exe` | Model Context Protocol (MCP) Server running TypeScript / JavaScript tool servers |
+| `python.exe`, `python3.exe`, `pythonw.exe` | MCP Server running Python FastMCP / SDK servers |
+| `uvx.exe`, `uv.exe` | Astral uv / uvx ephemeral MCP server runners |
+| `npx.cmd`, `npx.exe` | Node Package Execute MCP runners |
+| `bun.exe`, `deno.exe` | Fast JS/TS alternative runtimes for MCP servers |
+| `docker.exe`, `dockerd.exe` | Isolated containerized MCP tool environments |
+| `rg.exe` | Ripgrep high-performance workspace grep tool |
+| `git.exe` | Source control inspection and patch generation |
+| `pwsh.exe`, `powershell.exe`, `cmd.exe` | Terminal shell executors spawned by autonomous agents |
+
+---
 
 ### Aggregated Resource Formula:
 $$\text{RAM}_{\text{session}} = \text{WorkingSet64}(\text{Parent}) + \sum_{i \in \text{Children}} \text{WorkingSet64}(i)$$

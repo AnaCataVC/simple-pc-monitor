@@ -17,20 +17,33 @@ namespace SimplePCMonitor.Modules
             "antigravity",
             "agy",
             "claude",
+            "claude-code",
             "gemini",
+            "gemini-cli",
             "codex",
+            "chatgpt",
             "aider",
             "ollama",
+            "ollama app",
+            "lm studio",
+            "lms",
+            "localai",
             "cursor",
             "windsurf",
             "cline",
             "roo-code",
             "roo",
+            "roo-cline",
             "copilot",
+            "copilot-agent",
             "continue",
             "cody",
+            "tabnine",
+            "amazon-q",
+            "q",
             "open-interpreter",
-            "interpreter"
+            "interpreter",
+            "zed"
         };
 
         private static readonly HashSet<string> KnownMcpRuntimes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -38,12 +51,19 @@ namespace SimplePCMonitor.Modules
             "node",
             "python",
             "python3",
+            "pythonw",
             "uvx",
             "uv",
             "npx",
+            "bun",
+            "deno",
             "rg",
             "git",
-            "docker"
+            "docker",
+            "dockerd",
+            "pwsh",
+            "powershell",
+            "cmd"
         };
 
         private readonly Dictionary<int, Tuple<TimeSpan, DateTime>> _prevCpuSamples = new Dictionary<int, Tuple<TimeSpan, DateTime>>();
@@ -300,18 +320,24 @@ namespace SimplePCMonitor.Modules
         {
             if (string.Equals(exeName, "antigravity", StringComparison.OrdinalIgnoreCase)) return "Google Antigravity IDE";
             if (string.Equals(exeName, "agy", StringComparison.OrdinalIgnoreCase)) return "Antigravity CLI";
-            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase)) return "Claude Code / Desktop";
-            if (string.Equals(exeName, "gemini", StringComparison.OrdinalIgnoreCase)) return "Gemini CLI";
+            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "claude-code", StringComparison.OrdinalIgnoreCase)) return "Claude Code / Desktop";
+            if (string.Equals(exeName, "gemini", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "gemini-cli", StringComparison.OrdinalIgnoreCase)) return "Gemini CLI";
             if (string.Equals(exeName, "codex", StringComparison.OrdinalIgnoreCase)) return "Codex CLI";
-            if (string.Equals(exeName, "aider", StringComparison.OrdinalIgnoreCase)) return "Aider Agent";
-            if (string.Equals(exeName, "ollama", StringComparison.OrdinalIgnoreCase)) return "Ollama Local LLM";
+            if (string.Equals(exeName, "chatgpt", StringComparison.OrdinalIgnoreCase)) return "ChatGPT Desktop";
+            if (string.Equals(exeName, "aider", StringComparison.OrdinalIgnoreCase)) return "Aider Pair Programming Agent";
+            if (string.Equals(exeName, "ollama", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "ollama app", StringComparison.OrdinalIgnoreCase)) return "Ollama Local LLM";
+            if (string.Equals(exeName, "lm studio", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "lms", StringComparison.OrdinalIgnoreCase)) return "LM Studio Local LLM";
+            if (string.Equals(exeName, "localai", StringComparison.OrdinalIgnoreCase)) return "LocalAI Server";
             if (string.Equals(exeName, "cursor", StringComparison.OrdinalIgnoreCase)) return "Cursor AI IDE";
             if (string.Equals(exeName, "windsurf", StringComparison.OrdinalIgnoreCase)) return "Windsurf AI IDE";
             if (string.Equals(exeName, "cline", StringComparison.OrdinalIgnoreCase)) return "Cline AI Agent";
-            if (string.Equals(exeName, "roo-code", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "roo", StringComparison.OrdinalIgnoreCase)) return "Roo Code Agent";
-            if (string.Equals(exeName, "copilot", StringComparison.OrdinalIgnoreCase)) return "GitHub Copilot Agent";
+            if (string.Equals(exeName, "roo-code", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "roo", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "roo-cline", StringComparison.OrdinalIgnoreCase)) return "Roo Code Agent";
+            if (string.Equals(exeName, "copilot", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "copilot-agent", StringComparison.OrdinalIgnoreCase)) return "GitHub Copilot Agent";
             if (string.Equals(exeName, "continue", StringComparison.OrdinalIgnoreCase)) return "Continue AI Agent";
             if (string.Equals(exeName, "cody", StringComparison.OrdinalIgnoreCase)) return "Sourcegraph Cody";
+            if (string.Equals(exeName, "tabnine", StringComparison.OrdinalIgnoreCase)) return "Tabnine AI Assistant";
+            if (string.Equals(exeName, "amazon-q", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "q", StringComparison.OrdinalIgnoreCase)) return "Amazon Q Developer";
+            if (string.Equals(exeName, "zed", StringComparison.OrdinalIgnoreCase)) return "Zed Editor AI";
             if (string.Equals(exeName, "interpreter", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "open-interpreter", StringComparison.OrdinalIgnoreCase)) return "Open Interpreter";
             return exeName + " Agent";
         }
@@ -319,10 +345,16 @@ namespace SimplePCMonitor.Modules
         private static string FormatMcpDescription(string procName)
         {
             if (string.Equals(procName, "node", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Node.js)";
-            if (string.Equals(procName, "python", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "python3", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Python)";
+            if (string.Equals(procName, "python", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "python3", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "pythonw", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Python)";
             if (string.Equals(procName, "uvx", StringComparison.OrdinalIgnoreCase)) return "MCP Runner (uvx)";
-            if (string.Equals(procName, "rg", StringComparison.OrdinalIgnoreCase)) return "Ripgrep Tool";
+            if (string.Equals(procName, "uv", StringComparison.OrdinalIgnoreCase)) return "Python Package Tool (uv)";
+            if (string.Equals(procName, "npx", StringComparison.OrdinalIgnoreCase)) return "MCP Package Runner (npx)";
+            if (string.Equals(procName, "bun", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Bun)";
+            if (string.Equals(procName, "deno", StringComparison.OrdinalIgnoreCase)) return "MCP Server (Deno)";
+            if (string.Equals(procName, "docker", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "dockerd", StringComparison.OrdinalIgnoreCase)) return "MCP Container (Docker)";
+            if (string.Equals(procName, "rg", StringComparison.OrdinalIgnoreCase)) return "Ripgrep Search Tool";
             if (string.Equals(procName, "git", StringComparison.OrdinalIgnoreCase)) return "Git Subprocess";
+            if (string.Equals(procName, "pwsh", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "powershell", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "cmd", StringComparison.OrdinalIgnoreCase)) return "Terminal Shell Process";
             return procName;
         }
     }
