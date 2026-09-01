@@ -123,7 +123,7 @@ Run the compiled standalone executable inside `releases/`:
 
 #### Build from Source:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.0.0"
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.1.0"
 ```
 
 #### Run Automated Health & Stress Tests (20 Tests):
