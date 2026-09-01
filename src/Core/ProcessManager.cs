@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using SimplePCMonitor.Models;
 
@@ -242,10 +244,130 @@ namespace SimplePCMonitor.Core
             return SetProcessPriority(pid, priority, out msg);
         }
 
+        private static readonly object _consoleLock = new object();
+
+        public enum ProcessCloseResult
+        {
+            ClosedGracefully,
+            MinimizedToTray,
+            StillRunning,
+            ProtectedProcess,
+            AccessDenied,
+            Failed
+        }
+
+        public static async Task<ProcessCloseResult> RequestGracefulCloseAsync(int pid, string processName, int timeoutMs = 2000)
+        {
+            if (pid <= 4 || IsProtected(processName))
+            {
+                return ProcessCloseResult.ProtectedProcess;
+            }
+
+            int currentSessionId = -1;
+            try { currentSessionId = Process.GetCurrentProcess().SessionId; } catch { }
+
+            Process proc = null;
+            try
+            {
+                proc = Process.GetProcessById(pid);
+                if (proc.HasExited)
+                {
+                    return ProcessCloseResult.ClosedGracefully;
+                }
+
+                if (currentSessionId > 0 && proc.SessionId == 0)
+                {
+                    return ProcessCloseResult.ProtectedProcess;
+                }
+            }
+            catch (ArgumentException)
+            {
+                return ProcessCloseResult.ClosedGracefully; // Already dead
+            }
+            catch (Exception)
+            {
+                return ProcessCloseResult.AccessDenied;
+            }
+
+            IntPtr hWnd = IntPtr.Zero;
+            try { hWnd = proc.MainWindowHandle; } catch { }
+
+            // Phase 1: Dispatch graceful close signal
+            if (hWnd != IntPtr.Zero)
+            {
+                try
+                {
+                    proc.CloseMainWindow();
+                    NativeMethods.PostMessage(hWnd, NativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                }
+                catch { }
+            }
+            else
+            {
+                // CLI / Console process: Try AttachConsole + GenerateConsoleCtrlEvent under sync lock
+                bool signalSent = false;
+                lock (_consoleLock)
+                {
+                    try
+                    {
+                        if (NativeMethods.AttachConsole((uint)pid))
+                        {
+                            try
+                            {
+                                NativeMethods.GenerateConsoleCtrlEvent(NativeMethods.CTRL_C_EVENT, (uint)pid);
+                                signalSent = true;
+                            }
+                            finally
+                            {
+                                NativeMethods.FreeConsole();
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (!signalSent)
+                {
+                    try { proc.CloseMainWindow(); } catch { }
+                }
+            }
+
+            // Await non-blocking timeout
+            await Task.Delay(timeoutMs).ConfigureAwait(false);
+
+            try
+            {
+                proc.Refresh();
+                if (proc.HasExited)
+                {
+                    return ProcessCloseResult.ClosedGracefully;
+                }
+
+                // If process is still alive, check if its main window disappeared (minimized to System Tray)
+                IntPtr postHwnd = IntPtr.Zero;
+                try { postHwnd = proc.MainWindowHandle; } catch { }
+
+                if (hWnd != IntPtr.Zero && postHwnd == IntPtr.Zero)
+                {
+                    return ProcessCloseResult.MinimizedToTray;
+                }
+
+                return ProcessCloseResult.StillRunning;
+            }
+            catch (InvalidOperationException)
+            {
+                return ProcessCloseResult.ClosedGracefully; // Exited during check
+            }
+            catch
+            {
+                return ProcessCloseResult.StillRunning;
+            }
+        }
+
         public static bool TerminateProcess(int pid, string processName, out string message)
         {
             message = string.Empty;
-            if (IsProtected(processName))
+            if (IsProtected(processName) || pid <= 4)
             {
                 message = string.Format("'{0}' is a protected Windows system process and cannot be terminated.", processName);
                 return false;
@@ -254,6 +376,12 @@ namespace SimplePCMonitor.Core
             try
             {
                 var proc = Process.GetProcessById(pid);
+                if (proc.SessionId == 0)
+                {
+                    message = string.Format("'{0}' belongs to System Session 0 and cannot be terminated.", processName);
+                    return false;
+                }
+
                 proc.Kill();
                 proc.WaitForExit(1500);
                 message = string.Format("Process '{0}' (PID: {1}) was terminated successfully.", processName, pid);
@@ -263,6 +391,92 @@ namespace SimplePCMonitor.Core
             {
                 message = string.Format("Failed to terminate '{0}': {1}", processName, ex.Message);
                 return false;
+            }
+        }
+
+        public static bool TerminateProcessTree(int rootPid, bool force, out string message)
+        {
+            message = string.Empty;
+            string rootName = "Process";
+            try { rootName = Process.GetProcessById(rootPid).ProcessName; } catch { }
+
+            if (IsProtected(rootName) || rootPid <= 4)
+            {
+                message = string.Format("'{0}' is a protected system process and its tree cannot be terminated.", rootName);
+                return false;
+            }
+
+            // Discover tree using Toolhelp32 snapshot
+            var parentToChildren = new Dictionary<int, List<int>>();
+            IntPtr hSnapshot = NativeMethods.CreateToolhelp32Snapshot(NativeMethods.TH32CS_SNAPPROCESS, 0);
+            if (hSnapshot != IntPtr.Zero && hSnapshot != new IntPtr(-1))
+            {
+                try
+                {
+                    var pe = new NativeMethods.PROCESSENTRY32();
+                    pe.dwSize = (uint)Marshal.SizeOf(typeof(NativeMethods.PROCESSENTRY32));
+                    if (NativeMethods.Process32First(hSnapshot, ref pe))
+                    {
+                        do
+                        {
+                            int pid = (int)pe.th32ProcessID;
+                            int ppid = (int)pe.th32ParentProcessID;
+                            if (!parentToChildren.ContainsKey(ppid))
+                            {
+                                parentToChildren[ppid] = new List<int>();
+                            }
+                            parentToChildren[ppid].Add(pid);
+                        } while (NativeMethods.Process32Next(hSnapshot, ref pe));
+                    }
+                }
+                finally
+                {
+                    NativeMethods.CloseHandle(hSnapshot);
+                }
+            }
+
+            var treePids = new List<int>();
+            CollectTreeNodes(rootPid, parentToChildren, treePids);
+
+            // Terminate in REVERSE topological order (leaves first, root last)
+            int killedCount = 0;
+            for (int i = treePids.Count - 1; i >= 0; i--)
+            {
+                int pid = treePids[i];
+                try
+                {
+                    var p = Process.GetProcessById(pid);
+                    if (!IsProtected(p.ProcessName) && p.SessionId != 0 && pid > 4)
+                    {
+                        p.Kill();
+                        p.WaitForExit(500);
+                        killedCount++;
+                    }
+                }
+                catch { }
+            }
+
+            message = string.Format("Terminated {0} process(es) in tree (Root PID: {1}).", killedCount, rootPid);
+            return killedCount > 0;
+        }
+
+        private static void CollectTreeNodes(int parentPid, Dictionary<int, List<int>> tree, List<int> result)
+        {
+            if (!result.Contains(parentPid))
+            {
+                result.Add(parentPid);
+            }
+
+            List<int> children;
+            if (tree.TryGetValue(parentPid, out children))
+            {
+                foreach (int childPid in children)
+                {
+                    if (!result.Contains(childPid))
+                    {
+                        CollectTreeNodes(childPid, tree, result);
+                    }
+                }
             }
         }
 

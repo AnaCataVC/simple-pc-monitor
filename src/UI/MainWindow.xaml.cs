@@ -32,6 +32,7 @@ namespace SimplePCMonitor.UI
         private readonly NetworkCollector _net;
         private readonly HardwareCollector _hw;
         private readonly ProcessCollector _proc;
+        private readonly AiAgentCollector _aiAgents;
         private readonly ServiceCollector _svc;
         private readonly StartupCollector _startup;
         private readonly TaskCollector _tasks;
@@ -65,6 +66,7 @@ namespace SimplePCMonitor.UI
         private NetworkMetric _lastNet;
         private HardwareMetric _lastHw;
         private List<ProcessMetric> _lastProcs;
+        private AiAgentMetric _lastAiAgents;
         private ServiceMetric _lastSvc;
         private List<StartupItem> _lastStartup;
         private List<TaskItem> _lastTasks;
@@ -88,6 +90,7 @@ namespace SimplePCMonitor.UI
             _net = new NetworkCollector();
             _hw = new HardwareCollector();
             _proc = new ProcessCollector();
+            _aiAgents = new AiAgentCollector();
             _svc = new ServiceCollector();
             _startup = new StartupCollector();
             _tasks = new TaskCollector();
@@ -398,12 +401,18 @@ namespace SimplePCMonitor.UI
                             var hw = _hw.Sample();
 
                             List<ProcessMetric> procs = null;
+                            AiAgentMetric aiAgents = null;
                             ServiceMetric svc = null;
                             List<TaskItem> tasks = null;
                             List<StartupItem> startup = null;
 
                             // Always sample processes to ensure responsive CPU% & real-time search
                             procs = _proc.Sample(15, mem != null ? mem.TotalGB : 16.0, _sortByCpu, _procSearchQuery);
+
+                            if (_cycleCount % 2 == 0)
+                            {
+                                aiAgents = _aiAgents.Sample();
+                            }
 
                             if (_cycleCount % 3 == 0)
                             {
@@ -419,7 +428,7 @@ namespace SimplePCMonitor.UI
 
                             await Dispatcher.InvokeAsync(() =>
                             {
-                                UpdateUI(cpu, gpu, npu, mem, disks, net, hw, procs, svc, tasks, startup);
+                                UpdateUI(cpu, gpu, npu, mem, disks, net, hw, procs, aiAgents, svc, tasks, startup);
                             }, DispatcherPriority.Background);
                         }
                         catch { }
@@ -445,6 +454,7 @@ namespace SimplePCMonitor.UI
             NetworkMetric net,
             HardwareMetric hw,
             List<ProcessMetric> procs,
+            AiAgentMetric aiAgents,
             ServiceMetric svc,
             List<TaskItem> tasks,
             List<StartupItem> startup)
@@ -457,9 +467,35 @@ namespace SimplePCMonitor.UI
             _lastNet = net;
             _lastHw = hw;
             if (procs != null) _lastProcs = procs;
+            if (aiAgents != null) _lastAiAgents = aiAgents;
             if (svc != null) _lastSvc = svc;
             if (tasks != null) _lastTasks = tasks;
             if (startup != null) _lastStartup = startup;
+
+            // Update AI Agent Tab & Metrics if available
+            if (aiAgents != null)
+            {
+                if (TxtAiSessionsCount != null) TxtAiSessionsCount.Text = aiAgents.ActiveSessionsCount.ToString();
+                if (TxtAiMcpCount != null) TxtAiMcpCount.Text = aiAgents.TotalMcpServersCount.ToString();
+                if (TxtAiTotalRam != null) TxtAiTotalRam.Text = aiAgents.TotalAggregatedRamDisplay;
+
+                if (ListAiSessions != null)
+                {
+                    ListAiSessions.ItemsSource = aiAgents.Sessions;
+                }
+
+                if (BorderNoAiAgents != null)
+                {
+                    BorderNoAiAgents.Visibility = aiAgents.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                if (TabBtnAiAgents != null)
+                {
+                    TabBtnAiAgents.Content = aiAgents.ActiveSessionsCount > 0
+                        ? string.Format("🤖 Agentes IA ({0})", aiAgents.ActiveSessionsCount)
+                        : "🤖 Agentes IA & MCP";
+                }
+            }
 
             // 1. CPU
             if (cpu != null)
@@ -648,6 +684,12 @@ namespace SimplePCMonitor.UI
             ShowTab(ViewProcesses, TabBtnProcesses);
         }
 
+        private void TabBtnAiAgents_Click(object sender, RoutedEventArgs e)
+        {
+            ShowTab(ViewAiAgents, TabBtnAiAgents);
+            RefreshAiAgentsManually();
+        }
+
         private void TabBtnAccelerators_Click(object sender, RoutedEventArgs e)
         {
             ShowTab(ViewAccelerators, TabBtnAccelerators);
@@ -676,6 +718,7 @@ namespace SimplePCMonitor.UI
         private void ShowTab(Grid tabView, Button activeBtn)
         {
             if (ViewProcesses != null) ViewProcesses.Visibility = Visibility.Collapsed;
+            if (ViewAiAgents != null) ViewAiAgents.Visibility = Visibility.Collapsed;
             if (ViewAccelerators != null) ViewAccelerators.Visibility = Visibility.Collapsed;
             if (ViewServices != null) ViewServices.Visibility = Visibility.Collapsed;
             if (ViewTasks != null) ViewTasks.Visibility = Visibility.Collapsed;
@@ -692,6 +735,7 @@ namespace SimplePCMonitor.UI
             var activeStyle = (Style)FindResource("ActiveTabHeaderButtonStyle");
 
             if (TabBtnProcesses != null) TabBtnProcesses.Style = defaultStyle;
+            if (TabBtnAiAgents != null) TabBtnAiAgents.Style = defaultStyle;
             if (TabBtnAccelerators != null) TabBtnAccelerators.Style = defaultStyle;
             if (TabBtnServices != null) TabBtnServices.Style = defaultStyle;
             if (TabBtnTasks != null) TabBtnTasks.Style = defaultStyle;
@@ -702,6 +746,109 @@ namespace SimplePCMonitor.UI
             {
                 activeBtn.Style = activeStyle;
             }
+        }
+
+        private void BtnRefreshAiAgents_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshAiAgentsManually();
+        }
+
+        private async void RefreshAiAgentsManually()
+        {
+            try
+            {
+                var metric = await Task.Run(() => _aiAgents.Sample()).ConfigureAwait(true);
+                if (metric != null)
+                {
+                    _lastAiAgents = metric;
+                    if (TxtAiSessionsCount != null) TxtAiSessionsCount.Text = metric.ActiveSessionsCount.ToString();
+                    if (TxtAiMcpCount != null) TxtAiMcpCount.Text = metric.TotalMcpServersCount.ToString();
+                    if (TxtAiTotalRam != null) TxtAiTotalRam.Text = metric.TotalAggregatedRamDisplay;
+                    if (ListAiSessions != null) ListAiSessions.ItemsSource = metric.Sessions;
+                    if (BorderNoAiAgents != null) BorderNoAiAgents.Visibility = metric.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                    if (TabBtnAiAgents != null)
+                    {
+                        TabBtnAiAgents.Content = metric.ActiveSessionsCount > 0
+                            ? string.Format("🤖 Agentes IA ({0})", metric.ActiveSessionsCount)
+                            : "🤖 Agentes IA & MCP";
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void BtnAiAgentSuspendToggle_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var session = btn != null ? btn.Tag as AiAgentSession : null;
+            if (session == null) return;
+
+            bool isSuspended = ProcessManager.IsSuspended(session.ParentPid);
+            if (isSuspended)
+            {
+                ProcessManager.ResumeProcess(session.ParentPid);
+                foreach (var child in session.ChildPids)
+                {
+                    ProcessManager.ResumeProcess(child);
+                }
+                ShowToast("▶ Sesión reanudada: " + session.AgentName);
+            }
+            else
+            {
+                ProcessManager.SuspendProcess(session.ParentPid);
+                foreach (var child in session.ChildPids)
+                {
+                    ProcessManager.SuspendProcess(child);
+                }
+                ShowToast("⏸ Sesión pausada: " + session.AgentName);
+            }
+            RefreshAiAgentsManually();
+        }
+
+        private async void BtnAiAgentCloseGraceful_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var session = btn != null ? btn.Tag as AiAgentSession : null;
+            if (session == null) return;
+
+            await CloseOrKillProcessAsync(session.ParentPid, session.AgentProcessName, isAgentTree: true);
+            RefreshAiAgentsManually();
+        }
+
+        private void BtnAiAgentKillTree_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var session = btn != null ? btn.Tag as AiAgentSession : null;
+            if (session == null) return;
+
+            var result = MessageBox.Show(
+                string.Format("¿Deseas forzar la finalización de toda la sesión '{0}' (PID: {1}) y sus {2} servidores MCP asociados en orden topológico inverso?",
+                    session.AgentName, session.ParentPid, session.McpServersCount),
+                "Fin de Árbol de Proceso",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning
+            );
+
+            if (result == MessageBoxResult.Yes)
+            {
+                string msg;
+                bool success = ProcessManager.TerminateProcessTree(session.ParentPid, true, out msg);
+                ShowToast(success ? "⚡ Árbol finalizado: " + session.AgentName : "Error al terminar árbol: " + msg);
+                RefreshAiAgentsManually();
+                RefreshProcessListManually();
+            }
+        }
+
+        private void BtnAiMcpSubprocessKill_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var mcp = btn != null ? btn.Tag as AiAgentMcpServer : null;
+            if (mcp == null) return;
+
+            string msg;
+            bool success = ProcessManager.TerminateProcess(mcp.Pid, mcp.ProcessName, out msg);
+            ShowToast(success ? "🔴 Subproceso MCP cerrado: " + mcp.ProcessName : msg);
+            RefreshAiAgentsManually();
         }
 
         // =========================================================================
@@ -1124,7 +1271,7 @@ namespace SimplePCMonitor.UI
             }
         }
 
-        private void BtnRescueUnresponsive_Click(object sender, RoutedEventArgs e)
+        private async void BtnRescueUnresponsive_Click(object sender, RoutedEventArgs e)
         {
             if (_lastProcs == null) return;
             var hung = _lastProcs.FindAll(p => !p.IsResponding);
@@ -1145,7 +1292,7 @@ namespace SimplePCMonitor.UI
 
             if (result == MessageBoxResult.Yes)
             {
-                KillProcess(hungProc.Id, hungProc.Name);
+                await CloseOrKillProcessAsync(hungProc.Id, hungProc.Name);
             }
         }
 
@@ -1771,18 +1918,18 @@ namespace SimplePCMonitor.UI
             if (proc != null) OpenProcessDetails(proc);
         }
 
-        private void BtnProcessKill_Click(object sender, RoutedEventArgs e)
+        private async void BtnProcessKill_Click(object sender, RoutedEventArgs e)
         {
             var btn = sender as Button;
             var proc = btn != null ? btn.Tag as ProcessMetric : null;
-            if (proc != null) KillProcess(proc.Id, proc.Name);
+            if (proc != null) await CloseOrKillProcessAsync(proc.Id, proc.Name);
         }
 
-        private void MenuProcessKill_Click(object sender, RoutedEventArgs e)
+        private async void MenuProcessKill_Click(object sender, RoutedEventArgs e)
         {
             var mi = sender as MenuItem;
             var proc = mi != null ? mi.Tag as ProcessMetric : null;
-            if (proc != null) KillProcess(proc.Id, proc.Name);
+            if (proc != null) await CloseOrKillProcessAsync(proc.Id, proc.Name);
         }
 
         private void MenuProcessSearch_Click(object sender, RoutedEventArgs e)
@@ -1803,28 +1950,68 @@ namespace SimplePCMonitor.UI
             }
         }
 
-        private void KillProcess(int pid, string name)
+        private async Task CloseOrKillProcessAsync(int pid, string name, bool isAgentTree = false)
         {
-            var result = MessageBox.Show(
-                string.Format("¿Estás seguro de que deseas finalizar el proceso '{0}' (PID: {1})?", name, pid),
-                "Finalizar Proceso",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning
-            );
-
-            if (result == MessageBoxResult.Yes)
+            if (ProcessManager.IsProtected(name) || pid <= 4)
             {
-                try
+                MessageBox.Show(
+                    string.Format("'{0}' es un proceso protegido del sistema operativo y no puede ser finalizado.", name),
+                    "Acción Bloqueada",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+                return;
+            }
+
+            ShowToast("⏳ Solicitando cierre amable de: " + name + "...");
+
+            // Phase 1: Graceful Close request
+            var closeStatus = await ProcessManager.RequestGracefulCloseAsync(pid, name, 2000).ConfigureAwait(true);
+
+            if (closeStatus == ProcessManager.ProcessCloseResult.ClosedGracefully)
+            {
+                ShowToast("🟢 Proceso finalizado limpiamente: " + name);
+                RefreshProcessListManually();
+                return;
+            }
+
+            if (closeStatus == ProcessManager.ProcessCloseResult.ProtectedProcess)
+            {
+                ShowToast("⚠️ Proceso protegido o en Sesión 0 del sistema: " + name);
+                return;
+            }
+
+            // Phase 2: Handle Tray minimization or unresponsive process
+            string promptMessage;
+            string promptTitle;
+
+            if (closeStatus == ProcessManager.ProcessCloseResult.MinimizedToTray)
+            {
+                promptTitle = "Aplicación Minimizada a la Bandeja";
+                promptMessage = string.Format("La aplicación '{0}' (PID: {1}) cerró su ventana pero continúa ejecutándose en segundo plano (minimizada a la Bandeja del Sistema / System Tray).\n\n¿Deseas forzar su cierre definitivo (Kill)?", name, pid);
+            }
+            else
+            {
+                promptTitle = "El Proceso Sigue en Ejecución";
+                promptMessage = string.Format("El proceso '{0}' (PID: {1}) no respondió a la solicitud de cierre amable.\n\n¿Deseas forzar su finalización inmediata (Kill)?", name, pid);
+            }
+
+            var confirmResult = MessageBox.Show(promptMessage, promptTitle, MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirmResult == MessageBoxResult.Yes)
+            {
+                string msg;
+                bool ok;
+                if (isAgentTree)
                 {
-                    var p = Process.GetProcessById(pid);
-                    p.Kill();
-                    ShowToast("🔴 Proceso finalizado: " + name);
-                    RefreshProcessListManually();
+                    ok = ProcessManager.TerminateProcessTree(pid, true, out msg);
                 }
-                catch (Exception ex)
+                else
                 {
-                    ShowToast("No se pudo finalizar el proceso: " + ex.Message);
+                    ok = ProcessManager.TerminateProcess(pid, name, out msg);
                 }
+
+                ShowToast(ok ? "🔴 Proceso forzado a finalizar: " + name : "Error: " + msg);
+                RefreshProcessListManually();
             }
         }
 

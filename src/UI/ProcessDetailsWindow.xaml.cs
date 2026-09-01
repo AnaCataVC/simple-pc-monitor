@@ -124,21 +124,38 @@ namespace SimplePCMonitor.UI
             MessageBox.Show("Process diagnostic information copied to clipboard!", "Diagnostics Copied", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void BtnEndProcess_Click(object sender, RoutedEventArgs e)
+        private async void BtnEndProcess_Click(object sender, RoutedEventArgs e)
         {
             if (_info == null || _info.IsProtected) return;
 
-            var result = MessageBox.Show(
-                string.Format("Are you sure you want to terminate process '{0}' (PID: {1})?\n\nUnsaved data in this process may be lost.", _info.Name, _info.Id),
-                "Confirm End Process",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+            // Phase 1: Graceful close attempt
+            var closeStatus = await ProcessManager.RequestGracefulCloseAsync(_info.Id, _info.Name, 2000);
+
+            if (closeStatus == ProcessManager.ProcessCloseResult.ClosedGracefully)
+            {
+                MessageBox.Show(string.Format("Process '{0}' (PID: {1}) closed gracefully.", _info.Name, _info.Id), "Process Closed", MessageBoxButton.OK, MessageBoxImage.Information);
+                Close();
+                return;
+            }
+
+            if (closeStatus == ProcessManager.ProcessCloseResult.ProtectedProcess)
+            {
+                MessageBox.Show(string.Format("'{0}' is a system-protected process and cannot be closed.", _info.Name), "Protected Process", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Phase 2: Tray minimization or Unresponsive escalation
+            string promptMsg = closeStatus == ProcessManager.ProcessCloseResult.MinimizedToTray
+                ? string.Format("Process '{0}' (PID: {1}) closed its window but is still running in the background / System Tray.\n\nDo you want to force terminate (Kill) it?", _info.Name, _info.Id)
+                : string.Format("Process '{0}' (PID: {1}) did not respond to the graceful close request.\n\nDo you want to force terminate (Kill) it?", _info.Name, _info.Id);
+
+            var result = MessageBox.Show(promptMsg, "Force Terminate Process", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
             if (result == MessageBoxResult.Yes)
             {
                 string msg;
                 bool success = ProcessManager.TerminateProcess(_info.Id, _info.Name, out msg);
-                MessageBox.Show(msg, success ? "Process Ended" : "Termination Failed", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Error);
+                MessageBox.Show(msg, success ? "Process Force Ended" : "Termination Failed", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Error);
                 if (success)
                 {
                     Close();

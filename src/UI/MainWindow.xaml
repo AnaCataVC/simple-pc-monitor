@@ -506,6 +506,7 @@
                             <DockPanel Grid.Row="0" Margin="0,0,0,6">
                                 <StackPanel Orientation="Horizontal">
                                     <Button Name="TabBtnProcesses" Content="📊 Procesos" Style="{DynamicResource ActiveTabHeaderButtonStyle}" Click="TabBtnProcesses_Click"/>
+                                    <Button Name="TabBtnAiAgents" Content="🤖 Agentes IA &amp; MCP" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnAiAgents_Click"/>
                                     <Button Name="TabBtnAccelerators" Content="⚡ Aceleradores (GPU/NPU)" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnAccelerators_Click"/>
                                     <Button Name="TabBtnServices" Content="⚙️ Servicios" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnServices_Click"/>
                                     <Button Name="TabBtnTasks" Content="⏱️ Tareas Programadas" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnTasks_Click"/>
@@ -663,7 +664,130 @@
                                 </ScrollViewer>
                             </Grid>
 
-                            <!-- 2. ACCELERATORS (GPU / NPU) TAB VIEW -->
+                            <!-- 2. AI AGENTS & MCP ECOSYSTEM TAB VIEW -->
+                            <Grid Grid.Row="1" Name="ViewAiAgents" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Toolbar: Aggregated Metrics & Clean Orphaned -->
+                                <DockPanel Grid.Row="0" Margin="4,0,4,8">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Background="{DynamicResource BgCard}" CornerRadius="5" Padding="8,3" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🤖 Sesiones Detectadas: " FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                                                <TextBlock Name="TxtAiSessionsCount" Text="0" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{DynamicResource BgCard}" CornerRadius="5" Padding="8,3" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🔌 Servidores MCP: " FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                                                <TextBlock Name="TxtAiMcpCount" Text="0" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentGpu}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Background="{DynamicResource BgCard}" CornerRadius="5" Padding="8,3" Margin="0,0,6,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="🧠 RAM Consolidada: " FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                                                <TextBlock Name="TxtAiTotalRam" Text="0.0 MB" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentMem}"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Name="BtnRefreshAiAgents" Content="🔄 Actualizar" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Escanear árbol de procesos Win32 de agentes de IA" Click="BtnRefreshAiAgents_Click"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <!-- Sessions List (Hierarchical Bento Style) -->
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="2">
+                                        <!-- Empty state placeholder when no agents running -->
+                                        <Border Name="BorderNoAiAgents" Background="{DynamicResource BgControl}" CornerRadius="8" Padding="20,16" Margin="0,4" Visibility="Collapsed">
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="🤖 Cero Agentes IA o Servidores MCP Activos" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Cuando ejecutes herramientas como Claude Code CLI, Gemini CLI, Aider, Codex o Cursor, sus procesos y servidores MCP hijos aparecerán aquí automáticamente." FontSize="9.5" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <ItemsControl Name="ListAiSessions">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource BgControl}" BorderBrush="{DynamicResource BorderCard}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <!-- Session Header: Agent Name, PID, Status Badge, Resources & Actions -->
+                                                            <DockPanel Grid.Row="0">
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="🤖 " FontSize="12" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding AgentName}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                    <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding ParentPid, StringFormat='PID: {0}'}" FontSize="9" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}"/>
+                                                                    </Border>
+                                                                    <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding StatusDisplay}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusOk}"/>
+                                                                    </Border>
+                                                                </StackPanel>
+
+                                                                <!-- Right Actions -->
+                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="RAM Total: " FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                                                                            <TextBlock Text="{Binding TotalMemoryDisplay}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentMem}" Margin="0,0,6,0"/>
+                                                                            <TextBlock Text="CPU: " FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                                                                            <TextBlock Text="{Binding TotalCpuDisplay}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                    <Button Content="⏸ Pausar" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Pausar / Reanudar sesión y servidores MCP" Click="BtnAiAgentSuspendToggle_Click" Tag="{Binding}" Margin="0,0,4,0"/>
+                                                                    <Button Content="🛑 Cierre Amable" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Cierre en 2 fases: intenta cierre limpio y verifica minimizado a bandeja" Click="BtnAiAgentCloseGraceful_Click" Tag="{Binding}" Margin="0,0,4,0"/>
+                                                                    <Button Content="⚡ Fin de Árbol" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Terminación forzada en orden topológico inverso (evita zombis)" Click="BtnAiAgentKillTree_Click" Tag="{Binding}"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+
+                                                            <!-- Session Subtitle Details -->
+                                                            <DockPanel Grid.Row="1" Margin="2,4,0,6">
+                                                                <TextBlock Text="{Binding McpServersCount, StringFormat='{}Servidores MCP e Hijos Activos: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                                                                <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" DockPanel.Dock="Right" FontSize="9" Foreground="{DynamicResource TextMuted}"/>
+                                                            </DockPanel>
+
+                                                            <!-- Nested MCP Subprocesses List -->
+                                                            <Border Grid.Row="2" Background="{DynamicResource BgCard}" CornerRadius="6" Padding="6,4" Margin="0,2,0,0">
+                                                                <ItemsControl ItemsSource="{Binding ChildProcesses}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <DockPanel Margin="0,2">
+                                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                    <TextBlock Text=" ↳ " FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                                                                    <TextBlock Text="{Binding ProcessName}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                                    <TextBlock Text="{Binding Description, StringFormat=' ({0})'}" FontSize="8.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                                                                    <TextBlock Text="{Binding Pid, StringFormat=' [PID: {0}]'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                                                </StackPanel>
+                                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                    <TextBlock Text="{Binding MemoryDisplay}" FontSize="9" Foreground="{DynamicResource AccentMem}" Margin="0,0,8,0"/>
+                                                                                    <TextBlock Text="{Binding CpuDisplay}" FontSize="9" Foreground="{DynamicResource AccentCpu}" Margin="0,0,6,0"/>
+                                                                                    <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" Padding="4,0" Height="16" FontSize="8" ToolTip="Cerrar este subproceso MCP específico" Click="BtnAiMcpSubprocessKill_Click" Tag="{Binding}"/>
+                                                                                </StackPanel>
+                                                                            </DockPanel>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+
+                            <!-- 3. ACCELERATORS (GPU / NPU) TAB VIEW -->
                             <Grid Grid.Row="1" Name="ViewAccelerators" Visibility="Collapsed">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="4">

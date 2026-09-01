@@ -281,5 +281,53 @@ namespace SimplePCMonitor.Core
         public static extern bool DnsFlushResolverCache();
 
         #endregion
+
+        #region Toolhelp32 & Console Signaling P/Invoke
+
+        public const uint TH32CS_SNAPPROCESS = 0x00000002;
+        public const uint WM_CLOSE = 0x0010;
+        public const uint CTRL_C_EVENT = 0;
+        public const uint CTRL_BREAK_EVENT = 1;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct PROCESSENTRY32
+        {
+            public uint dwSize;
+            public uint cntUsage;
+            public uint th32ProcessID;
+            public IntPtr th32DefaultHeapID;
+            public uint th32ModuleID;
+            public uint cntThreads;
+            public uint th32ParentProcessID;
+            public int pcPriClassBase;
+            public uint dwFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+            public string szExeFile;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool AttachConsole(uint dwProcessId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool FreeConsole();
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
+
+        #endregion
     }
 }

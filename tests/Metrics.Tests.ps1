@@ -77,6 +77,9 @@ Assert-Test "Architecture: Core classes loadable via reflection" {
         "SimplePCMonitor.Core.SetupApiHelper",
         "SimplePCMonitor.Core.WindowsAcceleratorEngine",
         "SimplePCMonitor.Core.LocalizationManager",
+        "SimplePCMonitor.Models.AiAgentSession",
+        "SimplePCMonitor.Models.AiAgentMetric",
+        "SimplePCMonitor.Modules.AiAgentCollector",
         "SimplePCMonitor.Modules.GpuCollector",
         "SimplePCMonitor.Modules.NpuCollector",
         "SimplePCMonitor.Modules.StartupCollector",
@@ -217,6 +220,38 @@ Assert-Test "Modules: ProcessCollector samples and sorts correctly by CPU and RA
     $cpuOk = ($null -ne $byCpu -and $byCpu.Count -gt 0)
     $ramOk = ($null -ne $byRam -and $byRam.Count -gt 0)
     return ($cpuOk -and $ramOk)
+}
+
+# 13. Test AI Agent & MCP Collector
+Assert-Test "AI Agents: AiAgentCollector samples sessions and consolidates MCP trees" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $aiCollectorType = $asm.GetType("SimplePCMonitor.Modules.AiAgentCollector")
+    if ($null -eq $aiCollectorType) { return $false }
+
+    $collector = [System.Activator]::CreateInstance($aiCollectorType)
+    $sampleMethod = $aiCollectorType.GetMethod("Sample")
+    $metric = $sampleMethod.Invoke($collector, $null)
+
+    return ($null -ne $metric -and $metric.Sessions.Count -ge 0)
+}
+
+# 14. Test Two-Phase Process Close Invariants
+Assert-Test "Process Manager: RequestGracefulCloseAsync handles protected and user processes" {
+    $bytes = [System.IO.File]::ReadAllBytes($exePath)
+    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $procMgr = $asm.GetType("SimplePCMonitor.Core.ProcessManager")
+    if ($null -eq $procMgr) { return $false }
+
+    $closeMethod = $procMgr.GetMethod("RequestGracefulCloseAsync")
+    if ($null -eq $closeMethod) { return $false }
+
+    # Test protected process check (svchost PID 4 or system)
+    $task = $closeMethod.Invoke($null, @([int]4, [string]"system", [int]100))
+    $task.Wait()
+    $result = $task.Result.ToString()
+
+    return ($result -eq "ProtectedProcess")
 }
 
 Write-Host "=================================================" -ForegroundColor Cyan

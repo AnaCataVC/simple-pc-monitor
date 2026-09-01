@@ -114,9 +114,11 @@
     <Compile Include="Core\TrayManager.cs" />
     <Compile Include="Core\StartupHelper.cs" />
     <Compile Include="Models\SystemMetrics.cs" />
+    <Compile Include="Models\AiAgentSession.cs" />
     <Compile Include="Modules\CpuCollector.cs" />
     <Compile Include="Modules\GpuCollector.cs" />
     <Compile Include="Modules\NpuCollector.cs" />
+    <Compile Include="Modules\AiAgentCollector.cs" />
     <Compile Include="Modules\MemoryCollector.cs" />
     <Compile Include="Modules\DiskCollector.cs" />
     <Compile Include="Modules\NetworkCollector.cs" />
