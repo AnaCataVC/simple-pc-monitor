@@ -4,13 +4,13 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![C# .NET](https://img.shields.io/badge/C%23-WPF%20%2F%20XAML-512BD4?style=flat-square&logo=csharp)](https://dotnet.microsoft.com/)
-[![Version](https://img.shields.io/badge/Release-v2.0.1-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.0.1)
+[![Version](https://img.shields.io/badge/Release-v2.1.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.1.0)
 [![Binary Size](https://img.shields.io/badge/Binary%20Size-585%20KB-success?style=flat-square)]()
-[![Tests](https://img.shields.io/badge/Tests-13%20Passed-brightgreen?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/Tests-20%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 585 KB binary.*
+*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 585 KB binary.*
 
 [English](#-english) • [Español](#-español)
 
@@ -21,7 +21,7 @@
 ## 🇺🇸 English
 
 ### 1. Project Description
-**Simple PC Monitor v2.0.1** is an interactive desktop command center and telemetry suite built exclusively with compiled C# and Windows Presentation Foundation (WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` without third-party runtimes or background services.
+**Simple PC Monitor v2.1.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# and Windows Presentation Foundation (WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` without third-party runtimes or background services.
 
 ---
 
@@ -32,9 +32,12 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 | Action / Button | UI Location | Mechanism & Native Win32 / Kernel API | Exact Behavior & Purpose |
 | :--- | :--- | :--- | :--- |
 | **🚀 Turbo Mode** | Top Ribbon / Tray | Win32 `PowrProf.dll` (`PowerSetActiveScheme`) + `EmptyWorkingSet` | Instantly switches the Windows power plan to **High Performance** (unparking CPU cores) and concurrently purges idle working set memory pages across user processes to reclaim physical RAM. |
+| **🤖 AI Agent & MCP Monitor** | AI Agents Tab | Win32 `CreateToolhelp32Snapshot` + PID Reuse Gate | Discovers AI developer CLIs (`claude.exe`, `gemini.exe`, `codex.exe`, `aider.exe`, `ollama.exe`, `cursor.exe`) and consolidates their child Model Context Protocol (MCP) servers (`node.exe`, `python.exe`, `uvx.exe`) into aggregated RAM/CPU sessions with Active vs Idle status. |
+| **🛑 Two-Phase Graceful Close** | Process & AI Tabs | `CloseMainWindow` / `WM_CLOSE` + Tray Detection | **Phase 1**: Dispatches a non-blocking graceful close request and detects if the app minimized to the System Tray (`MainWindowHandle == IntPtr.Zero`). **Phase 2**: Prompts for force termination only if the process remains active or unresponsive. |
+| **⚡ Reverse Tree Kill** | AI Agents Tab | Reverse Topological Tree Termination | Terminates entire process trees in reverse topological order (leaf MCP subprocesses first $\rightarrow$ root CLI last) eliminating orphaned background processes and memory leaks. |
 | **🌐 Flush DNS** | Top Ribbon | Native `dnsapi.dll` (`DnsFlushResolverCache`) | Directly purges and resets the Windows DNS name resolver cache in 0.01 ms, resolving stale routes, domain lookup glitches, and network timeouts without needing CMD. |
 | **🧹 Clean Temp** | Top Ribbon | Multizone `SafeTempCleaner` (>24h Cutoff) | Safely cleans obsolete cache files in `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download`, and `DeliveryOptimization`. Protected by **NTFS Reparse Point (Junction/Symlink) isolation** and **Dual Timestamp Gate** (`CreationTime` + `LastWriteTime`). |
-| **⚠️ Rescue Process** | Dynamic Title Alert | Win32 `IsResponding` Watchdog + `Process.Kill()` | Real-time watchdog detects windowed processes that stop responding to the Windows message loop (`IsResponding == false`). Clicking *"Rescue"* terminates the frozen application gracefully. |
+| **⚠️ Rescue Process** | Dynamic Title Alert | Win32 `IsResponding` Watchdog + Two-Phase Close | Real-time watchdog detects windowed processes that stop responding to the Windows message loop (`IsResponding == false`). Clicking *"Rescue"* dispatches a safe two-phase close. |
 | **⏸️ Suspend Process** | Process List / Context | Kernel `ntdll.dll` (`NtSuspendProcess`) | Freezes all execution threads of a CPU-intensive or runaway background task, dropping its CPU consumption to 0.0% instantly without closing the window or losing unsaved work. |
 | **▶️ Resume Process** | Process List / Context | Kernel `ntdll.dll` (`NtResumeProcess`) | Safely reactivates a suspended process, restoring its threads to active scheduling immediately. |
 | **🚨 Resume All** | Process Tab Toolbar | Batch `NtResumeProcess` Watchdog | Global emergency safety button that immediately unfreezes all currently suspended user processes. |
@@ -53,6 +56,8 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 ---
 
 ### 3. Key Highlights & Capabilities:
+- **🤖 AI Agent & MCP Session Monitor:** Real-time discovery and consolidated telemetry of developer AI sessions and child MCP subprocesses.
+- **🛡️ Two-Phase Graceful Close Protocol:** Safe non-blocking process termination with System Tray minimization detection and topological tree kill.
 - **Responsive 100% Full-Width Bento Grid:** Eliminates dead UI margins, delivering clean, high-density telemetry across all monitor aspect ratios.
 - **Enterprise Crash Logging & Exception Traps:** Centralized `CrashLogger` captures unhandled domain exceptions, unobserved task faults, and recoverable UI dispatcher errors with a 1MB size cap, sliding rate limiting, and log rotation.
 - **Dedicated Multi-Drive Storage Hub:** Live partition visualizer with filesystem health, drive type detection (NVMe/SSD/HDD), activity meters, and 1-click Explorer shortcuts.
@@ -71,10 +76,10 @@ simple-pc-monitor/
 │   ├── SimplePCMonitor.csproj      # C# WPF project file (.NET Framework 4.8)
 │   ├── App.xaml & App.xaml.cs      # Entrypoint, CrashLogger bootstrap & 4-theme switcher
 │   ├── Core/
-│   │   ├── NativeMethods.cs        # Win32 & NT kernel P/Invoke (ntdll, user32, dnsapi, powrprof)
+│   │   ├── NativeMethods.cs        # Win32 & NT kernel P/Invoke (ntdll, user32, dnsapi, powrprof, toolhelp32)
 │   │   ├── CrashLogger.cs          # Resilient crash logging (1MB cap, rotation, rate limiting)
 │   │   ├── PowerPlanManager.cs     # Native Win32 power scheme switcher
-│   │   ├── ProcessManager.cs       # Kernel process suspend/resume & blacklist guards
+│   │   ├── ProcessManager.cs       # Two-phase graceful close, reverse topological tree kill & blacklist guards
 │   │   ├── ProcessMetadataCache.cs # High-performance 0ms metadata caching
 │   │   ├── SafeTempCleaner.cs      # Hardened multizone storage cleaner (Anti-TOCTOU & Junction safe)
 │   │   ├── MemoryOptimizer.cs      # Working set trim & CLR GC collector
@@ -82,24 +87,27 @@ simple-pc-monitor/
 │   │   ├── ConfigManager.cs        # Persistent settings in %APPDATA%
 │   │   └── ToolLauncher.cs         # Safe Windows diagnostic launchers
 │   ├── Models/
-│   │   └── SystemMetrics.cs        # Strongly typed telemetry DTOs & process models
+│   │   ├── SystemMetrics.cs        # Strongly typed telemetry DTOs & process models
+│   │   └── AiAgentSession.cs       # AI Agent & MCP session and subprocess hierarchy models
 │   ├── Modules/
 │   │   ├── CpuCollector.cs         # GetSystemTimes P/Invoke delta math
 │   │   ├── MemoryCollector.cs      # GlobalMemoryStatusEx RAM & PageFile
 │   │   ├── DiskCollector.cs        # DriveInfo multi-volume evaluator
 │   │   ├── NetworkCollector.cs     # NetworkInterface live Rx/Tx & ICMP Ping
 │   │   ├── ProcessCollector.cs     # Thread-safe debounced process sampler (_syncLock + fast sorting)
+│   │   ├── AiAgentCollector.cs     # Toolhelp32 process tree scanner & MCP session aggregator
 │   │   ├── ServiceCollector.cs     # Windows ServiceController census
 │   │   ├── HardwareCollector.cs    # Battery status, uptime, OS/CPU/GPU specs
 │   │   └── StartupCollector.cs     # Registry & Startup folder enumerator
 │   └── UI/
-│       ├── MainWindow.xaml & .cs   # Interactive HUD, Bento grid, WM_GETMINMAXINFO hook
+│       ├── MainWindow.xaml & .cs   # Interactive HUD, Bento grid, AI Agents Tab, WM_GETMINMAXINFO hook
 │       ├── ProcessDetailsWindow.xaml & .cs # 360° modal process inspector dialog
 │       └── Themes/                 # Dynamic Pastel Dark, Light, Neon & Rose palettes + CommonStyles
 ├── scripts/
 │   └── Build-Package.ps1           # MSBuild dynamic resolver & packaging pipeline
 ├── tests/
-│   └── Metrics.Tests.ps1           # 13-Test Pester automated validation suite
+│   ├── Metrics.Tests.ps1           # 15-Test Health & Reflection validation suite
+│   └── DeepStress.Tests.ps1        # 5-Test Live Process Tree, Handle Leak & 5s Smoke suite
 └── releases/                       # Standalone .exe, Setup installer & Portable ZIP
 ```
 
@@ -118,27 +126,32 @@ Run the compiled standalone executable inside `releases/`:
 powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.0.0"
 ```
 
-#### Run Automated Health Tests (13 Tests):
+#### Run Automated Health & Stress Tests (20 Tests):
 ```powershell
+# 1. Health and Type Tests (15 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
+
+# 2. Deep Stress, Handle Leaks & Smoke Tests (5 tests)
+powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ```
 
 ---
 
 ### 6. Key Learnings & Engineering Takeaways
-1. **Kernel-Level Thread Suspension (`ntdll.dll`):** Invoking `NtSuspendProcess` and `NtResumeProcess` directly allows freezing resource-hogging background tasks without corrupting their state or losing application sessions.
-2. **Anti-Reparse Point / Junction Security:** Traditional recursive directory cleaners follow NTFS Junction Points and Symlinks into user data folders. Validating `FileAttributes.ReparsePoint` and enforcing dual timestamps (`CreationTime` + `LastWriteTime`) provides absolute sandbox isolation.
-3. **P/Invoke Power Scheme Switching:** Native `PowrProf.dll` (`PowerSetActiveScheme`) enables sub-millisecond power profile changes without requiring administrator elevation.
-4. **Non-Blocking Process Concurrency & In-Memory Sorting:** Thread-safe `_syncLock` synchronizes CPU delta samples across async sampling cycles, while `ApplyProcessSortingFast` re-sorts cached Linq snapshots without triggering synchronous Win32 process enumeration.
-5. **Seamless Multi-Monitor Window Maximization (`WM_GETMINMAXINFO`):** Handling Win32 `0x0024` and extracting per-monitor work area dimensions via `MonitorFromWindow` eliminates window clipping across high-DPI and multi-monitor setups.
-6. **Resilient Crash Trapping Architecture (`CrashLogger.cs`):** Multi-tier exception hooking across `AppDomain`, `TaskScheduler`, and `Dispatcher` with 1MB size caps and 5-log/10s rate limiting prevents diagnostic spam and application crashes from unobserved background threads.
+1. **AI Agent & MCP Process Tree Discovery via Win32 Toolhelp32:** Using `CreateToolhelp32Snapshot` allows sub-millisecond ($<0.8\text{ ms}$) atomic process hierarchy mapping without WMI overhead. Consolidating child MCP servers (`node.exe`, `python.exe`, `uvx.exe`) reveals the true aggregated RAM (1–3 GB) and CPU load of AI developer tools (`claude`, `gemini`, `aider`, `cursor`).
+2. **Triple PID Reuse Mitigation Gate:** Windows reassigns PIDs rapidly upon process termination. Storing and verifying `child.StartTime >= parent.StartTime.AddSeconds(-2)` prevents false-positive parent-child associations when examining long-running developer sessions.
+3. **Two-Phase Termination & Reverse Topological Tree Termination:** When closing complex applications, Phase 1 dispatches non-blocking graceful close signals (`CloseMainWindow` / `WM_CLOSE` / `AttachConsole` + `CTRL_C_EVENT`) and detects if the window minimized to the System Tray (`MainWindowHandle == IntPtr.Zero`). Escalating to Phase 2 terminates child MCP leaves before root CLI orchestrators, eliminating orphaned background processes and locked ports.
+4. **Anti-Reparse Point / Junction Security:** Traditional recursive directory cleaners follow NTFS Junction Points and Symlinks into user data folders. Validating `FileAttributes.ReparsePoint` and enforcing dual timestamps (`CreationTime` + `LastWriteTime`) provides absolute sandbox isolation.
+5. **Kernel-Level Thread Suspension (`ntdll.dll`):** Invoking `NtSuspendProcess` and `NtResumeProcess` directly allows freezing resource-hogging background tasks without corrupting their state or losing application sessions.
+6. **Seamless Multi-Monitor Window Maximization (`WM_GETMINMAXINFO`):** Handling Win32 `0x0024` and extracting per-monitor work area dimensions via `MonitorFromWindow` eliminates window clipping across high-DPI and multi-monitor setups.
+7. **Resilient Crash Trapping Architecture (`CrashLogger.cs`):** Multi-tier exception hooking across `AppDomain`, `TaskScheduler`, and `Dispatcher` with 1MB size caps and 5-log/10s rate limiting prevents diagnostic spam and application crashes from unobserved background threads.
 
 ---
 
 ## 🇪🇸 Español
 
 ### 1. Descripción del Proyecto
-**Simple PC Monitor v2.0.1** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **585 KB** sin dependencias externas.
+**Simple PC Monitor v2.1.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **585 KB** sin dependencias externas.
 
 ---
 
@@ -149,9 +162,12 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 | Botón / Acción | Ubicación en UI | API Win32 / Kernel Utilizada | Comportamiento y Propósito Exacto |
 | :--- | :--- | :--- | :--- |
 | **🚀 Modo Turbo** | Ribbon Superior / Bandeja | Win32 `PowrProf.dll` (`PowerSetActiveScheme`) + `EmptyWorkingSet` | Activa al instante el plan de energía de **Alto Rendimiento** de Windows (desestaciona núcleos de CPU) y ejecuta simultáneamente una purga agresiva del *working set* de memoria RAM en procesos de usuario. |
+| **🤖 Monitor de Agentes IA & MCP** | Pestaña Agentes IA | Win32 `CreateToolhelp32Snapshot` + Guarda PID Reuse | Detecta herramientas CLI de IA (`claude.exe`, `gemini.exe`, `codex.exe`, `aider.exe`, `ollama.exe`, `cursor.exe`) y consolida sus servidores MCP hijos (`node.exe`, `python.exe`, `uvx.exe`) en métricas agregadas de RAM/CPU con estado Activo vs Idle. |
+| **🛑 Cierre Amable en Dos Fases** | Pestañas Procesos e IA | `CloseMainWindow` / `WM_CLOSE` + Detección Tray | **Fase 1**: Envío no bloqueante de solicitud de cierre amable y detección inteligente de minimizado a la Bandeja del Sistema (`MainWindowHandle == IntPtr.Zero`). **Fase 2**: Confirmación para forzar cierre solo si continúa activo o colgado. |
+| **⚡ Fin de Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. |
 | **🌐 Vaciar DNS** | Ribbon Superior | Nativa `dnsapi.dll` (`DnsFlushResolverCache`) | Purga y reinicia la caché del solucionador de nombres DNS de Windows en 0.01 ms, corrigiendo errores de navegación y resolución de dominios sin abrir CMD. |
 | **🧹 Limpiar Temporales** | Ribbon Superior | Multizona `SafeTempCleaner` (>24h Cutoff) | Limpieza segura de archivos temporales en `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download` y `DeliveryOptimization`. Blindado con **aislamiento de Junctions/Symlinks** y **Guarda de Doble Marca de Tiempo** (`CreationTime` + `LastWriteTime`). |
-| **⚠️ Rescatar Proceso** | Alerta en Barra de Título | Watchdog Win32 `IsResponding` + `Process.Kill()` | Detecta en vivo procesos con ventanas que no responden a la cola de mensajes de Windows (`IsResponding == false`). El botón *"Rescatar"* permite finalizar la aplicación colgada de inmediato. |
+| **⚠️ Rescatar Proceso** | Alerta en Barra de Título | Watchdog Win32 `IsResponding` + Cierre en Dos Fases | Detecta en vivo procesos con ventanas que no responden a la cola de mensajes de Windows (`IsResponding == false`). El botón *"Rescatar"* ejecuta el protocolo seguro de cierre en dos fases. |
 | **⏸️ Suspender Proceso** | Lista de Procesos / Contexto | Kernel `ntdll.dll` (`NtSuspendProcess`) | Congela todos los hilos de ejecución de un proceso desbocado, reduciendo su consumo de CPU al 0.0% instantáneamente sin cerrarlo ni perder el trabajo abierto. |
 | **▶️ Reanudar Proceso** | Lista de Procesos / Contexto | Kernel `ntdll.dll` (`NtResumeProcess`) | Reactiva un proceso previamente suspendido, devolviendo sus hilos al planificador de tareas de Windows. |
 | **🚨 Reanudar Todos** | Barra de Pestaña Procesos | Batch `NtResumeProcess` Watchdog | Botón de seguridad global que descongela simultáneamente todos los procesos de usuario suspendidos. |
@@ -170,12 +186,14 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 ---
 
 ### 3. Características Nativas Destacadas:
+- **🤖 Monitor de Agentes IA & Servidores MCP:** Detección en tiempo real de sesiones de herramientas de IA CLI y subprocesos MCP hijos con RAM consolidada.
+- **🛡️ Protocolo de Cierre en Dos Fases:** Cierre seguro y no bloqueante con detección de aplicaciones minimizadas a la Bandeja del Sistema (*System Tray*) y terminación topológica inversa.
 - **Diseño Bento a Ancho Completo:** Cuadrícula de alta densidad sin márgenes muertos, optimizada para resoluciones modernas.
 - **Registro Resiliente de Fallos (`CrashLogger.cs`):** Captura global de excepciones en `AppDomain`, `TaskScheduler` y `Dispatcher` con rotación automática a 1MB y límite de tasa de 5 registros cada 10 segundos.
 - **Centro de Almacenamiento Multidisco:** Visualizador en tiempo real de unidades de disco (NVMe/SSD/HDD), estado de salud, espacio libre y accesos directos al Explorador de archivos.
 - **🔍 Inspector 360° de Procesos:** Identificación amigable de nombres comerciales, publicadores certificados, arquitectura y memoria con 0ms de retardo.
 - **Lista Negra de Protección del Sistema:** Protección estricta que previene la suspensión o cierre de procesos vitales del sistema (`csrss`, `dwm`, `svchost`, `explorer`, `services`, `lsass`).
-- **Pipeline de CI/CD Automatizado:** Compilación y ejecución de 13 tests automatizados de salud y arquitectura en cada release.
+- **Pipeline de CI/CD Automatizado:** Compilación y ejecución de 20 tests automatizados de salud, estrés en vivo y arquitectura en cada release.
 
 ---
 
@@ -188,12 +206,16 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 
 #### Compilar desde el Código Fuente:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.0.1"
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.1.0"
 ```
 
-#### Ejecutar Pruebas Automatizadas (13 Tests):
+#### Ejecutar Pruebas Automatizadas (20 Tests):
 ```powershell
+# 1. Pruebas de Salud y Arquitectura (15 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
+
+# 2. Pruebas de Estrés en Vivo, Fugas de Handles y Smoke (5 tests)
+powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ```
 
 ---

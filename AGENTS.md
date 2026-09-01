@@ -10,10 +10,10 @@ This document serves as the operational manual, architecture reference, and work
 
 ### Core Architecture & Modules (`src/`):
 - **`Core/`**:
-  - `NativeMethods.cs`: Win32 & NT kernel P/Invoke (`NtSuspendProcess`, `NtResumeProcess`, `DnsFlushResolverCache`, `GetSystemTimes`, `GlobalMemoryStatusEx`, `EmptyWorkingSet`, `SetProcessWorkingSetSize`, `WM_GETMINMAXINFO`, `MonitorFromWindow`, `GetMonitorInfo`).
+  - `NativeMethods.cs`: Win32 & NT kernel P/Invoke (`NtSuspendProcess`, `NtResumeProcess`, `DnsFlushResolverCache`, `GetSystemTimes`, `GlobalMemoryStatusEx`, `EmptyWorkingSet`, `SetProcessWorkingSetSize`, `WM_GETMINMAXINFO`, `MonitorFromWindow`, `GetMonitorInfo`, `CreateToolhelp32Snapshot`, `AttachConsole`, `GenerateConsoleCtrlEvent`).
   - `CrashLogger.cs`: Enterprise resilient crash logging with 1MB size cap, `.old` log rotation, sliding rate limiting (5 logs/10s), and global exception traps (`AppDomain`, `TaskScheduler`, `Dispatcher`).
   - `PowerPlanManager.cs`: Native Win32 power scheme switcher via `PowrProf.dll` (Balanced, High Performance, Power Saver).
-  - `ProcessManager.cs`: Protected process manager with 16-process blacklist, Session 0 isolation, priority setter, and suspend/resume engine.
+  - `ProcessManager.cs`: Two-phase graceful close engine (`RequestGracefulCloseAsync`), reverse topological tree termination (`TerminateProcessTree`), 16-process protected blacklist, Session 0 isolation, priority setter, and suspend/resume engine.
   - `ProcessMetadataCache.cs`: High-performance 0ms metadata caching (`FileDescription`, `CompanyName`, icon extraction).
   - `SafeTempCleaner.cs`: Multizone storage cleaner with anti-Junction traversal guard and dual-timestamp protection (>24h).
   - `MemoryOptimizer.cs`: Working set RAM trimmer and CLR garbage collection invoker.
@@ -21,11 +21,14 @@ This document serves as the operational manual, architecture reference, and work
   - `DxgiHelper.cs` & `SetupApiHelper.cs`: DirectX DXGI GPU telemetry and SetupAPI NPU hardware discovery.
   - `SnapshotExporter.cs`: Markdown diagnostic report generator.
   - `TrayManager.cs` & `ConfigManager.cs`: System tray icon controller and persistent user settings in `%APPDATA%`.
+- **`Models/`**:
+  - `SystemMetrics.cs`: Strongly typed telemetry DTOs, hardware metrics, and process data structures.
+  - `AiAgentSession.cs`: AI developer session models, child MCP server subprocess models, and consolidated RAM/CPU metrics.
 - **`Modules/`**:
-  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Thread-safe debounced delta % math with `_syncLock` and fast in-memory sorting), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
+  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Thread-safe debounced delta % math with `_syncLock` and fast in-memory sorting), `AiAgentCollector.cs` (Atomic Win32 Toolhelp32 process tree scanner & MCP session aggregator), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
 - **`UI/` & `Views/`**:
-  - `MainWindow.xaml` & `MainWindow.xaml.cs`: Interactive Bento HUD, Ribbon action buttons, Drives storage visualizer, `WM_GETMINMAXINFO` multi-monitor DPI hook, and `ApplyProcessSortingFast`.
-  - `ProcessDetailsWindow.xaml`: 360° modal inspector for individual processes.
+  - `MainWindow.xaml` & `MainWindow.xaml.cs`: Interactive Bento HUD, Ribbon action buttons, AI Agents Tab, Drives storage visualizer, `WM_GETMINMAXINFO` multi-monitor DPI hook, and `ApplyProcessSortingFast`.
+  - `ProcessDetailsWindow.xaml`: 360° modal inspector with two-phase graceful close for individual processes.
   - `App.xaml` & `App.xaml.cs`: Application entrypoint, `CrashLogger` initialization, and dynamic 4-theme palette switcher (Pastel Dark, Pastel Light, Cyberpunk, Sakura).
   - `Themes/CommonStyles.xaml`: Vector-based `ActivePillActionButtonStyle` and unified control templates.
 - **`scripts/Build-Package.ps1`**: Automated build, single-file compilation, and Setup Wizard installer packaging.
@@ -40,13 +43,14 @@ simple-pc-monitor/
 │   ├── SimplePCMonitor.csproj     # C# WPF project file (.NET Framework 4.8)
 │   ├── App.xaml / App.xaml.cs     # App entrypoint, CrashLogger traps, and 4-theme manager
 │   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process guards (17 modules)
-│   ├── Models/                    # Telemetry data models and hardware structs
-│   ├── Modules/                   # Metric collectors (11 collectors: CPU, RAM, GPU, NPU, Disks...)
+│   ├── Models/                    # Telemetry data models and AI Agent / MCP structures
+│   ├── Modules/                   # Metric collectors (12 collectors: CPU, RAM, AI Agents, GPU, NPU, Disks...)
 │   └── UI/                        # XAML vector gauges, custom Bento controls, themes, dialogs
 ├── scripts/
 │   └── Build-Package.ps1          # Dynamic MSBuild discovery and packaging pipeline
 ├── tests/
-│   └── Metrics.Tests.ps1          # 13-Test Pester automated validation suite
+│   ├── Metrics.Tests.ps1          # 15-Test Health & Reflection validation suite
+│   └── DeepStress.Tests.ps1       # 5-Test Live Process Tree, Handle Leak & 5s Smoke suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
 ├── docs/                          # Architecture guides, command center manual, benchmarks
 └── README.md                      # Bilingual project documentation (EN/ES)
@@ -76,17 +80,17 @@ simple-pc-monitor/
 
 ### Build in Development Mode
 ```powershell
-# Restore & build project
-dotnet build src/SimplePCMonitor.csproj
-
-# Run application
-dotnet run --project src/SimplePCMonitor.csproj
+# Restore & build project with MSBuild
+& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe" src\SimplePCMonitor.csproj /p:Configuration=Release
 ```
 
-### Run Tests
+### Run Tests (20 Automated Tests)
 ```powershell
-# Run PowerShell test suite
-Invoke-Pester tests/Metrics.Tests.ps1
+# 1. Run Health & Architecture Tests (15 tests)
+powershell -ExecutionPolicy Bypass -File tests\Metrics.Tests.ps1
+
+# 2. Run Deep Stress, Handle Leaks & Smoke Tests (5 tests)
+powershell -ExecutionPolicy Bypass -File tests\DeepStress.Tests.ps1
 ```
 
 ### Automated Release Build & Packaging
@@ -100,5 +104,5 @@ powershell -ExecutionPolicy Bypass -File scripts/Build-Package.ps1
 ## 5. UI & Performance Standards
 
 1. **Non-Blocking Telemetry**: Metric collection loops (CPU sampling, network ping, disk I/O) must execute on background threads (`Task.Run`) and dispatch UI updates asynchronously.
-2. **Win32 P/Invoke Memory Safety**: Ensure all native struct marshaling (`MEMORYSTATUSEX`, `FILETIME`) allocates and frees unmanaged memory safely.
+2. **Win32 P/Invoke Memory Safety**: Ensure all native struct marshaling (`MEMORYSTATUSEX`, `FILETIME`, `PROCESSENTRY32`) allocates and frees unmanaged memory safely in `try/finally` blocks.
 3. **No External Runtime Bloat**: Keep the executable standalone with zero external third-party DLL dependencies.
