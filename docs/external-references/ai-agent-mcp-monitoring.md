@@ -96,8 +96,27 @@ $$\text{CPU\%}_{\text{session}} = \text{CPU\%}(\text{Parent}) + \sum_{i \in \tex
 ---
 
 ## 5. References & Documentation Links
-- [Microsoft Docs - CreateToolhelp32Snapshot](https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/nf-tlhelp32-createtoolhelp32snapshot)
-- [Microsoft Docs - Process Tree Management in Win32](https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags)
-- [Model Context Protocol Specification](https://modelcontextprotocol.io/)
-- [Win32 Console Control Handlers & Signaling](https://learn.microsoft.com/en-us/windows/console/handlerroutine)
+
+### A. Windows Kernel & Win32 APIs
+- [Microsoft Learn - CreateToolhelp32Snapshot Function](https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/nf-tlhelp32-createtoolhelp32snapshot)
+- [Microsoft Learn - Process Tree & Creation Flags in Win32](https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags)
+- [Microsoft Learn - Console Control Handlers & GenerateConsoleCtrlEvent](https://learn.microsoft.com/en-us/windows/console/handlerroutine)
+- [Microsoft Learn - AttachConsole Function & Process Signaling](https://learn.microsoft.com/en-us/windows/console/attachconsole)
+- [Microsoft Learn - Windows Desktop App Execution Aliases](https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/desktop-to-uwp-extensions)
+
+### B. AI Coding Agents & Developer IDEs
+- [Anthropic - Claude Code Architecture & CLI Specifications](https://docs.anthropic.com/claude/docs/claude-code)
+- [Google - Antigravity IDE & Autonomous Agent Framework](https://deepmind.google/technologies/)
+- [Codeium - Windsurf AI IDE Process Architecture](https://codeium.com/windsurf)
+- [Cursor - Cursor AI IDE Architecture & Electron Processes](https://www.cursor.com/)
+- [Aider - AI Pair Programming in the Terminal Documentation](https://aider.chat/)
+- [Roo Code / Cline - Autonomous Coding Agent Process Tree](https://github.com/RooVetGit/Roo-Code)
+
+### C. Local Inference Servers & Tool Runtimes
+- [Ollama - Windows Service & Background Process Architecture](https://ollama.com/)
+- [LM Studio - Desktop & Headless CLI Runtime Documentation](https://lmstudio.ai/)
+- [Model Context Protocol (MCP) Official Specification](https://modelcontextprotocol.io/)
+- [Astral - uv & uvx Fast Ephemeral Tool Execution](https://docs.astral.sh/uv/)
+
+### D. Architectural References & Prior Art
 - [MR-Axel/monitor-sistema Architecture (Research Reference)](https://github.com/MR-Axel/monitor-sistema)
