@@ -14,12 +14,21 @@ namespace SimplePCMonitor.Modules
     {
         private static readonly HashSet<string> KnownAgentSignatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            "antigravity",
+            "agy",
             "claude",
             "gemini",
             "codex",
             "aider",
             "ollama",
             "cursor",
+            "windsurf",
+            "cline",
+            "roo-code",
+            "roo",
+            "copilot",
+            "continue",
+            "cody",
             "open-interpreter",
             "interpreter"
         };
@@ -289,13 +298,21 @@ namespace SimplePCMonitor.Modules
 
         private static string FormatAgentFriendlyName(string exeName)
         {
-            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase)) return "Claude Code CLI";
+            if (string.Equals(exeName, "antigravity", StringComparison.OrdinalIgnoreCase)) return "Google Antigravity IDE";
+            if (string.Equals(exeName, "agy", StringComparison.OrdinalIgnoreCase)) return "Antigravity CLI";
+            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase)) return "Claude Code / Desktop";
             if (string.Equals(exeName, "gemini", StringComparison.OrdinalIgnoreCase)) return "Gemini CLI";
             if (string.Equals(exeName, "codex", StringComparison.OrdinalIgnoreCase)) return "Codex CLI";
             if (string.Equals(exeName, "aider", StringComparison.OrdinalIgnoreCase)) return "Aider Agent";
             if (string.Equals(exeName, "ollama", StringComparison.OrdinalIgnoreCase)) return "Ollama Local LLM";
             if (string.Equals(exeName, "cursor", StringComparison.OrdinalIgnoreCase)) return "Cursor AI IDE";
-            if (string.Equals(exeName, "interpreter", StringComparison.OrdinalIgnoreCase)) return "Open Interpreter";
+            if (string.Equals(exeName, "windsurf", StringComparison.OrdinalIgnoreCase)) return "Windsurf AI IDE";
+            if (string.Equals(exeName, "cline", StringComparison.OrdinalIgnoreCase)) return "Cline AI Agent";
+            if (string.Equals(exeName, "roo-code", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "roo", StringComparison.OrdinalIgnoreCase)) return "Roo Code Agent";
+            if (string.Equals(exeName, "copilot", StringComparison.OrdinalIgnoreCase)) return "GitHub Copilot Agent";
+            if (string.Equals(exeName, "continue", StringComparison.OrdinalIgnoreCase)) return "Continue AI Agent";
+            if (string.Equals(exeName, "cody", StringComparison.OrdinalIgnoreCase)) return "Sourcegraph Cody";
+            if (string.Equals(exeName, "interpreter", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "open-interpreter", StringComparison.OrdinalIgnoreCase)) return "Open Interpreter";
             return exeName + " Agent";
         }
 
