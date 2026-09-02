@@ -4,7 +4,7 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![C# .NET](https://img.shields.io/badge/C%23-WPF%20%2F%20XAML-512BD4?style=flat-square&logo=csharp)](https://dotnet.microsoft.com/)
-[![Version](https://img.shields.io/badge/Release-v2.1.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.1.0)
+[![Version](https://img.shields.io/badge/Release-v2.2.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.2.0)
 [![Binary Size](https://img.shields.io/badge/Binary%20Size-585%20KB-success?style=flat-square)]()
 [![Tests](https://img.shields.io/badge/Tests-20%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
@@ -21,7 +21,7 @@
 ## 🇺🇸 English
 
 ### 1. Project Description
-**Simple PC Monitor v2.1.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# and Windows Presentation Foundation (WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` without third-party runtimes or background services.
+**Simple PC Monitor v2.2.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# and Windows Presentation Foundation (WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` without third-party runtimes or background services.
 
 ---
 
@@ -123,7 +123,7 @@ Run the compiled standalone executable inside `releases/`:
 
 #### Build from Source:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.1.0"
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.2.0"
 ```
 
 #### Run Automated Health & Stress Tests (20 Tests):
@@ -151,7 +151,7 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ## 🇪🇸 Español
 
 ### 1. Descripción del Proyecto
-**Simple PC Monitor v2.1.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **585 KB** sin dependencias externas.
+**Simple PC Monitor v2.2.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **585 KB** sin dependencias externas.
 
 ---
 
@@ -163,8 +163,8 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 | :--- | :--- | :--- | :--- |
 | **🚀 Modo Turbo** | Ribbon Superior / Bandeja | Win32 `PowrProf.dll` (`PowerSetActiveScheme`) + `EmptyWorkingSet` | Activa al instante el plan de energía de **Alto Rendimiento** de Windows (desestaciona núcleos de CPU) y ejecuta simultáneamente una purga agresiva del *working set* de memoria RAM en procesos de usuario. |
 | **🤖 Monitor de Agentes IA & MCP** | Pestaña Agentes IA | Win32 `CreateToolhelp32Snapshot` + Guarda PID Reuse | Detecta herramientas CLI de IA (`claude.exe`, `gemini.exe`, `codex.exe`, `aider.exe`, `ollama.exe`, `cursor.exe`) y consolida sus servidores MCP hijos (`node.exe`, `python.exe`, `uvx.exe`) en métricas agregadas de RAM/CPU con estado Activo vs Idle. |
-| **🛑 Cierre Amable en Dos Fases** | Pestañas Procesos e IA | `CloseMainWindow` / `WM_CLOSE` + Detección Tray | **Fase 1**: Envío no bloqueante de solicitud de cierre amable y detección inteligente de minimizado a la Bandeja del Sistema (`MainWindowHandle == IntPtr.Zero`). **Fase 2**: Confirmación para forzar cierre solo si continúa activo o colgado. |
-| **⚡ Fin de Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. |
+| **🛑 Cierre Ordenado en Dos Fases** | Pestañas Procesos e IA | `CloseMainWindow` / `WM_CLOSE` + Detección Tray | **Fase 1**: Envío no bloqueante de solicitud de cierre ordenado y detección inteligente de minimizado a la Bandeja del Sistema (`MainWindowHandle == IntPtr.Zero`). **Fase 2**: Confirmación para forzar cierre solo si continúa activo o colgado. |
+| **⚡ Terminar Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. |
 | **🌐 Vaciar DNS** | Ribbon Superior | Nativa `dnsapi.dll` (`DnsFlushResolverCache`) | Purga y reinicia la caché del solucionador de nombres DNS de Windows en 0.01 ms, corrigiendo errores de navegación y resolución de dominios sin abrir CMD. |
 | **🧹 Limpiar Temporales** | Ribbon Superior | Multizona `SafeTempCleaner` (>24h Cutoff) | Limpieza segura de archivos temporales en `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download` y `DeliveryOptimization`. Blindado con **aislamiento de Junctions/Symlinks** y **Guarda de Doble Marca de Tiempo** (`CreationTime` + `LastWriteTime`). |
 | **⚠️ Rescatar Proceso** | Alerta en Barra de Título | Watchdog Win32 `IsResponding` + Cierre en Dos Fases | Detecta en vivo procesos con ventanas que no responden a la cola de mensajes de Windows (`IsResponding == false`). El botón *"Rescatar"* ejecuta el protocolo seguro de cierre en dos fases. |
@@ -206,7 +206,7 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 
 #### Compilar desde el Código Fuente:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.1.0"
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.2.0"
 ```
 
 #### Ejecutar Pruebas Automatizadas (20 Tests):
