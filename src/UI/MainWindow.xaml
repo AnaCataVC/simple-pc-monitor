@@ -7,7 +7,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        FontFamily="Segoe UI"
+        FontFamily="Segoe UI, Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Emoji"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <ContextMenu x:Key="TrayContextMenu" Placement="MousePoint">
@@ -505,13 +505,13 @@
                             <!-- Clean Tab Header -->
                             <DockPanel Grid.Row="0" Margin="0,0,0,6">
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Name="TabBtnProcesses" Content="📊 Procesos" Style="{DynamicResource ActiveTabHeaderButtonStyle}" Click="TabBtnProcesses_Click"/>
-                                    <Button Name="TabBtnAiAgents" Content="🤖 Agentes IA &amp; MCP" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnAiAgents_Click"/>
-                                    <Button Name="TabBtnAccelerators" Content="⚡ Aceleradores (GPU/NPU)" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnAccelerators_Click"/>
-                                    <Button Name="TabBtnServices" Content="⚙️ Servicios" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnServices_Click"/>
-                                    <Button Name="TabBtnTasks" Content="⏱️ Tareas Programadas" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnTasks_Click"/>
-                                    <Button Name="TabBtnStartup" Content="🚀 Apps de Inicio" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnStartup_Click"/>
-                                    <Button Name="TabBtnDrives" Content="💾 Discos &amp; Almacenamiento" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnDrives_Click"/>
+                                    <Button Name="TabBtnProcesses" Content="&#xE9D9; Procesos" Style="{DynamicResource ActiveTabHeaderButtonStyle}" Click="TabBtnProcesses_Click"/>
+                                    <Button Name="TabBtnAiAgents" Content="&#xE99A; Agentes IA &amp; MCP" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnAiAgents_Click"/>
+                                    <Button Name="TabBtnAccelerators" Content="&#xE9F5; Aceleradores (GPU/NPU)" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnAccelerators_Click"/>
+                                    <Button Name="TabBtnServices" Content="&#xE713; Servicios" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnServices_Click"/>
+                                    <Button Name="TabBtnTasks" Content="&#xE823; Tareas Programadas" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnTasks_Click"/>
+                                    <Button Name="TabBtnStartup" Content="&#xE7BE; Apps de Inicio" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnStartup_Click"/>
+                                    <Button Name="TabBtnDrives" Content="&#xEDA2; Discos &amp; Almacenamiento" Style="{DynamicResource TabHeaderButtonStyle}" Click="TabBtnDrives_Click"/>
                                 </StackPanel>
                             </DockPanel>
 
@@ -529,16 +529,16 @@
                                 <!-- Process Toolbar: Search Box & Sort Switches -->
                                 <DockPanel Grid.Row="0" Margin="0,0,0,6">
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                        <Button Name="BtnSortCpu" Content="⚡ CPU %" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Ordenar por mayor consumo de CPU" Click="BtnSortCpu_Click"/>
-                                        <Button Name="BtnSortRam" Content="🧠 RAM MB" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Ordenar por mayor consumo de memoria RAM" Click="BtnSortRam_Click"/>
-                                        <Button Name="BtnResumeAll" Content="▶ Reanudar Todos" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Reanudar todos los procesos suspendidos" Click="BtnResumeAll_Click"/>
+                                        <Button Name="BtnSortCpu" Content="&#xE9F5; CPU %" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Ordenar por mayor consumo de CPU" Click="BtnSortCpu_Click"/>
+                                        <Button Name="BtnSortRam" Content="&#xE950; RAM MB" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Ordenar por mayor consumo de memoria RAM" Click="BtnSortRam_Click"/>
+                                        <Button Name="BtnResumeAll" Content="&#xE768; Reanudar Todos" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Reanudar todos los procesos suspendidos" Click="BtnResumeAll_Click"/>
                                     </StackPanel>
 
                                     <!-- Search Input with placeholder -->
                                     <Border Background="{DynamicResource BgControl}" CornerRadius="5" Padding="8,3" Margin="0,0,8,0">
                                         <Grid>
                                             <TextBox Name="TxtSearchProcess" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimary}" FontSize="10.5" TextChanged="TxtSearchProcess_TextChanged" VerticalAlignment="Center"/>
-                                            <TextBlock Name="TxtSearchPlaceholder" Text="🔍 Buscar proceso por nombre o PID..." FontSize="9.5" Foreground="{DynamicResource TextMuted}" IsHitTestVisible="False" VerticalAlignment="Center"/>
+                                            <TextBlock Name="TxtSearchPlaceholder" Text="&#xE721; Buscar proceso por nombre o PID..." FontSize="9.5" Foreground="{DynamicResource TextMuted}" IsHitTestVisible="False" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>
                                 </DockPanel>
@@ -634,14 +634,14 @@
                                                         <TextBlock Grid.Column="4" Text="{Binding MemoryPercent, StringFormat='{}{0:N1}%'}" FontSize="10" Foreground="{DynamicResource AccentMem}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
 
                                                         <!-- Status Badge (Responding vs Hang) -->
-                                                        <Border Grid.Column="5" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="4,1.5" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding IsResponding, Converter={x:Null}}" FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource StatusOk}">
+                                                        <Border Grid.Column="5" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <TextBlock FontSize="8.5" FontWeight="Bold" Foreground="{DynamicResource StatusOk}">
                                                                 <TextBlock.Style>
                                                                     <Style TargetType="TextBlock">
-                                                                        <Setter Property="Text" Value="Activo"/>
+                                                                        <Setter Property="Text" Value="● Activo"/>
                                                                         <Style.Triggers>
                                                                             <DataTrigger Binding="{Binding IsResponding}" Value="False">
-                                                                                <Setter Property="Text" Value="Colgado ⚠️"/>
+                                                                                <Setter Property="Text" Value="● Colgado"/>
                                                                                 <Setter Property="Foreground" Value="#FFFF5555"/>
                                                                             </DataTrigger>
                                                                         </Style.Triggers>
@@ -652,9 +652,15 @@
 
                                                         <!-- Direct Action Buttons -->
                                                         <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                            <Button Content="⏸" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Pausar / Reanudar Proceso" Click="BtnProcessSuspendToggle_Click" Tag="{Binding}"/>
-                                                            <Button Content="ℹ️" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Detalles del Proceso" Click="BtnProcessDetails_Click" Tag="{Binding}"/>
-                                                            <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Finalizar Proceso" Click="BtnProcessKill_Click" Tag="{Binding}"/>
+                                                            <Button Style="{DynamicResource PillActionButtonStyle}" ToolTip="Pausar / Reanudar Proceso" Click="BtnProcessSuspendToggle_Click" Tag="{Binding}" Width="24" Height="20" Padding="0">
+                                                                <TextBlock Text="&#xE769;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Button>
+                                                            <Button Style="{DynamicResource PillActionButtonStyle}" ToolTip="Detalles del Proceso" Click="BtnProcessDetails_Click" Tag="{Binding}" Width="24" Height="20" Padding="0" Margin="2,0">
+                                                                <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Button>
+                                                            <Button Style="{DynamicResource PillActionButtonStyle}" ToolTip="Finalizar Proceso" Click="BtnProcessKill_Click" Tag="{Binding}" Width="24" Height="20" Padding="0">
+                                                                <TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Button>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>

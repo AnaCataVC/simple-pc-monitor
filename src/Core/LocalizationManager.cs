@@ -101,12 +101,12 @@ namespace SimplePCMonitor.Core
             { "PeakLabel", "Pico" },
 
             // Deep Dive Tabs
-            { "TabProcesses", "📊 Procesos" },
-            { "TabAccelerators", "⚡ Aceleradores (GPU/NPU)" },
-            { "TabServices", "⚙️ Servicios" },
-            { "TabTasks", "⏱️ Tareas Programadas" },
-            { "TabStartup", "🚀 Apps de Inicio" },
-            { "TabDrives", "💾 Discos & Almacenamiento" },
+            { "TabProcesses", "\uE9D9 Procesos" },
+            { "TabAccelerators", "\uE9F5 Aceleradores (GPU/NPU)" },
+            { "TabServices", "\uE713 Servicios" },
+            { "TabTasks", "\uE823 Tareas Programadas" },
+            { "TabStartup", "\uE7BE Apps de Inicio" },
+            { "TabDrives", "\uEDA2 Discos & Almacenamiento" },
 
             { "TabProcessesSummary", "Principales Procesos en Ejecución" },
             { "TabAcceleratorsSummary", "Diagnóstico de Aceleradores GPU y NPU" },
@@ -116,9 +116,10 @@ namespace SimplePCMonitor.Core
             { "TabDrivesSummary", "Unidades de Disco y Particiones" },
 
             // Process Controls & Filters
-            { "SearchPlaceholder", "🔍 Buscar proceso por nombre o PID..." },
-            { "SortByCpu", "⚡ Orden: CPU %" },
-            { "SortByRam", "🧠 Orden: RAM MB" },
+            { "SearchPlaceholder", "\uE721 Buscar proceso por nombre o PID..." },
+            { "SortByCpu", "\uE9F5 CPU %" },
+            { "SortByRam", "\uE950 RAM MB" },
+            { "ResumeAll", "\uE768 Reanudar Todos" },
             { "UnresponsiveWarning", "⚠️ {0} Proceso(s) colgado(s)" },
             { "RescueUnresponsive", "Rescatar / Cerrar" },
 
@@ -305,12 +306,12 @@ namespace SimplePCMonitor.Core
             { "PeakLabel", "Peak" },
 
             // Deep Dive Tabs
-            { "TabProcesses", "📊 Processes" },
-            { "TabAccelerators", "⚡ Accelerators (GPU/NPU)" },
-            { "TabServices", "⚙️ Services" },
-            { "TabTasks", "⏱️ Scheduled Tasks" },
-            { "TabStartup", "🚀 Startup Apps" },
-            { "TabDrives", "💾 Storage & Drives" },
+            { "TabProcesses", "\uE9D9 Processes" },
+            { "TabAccelerators", "\uE9F5 Accelerators (GPU/NPU)" },
+            { "TabServices", "\uE713 Services" },
+            { "TabTasks", "\uE823 Scheduled Tasks" },
+            { "TabStartup", "\uE7BE Startup Apps" },
+            { "TabDrives", "\uEDA2 Storage & Drives" },
 
             { "TabProcessesSummary", "Top Running Processes" },
             { "TabAcceleratorsSummary", "GPU & NPU Accelerator Diagnostics" },
@@ -320,9 +321,10 @@ namespace SimplePCMonitor.Core
             { "TabDrivesSummary", "Disk Volumes & Partitions" },
 
             // Process Controls & Filters
-            { "SearchPlaceholder", "🔍 Search process by name or PID..." },
-            { "SortByCpu", "⚡ Sort: CPU %" },
-            { "SortByRam", "🧠 Sort: RAM MB" },
+            { "SearchPlaceholder", "\uE721 Search process by name or PID..." },
+            { "SortByCpu", "\uE9F5 CPU %" },
+            { "SortByRam", "\uE950 RAM MB" },
+            { "ResumeAll", "\uE768 Resume All" },
             { "UnresponsiveWarning", "⚠️ {0} Unresponsive Process(es)" },
             { "RescueUnresponsive", "Rescue / Close" },
 

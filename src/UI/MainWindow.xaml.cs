@@ -492,8 +492,8 @@ namespace SimplePCMonitor.UI
                 if (TabBtnAiAgents != null)
                 {
                     TabBtnAiAgents.Content = aiAgents.ActiveSessionsCount > 0
-                        ? string.Format("🤖 Agentes IA ({0})", aiAgents.ActiveSessionsCount)
-                        : "🤖 Agentes IA & MCP";
+                        ? string.Format("\uE99A Agentes IA ({0})", aiAgents.ActiveSessionsCount)
+                        : "\uE99A Agentes IA & MCP";
                 }
             }
 
@@ -769,8 +769,8 @@ namespace SimplePCMonitor.UI
                     if (TabBtnAiAgents != null)
                     {
                         TabBtnAiAgents.Content = metric.ActiveSessionsCount > 0
-                            ? string.Format("🤖 Agentes IA ({0})", metric.ActiveSessionsCount)
-                            : "🤖 Agentes IA & MCP";
+                            ? string.Format("\uE99A Agentes IA ({0})", metric.ActiveSessionsCount)
+                            : "\uE99A Agentes IA & MCP";
                     }
                 }
             }
