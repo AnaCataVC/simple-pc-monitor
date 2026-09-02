@@ -824,7 +824,7 @@ namespace SimplePCMonitor.UI
             var result = MessageBox.Show(
                 string.Format("¿Deseas forzar la finalización de toda la sesión '{0}' (PID: {1}) y sus {2} servidores MCP asociados en orden topológico inverso?",
                     session.AgentName, session.ParentPid, session.McpServersCount),
-                "Fin de Árbol de Proceso",
+                "Terminar Árbol de Procesos",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning
             );
@@ -837,6 +837,16 @@ namespace SimplePCMonitor.UI
                 RefreshAiAgentsManually();
                 RefreshProcessListManually();
             }
+        }
+
+        private void BtnToggleAiSessionExpand_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var session = btn != null ? btn.Tag as AiAgentSession : null;
+            if (session == null) return;
+
+            AiAgentCollector.ToggleSessionExpanded(session.ParentPid);
+            RefreshAiAgentsManually();
         }
 
         private void BtnAiMcpSubprocessKill_Click(object sender, RoutedEventArgs e)
@@ -1963,7 +1973,7 @@ namespace SimplePCMonitor.UI
                 return;
             }
 
-            ShowToast("⏳ Solicitando cierre amable de: " + name + "...");
+            ShowToast("⏳ Solicitando cierre ordenado de: " + name + "...");
 
             // Phase 1: Graceful Close request
             var closeStatus = await ProcessManager.RequestGracefulCloseAsync(pid, name, 2000).ConfigureAwait(true);
@@ -1993,7 +2003,7 @@ namespace SimplePCMonitor.UI
             else
             {
                 promptTitle = "El Proceso Sigue en Ejecución";
-                promptMessage = string.Format("El proceso '{0}' (PID: {1}) no respondió a la solicitud de cierre amable.\n\n¿Deseas forzar su finalización inmediata (Kill)?", name, pid);
+                promptMessage = string.Format("El proceso '{0}' (PID: {1}) no respondió a la solicitud de cierre ordenado.\n\n¿Deseas forzar su finalización inmediata (Kill)?", name, pid);
             }
 
             var confirmResult = MessageBox.Show(promptMessage, promptTitle, MessageBoxButton.YesNo, MessageBoxImage.Warning);

@@ -262,6 +262,16 @@ namespace SimplePCMonitor.Core
 
         public const int STATUS_SUCCESS = 0x00000000;
         public const int STATUS_ACCESS_DENIED = unchecked((int)0xC0000022);
+        public const int STATUS_INFO_LENGTH_MISMATCH = unchecked((int)0xC0000004);
+        public const int ProcessCommandLineInformation = 60;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct UNICODE_STRING
+        {
+            public ushort Length;
+            public ushort MaximumLength;
+            public IntPtr Buffer;
+        }
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr OpenProcess(uint processAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, int processId);
@@ -275,6 +285,15 @@ namespace SimplePCMonitor.Core
 
         [DllImport("ntdll.dll", SetLastError = true)]
         public static extern int NtResumeProcess(IntPtr processHandle);
+
+        [DllImport("ntdll.dll", SetLastError = true)]
+        public static extern int NtQueryInformationProcess(
+            IntPtr processHandle,
+            int processInformationClass,
+            IntPtr processInformation,
+            uint processInformationLength,
+            out uint returnLength
+        );
 
         [DllImport("dnsapi.dll", EntryPoint = "DnsFlushResolverCache")]
         [return: MarshalAs(UnmanagedType.Bool)]

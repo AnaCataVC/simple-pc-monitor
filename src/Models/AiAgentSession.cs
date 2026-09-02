@@ -8,6 +8,10 @@ namespace SimplePCMonitor.Models
         public int Pid { get; set; }
         public string ProcessName { get; set; }
         public string Description { get; set; }
+        public string SemanticRole { get; set; }
+        public string RoleBadgeColor { get; set; }
+        public string CommandLineSummary { get; set; }
+        public string TooltipText { get; set; }
         public double WorkingSetMB { get; set; }
         public string MemoryDisplay { get; set; }
         public double CpuPercent { get; set; }
@@ -18,6 +22,10 @@ namespace SimplePCMonitor.Models
         {
             ProcessName = string.Empty;
             Description = string.Empty;
+            SemanticRole = "Subproceso";
+            RoleBadgeColor = "#38BDF8";
+            CommandLineSummary = string.Empty;
+            TooltipText = string.Empty;
             MemoryDisplay = "0.0 MB";
             CpuDisplay = "0.0%";
         }
@@ -44,6 +52,9 @@ namespace SimplePCMonitor.Models
         public List<AiAgentMcpServer> ChildProcesses { get; set; }
         public bool IsIdle { get; set; }
         public bool IsOrphaned { get; set; }
+        public bool IsExpanded { get; set; }
+        public string ExpandToggleText { get; set; }
+        public bool HasChildren { get { return ChildProcesses != null && ChildProcesses.Count > 0; } }
         public string StatusDisplay { get; set; }
         public string StatusBadgeColor { get; set; }
         public string SessionContext { get; set; }
@@ -60,6 +71,8 @@ namespace SimplePCMonitor.Models
             TotalCpuDisplay = "0.0%";
             ChildPids = new List<int>();
             ChildProcesses = new List<AiAgentMcpServer>();
+            IsExpanded = true;
+            ExpandToggleText = "Ocultar";
             StatusDisplay = "Active";
             StatusBadgeColor = "#10B981"; // Emerald
             SessionContext = string.Empty;

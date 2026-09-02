@@ -40,14 +40,17 @@ $aiCollectorType = $asm.GetType("SimplePCMonitor.Modules.AiAgentCollector")
 # -------------------------------------------------------------
 Assert-DeepTest "Live Graceful Close: Terminates GUI app cleanly via Phase 1" {
     $proc = Start-Process -FilePath "notepad.exe" -PassThru
-    Start-Sleep -Milliseconds 400
+    Start-Sleep -Milliseconds 500
+    $proc.Refresh()
+    $pName = if (![string]::IsNullOrEmpty($proc.ProcessName)) { $proc.ProcessName } else { "notepad" }
 
     $closeMethod = $procMgr.GetMethod("RequestGracefulCloseAsync")
-    $task = $closeMethod.Invoke($null, @([int]$proc.Id, [string]$proc.ProcessName, [int]2000))
+    $task = $closeMethod.Invoke($null, @([int]$proc.Id, [string]$pName, [int]2000))
     $task.Wait()
     $status = $task.Result.ToString()
 
-    Start-Sleep -Milliseconds 300
+    Start-Sleep -Milliseconds 400
+    $proc.Refresh()
     $hasExited = $proc.HasExited
 
     if (-not $hasExited) {

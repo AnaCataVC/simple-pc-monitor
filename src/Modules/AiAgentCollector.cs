@@ -73,7 +73,39 @@ namespace SimplePCMonitor.Modules
             public string Model { get; set; }
         }
 
+        private class CachedChildProcessInfo
+        {
+            public string ProcessDisplayName { get; set; }
+            public string SemanticRole { get; set; }
+            public string RoleBadgeColor { get; set; }
+            public string CommandLineSummary { get; set; }
+            public string TooltipText { get; set; }
+        }
+
+        private static readonly HashSet<int> CollapsedSessionPids = new HashSet<int>();
+        private static readonly object ExpandedLock = new object();
+
+        public static void ToggleSessionExpanded(int pid)
+        {
+            lock (ExpandedLock)
+            {
+                if (CollapsedSessionPids.Contains(pid))
+                    CollapsedSessionPids.Remove(pid);
+                else
+                    CollapsedSessionPids.Add(pid);
+            }
+        }
+
+        public static bool IsSessionExpanded(int pid)
+        {
+            lock (ExpandedLock)
+            {
+                return !CollapsedSessionPids.Contains(pid);
+            }
+        }
+
         private readonly Dictionary<string, CachedSessionInfo> _sessionContextCache = new Dictionary<string, CachedSessionInfo>();
+        private readonly Dictionary<string, CachedChildProcessInfo> _childProcessCache = new Dictionary<string, CachedChildProcessInfo>();
         private readonly Dictionary<int, Tuple<TimeSpan, DateTime>> _prevCpuSamples = new Dictionary<int, Tuple<TimeSpan, DateTime>>();
         private readonly object _syncLock = new object();
         private readonly int _processorCount = Environment.ProcessorCount > 0 ? Environment.ProcessorCount : 1;
@@ -205,12 +237,17 @@ namespace SimplePCMonitor.Modules
                         childrenRamMB += childMemMB;
                         childrenCpuPct += childCpu;
 
+                        var meta = ResolveChildMetadata(childPid, childProc.ProcessName, childStart);
                         session.ChildPids.Add(childPid);
                         session.ChildProcesses.Add(new AiAgentMcpServer
                         {
                             Pid = childPid,
-                            ProcessName = childProc.ProcessName,
-                            Description = FormatMcpDescription(childProc.ProcessName),
+                            ProcessName = meta.ProcessDisplayName,
+                            Description = meta.SemanticRole,
+                            SemanticRole = meta.SemanticRole,
+                            RoleBadgeColor = meta.RoleBadgeColor,
+                            CommandLineSummary = meta.CommandLineSummary,
+                            TooltipText = meta.TooltipText,
                             WorkingSetMB = childMemMB,
                             MemoryDisplay = string.Format("{0:N1} MB", childMemMB),
                             CpuPercent = childCpu,
@@ -228,6 +265,12 @@ namespace SimplePCMonitor.Modules
                 session.TotalCpuPercent = Math.Round(rootCpuPct + childrenCpuPct, 1);
                 session.TotalCpuDisplay = string.Format("{0:N1}%", session.TotalCpuPercent);
                 session.McpServersCount = session.ChildProcesses.Count;
+
+                // Expand/Collapse state
+                session.IsExpanded = IsSessionExpanded(rootPid);
+                session.ExpandToggleText = session.IsExpanded
+                    ? string.Format("▲ Ocultar ({0})", session.McpServersCount)
+                    : string.Format("▼ Ver {0} subprocesos / MCPs", session.McpServersCount);
 
                 // Activity Classification
                 session.IsIdle = session.TotalCpuPercent < 0.04;
@@ -250,7 +293,7 @@ namespace SimplePCMonitor.Modules
             metric.TotalAggregatedRamMB = Math.Round(grandTotalRamMB, 1);
             metric.TotalAggregatedRamDisplay = string.Format("{0:N1} MB", grandTotalRamMB);
 
-            // Cleanup stale CPU samples and cached session contexts
+            // Cleanup stale CPU samples, cached session contexts and child metadata
             lock (_syncLock)
             {
                 var deadPids = _prevCpuSamples.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
@@ -273,6 +316,22 @@ namespace SimplePCMonitor.Modules
                 foreach (var deadKey in deadCacheKeys)
                 {
                     _sessionContextCache.Remove(deadKey);
+                }
+
+                var deadChildCacheKeys = _childProcessCache.Keys.Where(k =>
+                {
+                    int pid;
+                    var parts = k.Split('_');
+                    if (parts.Length > 0 && int.TryParse(parts[0], out pid))
+                    {
+                        return !allRunningPids.Contains(pid);
+                    }
+                    return true;
+                }).ToList();
+
+                foreach (var deadKey in deadChildCacheKeys)
+                {
+                    _childProcessCache.Remove(deadKey);
                 }
             }
 
@@ -394,6 +453,194 @@ namespace SimplePCMonitor.Modules
             if (string.Equals(procName, "git", StringComparison.OrdinalIgnoreCase)) return "Git Subprocess";
             if (string.Equals(procName, "pwsh", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "powershell", StringComparison.OrdinalIgnoreCase) || string.Equals(procName, "cmd", StringComparison.OrdinalIgnoreCase)) return "Terminal Shell Process";
             return procName;
+        }
+
+        private CachedChildProcessInfo ResolveChildMetadata(int pid, string procName, DateTime startTime)
+        {
+            string cacheKey = string.Format("{0}_{1}", pid, startTime.Ticks);
+            lock (_syncLock)
+            {
+                CachedChildProcessInfo cached;
+                if (_childProcessCache.TryGetValue(cacheKey, out cached))
+                {
+                    return cached;
+                }
+            }
+
+            string rawCmd = ProcessManager.GetProcessCommandLine(pid);
+            string sanitizedCmd = ProcessManager.SanitizeCommandLine(rawCmd);
+
+            string displayName = procName;
+            string role = "Subproceso";
+            string color = "#64748B"; // Slate default
+
+            string lowerCmd = (sanitizedCmd ?? string.Empty).ToLowerInvariant();
+            string lowerName = (procName ?? string.Empty).ToLowerInvariant();
+
+            // 1. Chromium / Electron Framework Subprocesses
+            if (lowerCmd.Contains("--type=renderer"))
+            {
+                displayName = procName;
+                role = "Renderizador UI / Web";
+                color = "#38BDF8"; // Sky Blue
+            }
+            else if (lowerCmd.Contains("--type=gpu-process"))
+            {
+                displayName = procName;
+                role = "Aceleración GPU";
+                color = "#A855F7"; // Purple
+            }
+            else if (lowerCmd.Contains("--type=crashpad-handler"))
+            {
+                displayName = "Crashpad";
+                role = "Monitor de Diagnóstico";
+                color = "#F43F5E"; // Rose
+            }
+            else if (lowerCmd.Contains("--type=utility"))
+            {
+                if (lowerCmd.Contains("network.mojom.networkservice"))
+                {
+                    displayName = procName;
+                    role = "Servicio de Red (HTTP/WS)";
+                    color = "#10B981"; // Emerald
+                }
+                else if (lowerCmd.Contains("audio.mojom.audioservice"))
+                {
+                    displayName = procName;
+                    role = "Servicio de Audio";
+                    color = "#F59E0B"; // Amber
+                }
+                else if (lowerCmd.Contains("video_capture.mojom"))
+                {
+                    displayName = procName;
+                    role = "Captura de Video / Pantalla";
+                    color = "#EC4899"; // Pink
+                }
+                else
+                {
+                    displayName = procName;
+                    role = "Servicio de Utilidad";
+                    color = "#64748B";
+                }
+            }
+            // 2. Language Servers & Background Cron / Agents
+            else if (lowerName.Contains("language_server"))
+            {
+                if (lowerCmd.Contains("schedule") || lowerCmd.Contains("cron"))
+                {
+                    displayName = "Cron Planner";
+                    role = "Tarea Programada (Cron)";
+                    color = "#6366F1"; // Indigo
+                }
+                else if (lowerCmd.Contains("agentapi") || lowerCmd.Contains("new-conversation"))
+                {
+                    displayName = "Subagente Worker";
+                    role = "Agente Autónomo";
+                    color = "#8B5CF6"; // Violet
+                }
+                else if (lowerCmd.Contains("lsp"))
+                {
+                    displayName = "LSP Server";
+                    role = "Servidor de Lenguaje";
+                    color = "#06B6D4"; // Cyan
+                }
+                else
+                {
+                    displayName = "Language Server";
+                    role = "Servidor de Lenguaje / IA";
+                    color = "#06B6D4";
+                }
+            }
+            // 3. Windows Console Host
+            else if (lowerName.Equals("conhost"))
+            {
+                displayName = "conhost";
+                role = "Host de Consola Windows";
+                color = "#64748B";
+            }
+            // 4. Model Context Protocol (MCP) Servers (Node, Python, uvx, bun, deno)
+            else if (lowerName.Equals("node") || lowerName.Equals("python") || lowerName.Equals("python3") || lowerName.Equals("uvx") || lowerName.Equals("bun") || lowerName.Equals("deno"))
+            {
+                string mcpName = ExtractMcpServerName(sanitizedCmd, lowerName);
+                displayName = !string.IsNullOrEmpty(mcpName) ? mcpName : procName;
+                role = "Servidor MCP (" + procName + ")";
+                color = "#10B981"; // Emerald
+            }
+            // 5. Developer & Shell Utilities
+            else if (lowerName.Equals("rg"))
+            {
+                displayName = "ripgrep";
+                role = "Búsqueda de Código";
+                color = "#E11D48";
+            }
+            else if (lowerName.Equals("git"))
+            {
+                displayName = "git";
+                role = "Control de Versiones";
+                color = "#F97316";
+            }
+            else if (lowerName.Equals("pwsh") || lowerName.Equals("powershell") || lowerName.Equals("cmd") || lowerName.Equals("bash"))
+            {
+                displayName = procName;
+                role = "Terminal Shell";
+                color = "#64748B";
+            }
+            else
+            {
+                displayName = procName;
+                role = FormatMcpDescription(procName);
+                color = "#38BDF8";
+            }
+
+            // Build safe truncated tooltip
+            string tooltip = string.Format("PID: {0} • {1} ({2})", pid, displayName, role);
+            if (!string.IsNullOrWhiteSpace(sanitizedCmd))
+            {
+                string truncatedCmd = sanitizedCmd.Length > 220 ? sanitizedCmd.Substring(0, 217) + "..." : sanitizedCmd;
+                tooltip += "\n" + truncatedCmd;
+            }
+
+            var info = new CachedChildProcessInfo
+            {
+                ProcessDisplayName = displayName,
+                SemanticRole = role,
+                RoleBadgeColor = color,
+                CommandLineSummary = sanitizedCmd,
+                TooltipText = tooltip
+            };
+
+            lock (_syncLock)
+            {
+                _childProcessCache[cacheKey] = info;
+            }
+
+            return info;
+        }
+
+        private static string ExtractMcpServerName(string cmd, string runtime)
+        {
+            if (string.IsNullOrWhiteSpace(cmd)) return null;
+
+            try
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(cmd, @"(?i)(?:mcp[-_]server[-_][a-zA-Z0-9_\-]+|@?[a-zA-Z0-9_-]+/server[-_][a-zA-Z0-9_\-]+)");
+                if (match.Success)
+                {
+                    return match.Value;
+                }
+
+                if (runtime.StartsWith("python"))
+                {
+                    var pyMatch = System.Text.RegularExpressions.Regex.Match(cmd, @"(?i)([a-zA-Z0-9_\-]+\.py)");
+                    if (pyMatch.Success) return pyMatch.Value;
+                }
+
+                var jsMatch = System.Text.RegularExpressions.Regex.Match(cmd, @"(?i)([a-zA-Z0-9_\-]+)[\\/](?:index|server|main)\.js");
+                if (jsMatch.Success) return jsMatch.Groups[1].Value;
+            }
+            catch { }
+
+            return null;
         }
 
         private CachedSessionInfo ResolveSessionContext(Process rootProc, int rootPid, string rootExe, DateTime rootStartTime, List<int> descendantPids)

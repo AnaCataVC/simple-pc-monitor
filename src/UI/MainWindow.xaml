@@ -745,12 +745,12 @@
                                                                         </StackPanel>
                                                                     </Border>
                                                                     <Button Content="⏸ Pausar" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Pausar / Reanudar sesión y servidores MCP" Click="BtnAiAgentSuspendToggle_Click" Tag="{Binding}" Margin="0,0,4,0"/>
-                                                                    <Button Content="🛑 Cierre Amable" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Cierre en 2 fases: intenta cierre limpio y verifica minimizado a bandeja" Click="BtnAiAgentCloseGraceful_Click" Tag="{Binding}" Margin="0,0,4,0"/>
-                                                                    <Button Content="⚡ Fin de Árbol" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Terminación forzada en orden topológico inverso (evita zombis)" Click="BtnAiAgentKillTree_Click" Tag="{Binding}"/>
+                                                                    <Button Content="🛑 Cierre Ordenado" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Cierre en 2 fases: solicita cierre ordenado y verifica minimizado a bandeja" Click="BtnAiAgentCloseGraceful_Click" Tag="{Binding}" Margin="0,0,4,0"/>
+                                                                    <Button Content="⚡ Terminar Árbol" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Terminación forzada en orden topológico inverso (evita zombis)" Click="BtnAiAgentKillTree_Click" Tag="{Binding}"/>
                                                                 </StackPanel>
                                                             </DockPanel>
 
-                                                            <!-- Session Subtitle Details -->
+                                                            <!-- Session Subtitle Details & Expand Toggle -->
                                                             <DockPanel Grid.Row="1" Margin="2,4,0,6">
                                                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                                     <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="0,0,8,0">
@@ -758,34 +758,45 @@
                                                                     </Border>
                                                                     <TextBlock Text="{Binding McpServersCount, StringFormat='{}Hijos/MCPs: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
-                                                                <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" DockPanel.Dock="Right" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                    <Button Content="{Binding ExpandToggleText}" Style="{DynamicResource PillActionButtonStyle}" Padding="8,1.5" FontSize="8.5" ToolTip="Mostrar u ocultar la lista de subprocesos" Click="BtnToggleAiSessionExpand_Click" Tag="{Binding}"/>
+                                                                </StackPanel>
                                                             </DockPanel>
 
-                                                            <!-- Nested MCP Subprocesses List (Scrollable for 20+ Subprocesses) -->
+                                                            <!-- Child Processes List (Collapsible, Natural Flow without Nested ScrollViewer) -->
                                                             <Border Grid.Row="2" Background="{DynamicResource BgCard}" CornerRadius="6" Padding="6,4" Margin="0,2,0,0">
-                                                                <ScrollViewer MaxHeight="210" VerticalScrollBarVisibility="Auto">
-                                                                    <ItemsControl ItemsSource="{Binding ChildProcesses}">
-                                                                        <ItemsControl.ItemTemplate>
-                                                                            <DataTemplate>
-                                                                                <DockPanel Margin="0,2">
-                                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                                                        <TextBlock Text=" ↳ " FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
-                                                                                        <TextBlock Text="{Binding ProcessName}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
-                                                                                        <Border Background="{DynamicResource BgControl}" CornerRadius="3" Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                                                            <TextBlock Text="{Binding Description}" FontSize="8.5" Foreground="{DynamicResource TextSecondary}"/>
-                                                                                        </Border>
-                                                                                        <TextBlock Text="{Binding Pid, StringFormat=' [PID: {0}]'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                                                                    </StackPanel>
-                                                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                                        <TextBlock Text="{Binding MemoryDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentMem}" Margin="0,0,8,0"/>
-                                                                                        <TextBlock Text="{Binding CpuDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentCpu}" Margin="0,0,6,0"/>
-                                                                                        <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" Padding="4,0" Height="16" FontSize="8" ToolTip="Cerrar este subproceso MCP específico" Click="BtnAiMcpSubprocessKill_Click" Tag="{Binding}"/>
-                                                                                    </StackPanel>
-                                                                                </DockPanel>
-                                                                            </DataTemplate>
-                                                                        </ItemsControl.ItemTemplate>
-                                                                    </ItemsControl>
-                                                                </ScrollViewer>
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsExpanded}" Value="False">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <ItemsControl ItemsSource="{Binding ChildProcesses}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate>
+                                                                            <DockPanel Margin="0,2" ToolTip="{Binding TooltipText}">
+                                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                    <TextBlock Text=" ↳ " FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                                                                    <TextBlock Text="{Binding ProcessName}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                                    <Border Background="{DynamicResource BgControl}" CornerRadius="3" Padding="5,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                                        <TextBlock Text="{Binding SemanticRole}" FontSize="8.5" FontWeight="SemiBold" Foreground="{Binding RoleBadgeColor}"/>
+                                                                                    </Border>
+                                                                                    <TextBlock Text="{Binding Pid, StringFormat=' [PID: {0}]'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                                                </StackPanel>
+                                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                    <TextBlock Text="{Binding MemoryDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentMem}" Margin="0,0,8,0"/>
+                                                                                    <TextBlock Text="{Binding CpuDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentCpu}" Margin="0,0,6,0"/>
+                                                                                    <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" Padding="4,0" Height="16" FontSize="8" ToolTip="Cerrar este subproceso específico" Click="BtnAiMcpSubprocessKill_Click" Tag="{Binding}"/>
+                                                                                </StackPanel>
+                                                                            </DockPanel>
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
                                                             </Border>
                                                         </Grid>
                                                     </Border>

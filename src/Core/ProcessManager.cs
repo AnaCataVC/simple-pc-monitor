@@ -49,7 +49,7 @@ namespace SimplePCMonitor.Core
 
         public static bool IsProtected(string processName)
         {
-            if (string.IsNullOrEmpty(processName)) return true;
+            if (string.IsNullOrEmpty(processName)) return false;
             return ProtectedProcesses.Contains(processName);
         }
 
@@ -258,7 +258,12 @@ namespace SimplePCMonitor.Core
 
         public static async Task<ProcessCloseResult> RequestGracefulCloseAsync(int pid, string processName, int timeoutMs = 2000)
         {
-            if (pid <= 4 || IsProtected(processName))
+            if (pid <= 4)
+            {
+                return ProcessCloseResult.ProtectedProcess;
+            }
+
+            if (!string.IsNullOrEmpty(processName) && IsProtected(processName))
             {
                 return ProcessCloseResult.ProtectedProcess;
             }
@@ -273,6 +278,16 @@ namespace SimplePCMonitor.Core
                 if (proc.HasExited)
                 {
                     return ProcessCloseResult.ClosedGracefully;
+                }
+
+                if (string.IsNullOrEmpty(processName))
+                {
+                    try { processName = proc.ProcessName; } catch { }
+                }
+
+                if (IsProtected(processName))
+                {
+                    return ProcessCloseResult.ProtectedProcess;
                 }
 
                 if (currentSessionId > 0 && proc.SessionId == 0)
@@ -292,13 +307,58 @@ namespace SimplePCMonitor.Core
             IntPtr hWnd = IntPtr.Zero;
             try { hWnd = proc.MainWindowHandle; } catch { }
 
+            // Support Windows 11 execution alias wrappers (e.g. Notepad, Terminal, Store app stubs)
+            var childWindows = new List<IntPtr>();
+            try
+            {
+                IntPtr hSnap = NativeMethods.CreateToolhelp32Snapshot(NativeMethods.TH32CS_SNAPPROCESS, 0);
+                if (hSnap != IntPtr.Zero && hSnap != new IntPtr(-1))
+                {
+                    try
+                    {
+                        var pe = new NativeMethods.PROCESSENTRY32();
+                        pe.dwSize = (uint)Marshal.SizeOf(typeof(NativeMethods.PROCESSENTRY32));
+                        if (NativeMethods.Process32First(hSnap, ref pe))
+                        {
+                            do
+                            {
+                                if (pe.th32ParentProcessID == pid)
+                                {
+                                    try
+                                    {
+                                        var cp = Process.GetProcessById((int)pe.th32ProcessID);
+                                        if (cp.MainWindowHandle != IntPtr.Zero)
+                                        {
+                                            childWindows.Add(cp.MainWindowHandle);
+                                        }
+                                    }
+                                    catch { }
+                                }
+                            } while (NativeMethods.Process32Next(hSnap, ref pe));
+                        }
+                    }
+                    finally
+                    {
+                        NativeMethods.CloseHandle(hSnap);
+                    }
+                }
+            }
+            catch { }
+
             // Phase 1: Dispatch graceful close signal
-            if (hWnd != IntPtr.Zero)
+            if (hWnd != IntPtr.Zero || childWindows.Count > 0)
             {
                 try
                 {
                     proc.CloseMainWindow();
-                    NativeMethods.PostMessage(hWnd, NativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    if (hWnd != IntPtr.Zero)
+                    {
+                        NativeMethods.PostMessage(hWnd, NativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    }
+                    foreach (var chWnd in childWindows)
+                    {
+                        NativeMethods.PostMessage(chWnd, NativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    }
                 }
                 catch { }
             }
@@ -510,6 +570,101 @@ namespace SimplePCMonitor.Core
             {
                 return null;
             }
+        }
+
+        public static string GetProcessCommandLine(int pid)
+        {
+            if (pid <= 4) return null;
+
+            IntPtr hProcess = OpenProcess(NativeMethods.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (hProcess == IntPtr.Zero) return null;
+
+            try
+            {
+                uint retLen = 0;
+                int status = NativeMethods.NtQueryInformationProcess(
+                    hProcess,
+                    NativeMethods.ProcessCommandLineInformation,
+                    IntPtr.Zero,
+                    0,
+                    out retLen
+                );
+
+                if (retLen == 0) return null;
+
+                IntPtr buf = Marshal.AllocHGlobal((int)retLen);
+                try
+                {
+                    status = NativeMethods.NtQueryInformationProcess(
+                        hProcess,
+                        NativeMethods.ProcessCommandLineInformation,
+                        buf,
+                        retLen,
+                        out retLen
+                    );
+
+                    if (status == NativeMethods.STATUS_SUCCESS)
+                    {
+                        var ustr = (NativeMethods.UNICODE_STRING)Marshal.PtrToStructure(buf, typeof(NativeMethods.UNICODE_STRING));
+                        if (ustr.Length > 0 && ustr.Buffer != IntPtr.Zero)
+                        {
+                            // Invariant Boundary Check: ensure Buffer is located within the allocated block
+                            long bufStart = buf.ToInt64();
+                            long bufEnd = bufStart + retLen;
+                            long strStart = ustr.Buffer.ToInt64();
+                            long strEnd = strStart + ustr.Length;
+
+                            if (strStart >= bufStart && strEnd <= bufEnd)
+                            {
+                                return Marshal.PtrToStringUni(ustr.Buffer, ustr.Length / 2);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buf);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                CloseHandle(hProcess);
+            }
+
+            return null;
+        }
+
+        public static string SanitizeCommandLine(string cmd)
+        {
+            if (string.IsNullOrWhiteSpace(cmd)) return string.Empty;
+
+            string s = cmd.Trim();
+
+            // 1. Path privacy: mask user profile path
+            try
+            {
+                string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (!string.IsNullOrEmpty(userProfile))
+                {
+                    s = s.Replace(userProfile, "%USERPROFILE%");
+                }
+            }
+            catch { }
+
+            // 2. Secret and token masking
+            try
+            {
+                s = System.Text.RegularExpressions.Regex.Replace(s, @"(?i)(--?(?:api[-_]?key|token|bearer|password|secret)[\s=:""']+)([^\s""'&]+)", "$1[REDACTED]");
+                s = System.Text.RegularExpressions.Regex.Replace(s, @"(sk-[a-zA-Z0-9_-]{8,})", "[REDACTED_API_KEY]");
+                s = System.Text.RegularExpressions.Regex.Replace(s, @"(gh[pousr]_[a-zA-Z0-9]{20,})", "[REDACTED_GH_TOKEN]");
+            }
+            catch { }
+
+            return s;
         }
 
         public static bool OpenProcessLocation(int pid, out string error)
