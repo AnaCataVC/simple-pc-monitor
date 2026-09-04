@@ -17,14 +17,14 @@ This document provides a comprehensive technical breakdown of the interactive co
    - [4.2 Dynamic CPU Scheduler Priority Control](#42-dynamic-cpu-scheduler-priority-control)
    - [4.3 Concurrency Protection & In-Memory Fast Sorting](#43-concurrency-protection--in-memory-fast-sorting)
 5. [AI Agent & MCP Session Telemetry Engine](#5-ai-agent--mcp-session-telemetry-engine)
-   - [5.1 Toolhelp32 Snapshot Traversal & PID Reuse Mitigation](#51-toolhelp32-snapshot-traversal--pid-reuse-mitigation)
+   - [5.1 Toolhelp32 Snapshot Traversal, PID Reuse Mitigation & Cache Eviction Safeguard](#51-toolhelp32-snapshot-traversal-pid-reuse-mitigation--cache-eviction-safeguard)
    - [5.2 Decoupled Process Metrics (Total Children vs Verified MCP Servers)](#52-decoupled-process-metrics-total-children-vs-verified-mcp-servers)
    - [5.3 Command-Line Evidence-Based MCP Detection (Go/Rust Binary Support)](#53-command-line-evidence-based-mcp-detection-gorust-binary-support)
    - [5.4 MCP Package Runner Isolation (npx, uvx) & Shell Launcher Filtering](#54-mcp-package-runner-isolation-npx-uvx--shell-launcher-filtering)
-   - [5.5 Independent CLI Session Promotion & Session Boundary Tree Pruning](#55-independent-cli-session-promotion--session-boundary-tree-pruning)
+   - [5.5 Independent CLI Session Promotion, Resumed Session Hash Detection & Session Boundary Tree Pruning](#55-independent-cli-session-promotion-resumed-session-hash-detection--session-boundary-tree-pruning)
    - [5.6 Deterministic Win32 Handle Disposal (SafeProcessHandle)](#56-deterministic-win32-handle-disposal-safeprocesshandle)
    - [5.7 Anti-Reentrancy Concurrency Gate (_sampleGate)](#57-anti-reentrancy-concurrency-gate-_samplegate)
-   - [5.8 Process Cold-Start & Dynamic UI State Synchronization](#58-process-cold-start--dynamic-ui-state-synchronization)
+   - [5.8 Process Cold-Start, AI Model Badge Extraction & Null/Empty DataTrigger Resilience](#58-process-cold-start-ai-model-badge-extraction--nullempty-datatrigger-resilience)
    - [5.9 Reverse Topological Process Tree Termination](#59-reverse-topological-process-tree-termination)
 6. [Native Windowing & Multi-Monitor Custom Chrome](#6-native-windowing--multi-monitor-custom-chrome)
    - [6.1 WM_GETMINMAXINFO & Per-Monitor Work Area Calculation](#61-wm_getminmaxinfo--per-monitor-work-area-calculation)
@@ -161,9 +161,16 @@ sequenceDiagram
 
 Simple PC Monitor v2.3.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
 
-### 5.1 Toolhelp32 Snapshot Traversal & PID Reuse Mitigation
+### 5.1 Toolhelp32 Snapshot Traversal, PID Reuse Mitigation & Cache Eviction Safeguard
 - **Atomic Traversal:** Captures the full Windows process hierarchy in $<0.8\text{ ms}$ via `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)`.
 - **Triple PID Reuse Gate:** Because Windows recycles PIDs rapidly upon process exit, Simple PC Monitor verifies `child.StartTime >= parent.StartTime.AddSeconds(-2)` to prevent associating recycled PIDs with older parent orchestrators.
+- **Snapshot Resilience & Cache Eviction Safeguard (`allRunningPids.Count > 0`):** Under severe OS memory pressure or transient kernel handle exhaustion, `CreateToolhelp32Snapshot` can fail or return an empty process list. Without defensive gating, a dead PID cleanup pass (`!allRunningPids.Contains(k)`) would incorrectly interpret the empty set as all processes having terminated, immediately wiping:
+  1. `_prevCpuSamples`: Erasing baseline CPU kernel and user time-series measurements, resulting in 0.0% spikes on recovery.
+  2. `_sessionContextCache` and `_childProcessCache`: Dropping resolved workspace names, session labels, and MCP roles.
+  3. `_independentSessionCache`: Forcing expensive CLI session re-evaluation.
+  4. `CollapsedSessionPids`: Abruptly resetting the user's UI tree expansion/collapse states.
+
+  By wrapping all cache cleanup passes behind `if (allRunningPids.Count > 0)`, Simple PC Monitor treats transient snapshot failures as non-destructive skips, preserving telemetry baselines and UI states until the subsequent successful polling cycle.
 
 ### 5.2 Decoupled Process Metrics (Total Children vs Verified MCP Servers)
 Autonomous agents spawn a complex mixture of child processes: UI webviews, language servers, background cron utilities, diagnostic handlers, and actual MCP tool servers.
@@ -186,9 +193,17 @@ Package runners like `npx` (`npx-cli.js`, `\npx\`) and `uvx` (`uvx.exe`) remain 
 - The collector classifies runner processes as `"Lanzador de paquete MCP"` (`#64748B`, `IsMcpServer = false`), ensuring only the actual executing server is tallied in `McpServersCount`.
 - Intermediate shells (`cmd.exe`, `powershell.exe`, `pwsh.exe`, `bash.exe`, `wsl.exe`, `conhost.exe`) propagate the server's command-line flags in their arguments but are filtered out via `ShellProcessNames`, ensuring launchers are never identified as MCP servers.
 
-### 5.5 Independent CLI Session Promotion & Session Boundary Tree Pruning
+### 5.5 Independent CLI Session Promotion, Resumed Session Hash Detection & Session Boundary Tree Pruning
 Autonomous coding CLIs (such as `claude`, `gemini`, `agy`) are frequently launched as subprocesses of parent IDEs (e.g., Google Antigravity, Cursor, Windsurf, VS Code).
 - **Session Identification:** If a child process carries CLI session flags (`--output-format stream-json`, `--resume=`, `--session-id`), `IsIndependentAgentSession(pid)` detects it as an independent session and promotes it to `rootAgentPids`.
+- **Resumed Session Hash Resolution:** When agents run in headless or terminal CLI mode without an active GUI window title (`MainWindowTitle` is empty), Simple PC Monitor parses the command line for resumed session identifiers using `@"\-\-resume[=\s]+([a-fA-F0-9\-]{8,})"`. It truncates the identifier to its final 8 characters:
+  ```csharp
+  else if (!string.IsNullOrWhiteSpace(resumeId))
+  {
+      context = "🔗 Sesión " + resumeId.Substring(Math.Max(0, resumeId.Length - 8));
+  }
+  ```
+  This replaces ambiguous or generic process labels with human-readable session hashes (e.g., `🔗 Sesión a1b2c3d4`).
 - **Session Boundary Tree Pruning:** During recursive descendant collection (`CollectDescendants`), the set of promoted root PIDs (`rootPidSet`) is passed as `sessionBoundaries`. If a child PID exists in `sessionBoundaries`, traversal immediately stops at that branch:
   ```csharp
   if (sessionBoundaries != null && sessionBoundaries.Contains(childPid))
@@ -207,8 +222,29 @@ In high-frequency telemetry loops (polling every 1–2 seconds), unmanaged `Safe
 When manual UI refreshes (e.g. clicking *"Actualizar"* or expanding/collapsing nodes) overlap with the periodic timer loop, concurrent passes over `Sample()` would compute delta deltas against `_prevCpuSamples` within milliseconds, yielding spurious 0.0% CPU calculations.
 - A private `_sampleGate` lock serializes `Sample()` execution passes, ensuring strict temporal integrity for CPU delta mathematics.
 
-### 5.8 Process Cold-Start & Dynamic UI State Synchronization
+### 5.8 Process Cold-Start, AI Model Badge Extraction & Null/Empty DataTrigger Resilience
 - **PEB Cold-Start Protection:** Newly spawned processes exhibit a brief window where `NtQueryInformationProcess` returns `null` because the user-mode PEB is still initializing. `IsIndependentAgentSession` avoids negative caching when `cmd == null`, deferring classification to the next sampling cycle.
+- **AI Model Badge Extraction (`--model`):** The collector inspects the sanitized command line for active LLM identifiers via regex `@"\-\-model[\s=]+([a-zA-Z0-9_\-\.]+)"` (e.g. `claude-3-7-sonnet`, `gpt-4o`, `gemini-2.0-flash`), exposing it via `AiAgentSession.ModelName`.
+- **WPF Null/Empty Resilient DataTriggers:** In `MainWindow.xaml`, the model badge is styled with dual `DataTrigger` conditions to handle both empty strings (`Value=""`) and unset references (`Value="{x:Null}"`):
+  ```xml
+  <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="0,0,8,0">
+      <Border.Style>
+          <Style TargetType="Border">
+              <Setter Property="Visibility" Value="Visible"/>
+              <Style.Triggers>
+                  <DataTrigger Binding="{Binding ModelName}" Value="">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                  </DataTrigger>
+                  <DataTrigger Binding="{Binding ModelName}" Value="{x:Null}">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                  </DataTrigger>
+              </Style.Triggers>
+          </Style>
+      </Border.Style>
+      <TextBlock Text="{Binding ModelName, StringFormat='🧬 {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+  </Border>
+  ```
+  This guarantees that CLI tools, local models, or IDE sessions launched without explicit `--model` flags collapse their container borders cleanly without leaving empty graphical pill artifacts or padding gaps in the header row.
 - **UI Badge State Binding:** The session card in XAML binds `Foreground="{Binding StatusBadgeColor}"`, dynamically reflecting Active (`#10B981` Emerald) versus Idle (`#64748B` Slate) states based on the CPU workload threshold ($<0.04$).
 - **PID Recycling Protection:** When processes terminate, dead PIDs are purged from `CollapsedSessionPids`, ensuring newly launched processes never inherit obsolete UI collapse states.
 
