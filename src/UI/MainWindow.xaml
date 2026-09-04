@@ -762,6 +762,22 @@
                                                                     <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="0,0,8,0">
                                                                         <TextBlock Text="{Binding SessionContext}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentCpu}" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
                                                                     </Border>
+                                                                    <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="0,0,8,0">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding ModelName}" Value="">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding ModelName}" Value="{x:Null}">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                        <TextBlock Text="{Binding ModelName, StringFormat='🧬 {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                                                                    </Border>
                                                                     <TextBlock Text="{Binding ChildProcessCount, StringFormat='{}Subprocesos: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                     <TextBlock Text="{Binding McpServersCount, StringFormat='{} · MCP: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>

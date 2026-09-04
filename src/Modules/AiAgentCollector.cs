@@ -359,56 +359,59 @@ namespace SimplePCMonitor.Modules
             metric.TotalAggregatedRamMB = Math.Round(grandTotalRamMB, 1);
             metric.TotalAggregatedRamDisplay = string.Format("{0:N1} MB", grandTotalRamMB);
 
-            // Cleanup stale CPU samples, cached session contexts and child metadata
-            lock (_syncLock)
+            // Cleanup stale CPU samples, cached session contexts and child metadata (only when snapshot succeeded)
+            if (allRunningPids.Count > 0)
             {
-                var deadPids = _prevCpuSamples.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
-                foreach (var dead in deadPids)
+                lock (_syncLock)
                 {
-                    _prevCpuSamples.Remove(dead);
-                }
-
-                var deadSessionPids = _independentSessionCache.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
-                foreach (var dead in deadSessionPids)
-                {
-                    _independentSessionCache.Remove(dead);
-                }
-
-                var deadCacheKeys = _sessionContextCache.Keys.Where(k =>
-                {
-                    int pid;
-                    var parts = k.Split('_');
-                    if (parts.Length > 0 && int.TryParse(parts[0], out pid))
+                    var deadPids = _prevCpuSamples.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
+                    foreach (var dead in deadPids)
                     {
-                        return !allRunningPids.Contains(pid);
+                        _prevCpuSamples.Remove(dead);
                     }
-                    return true;
-                }).ToList();
 
-                foreach (var deadKey in deadCacheKeys)
-                {
-                    _sessionContextCache.Remove(deadKey);
-                }
-
-                var deadChildCacheKeys = _childProcessCache.Keys.Where(k =>
-                {
-                    int pid;
-                    var parts = k.Split('_');
-                    if (parts.Length > 0 && int.TryParse(parts[0], out pid))
+                    var deadSessionPids = _independentSessionCache.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
+                    foreach (var dead in deadSessionPids)
                     {
-                        return !allRunningPids.Contains(pid);
+                        _independentSessionCache.Remove(dead);
                     }
-                    return true;
-                }).ToList();
 
-                foreach (var deadKey in deadChildCacheKeys)
-                {
-                    _childProcessCache.Remove(deadKey);
-                }
+                    var deadCacheKeys = _sessionContextCache.Keys.Where(k =>
+                    {
+                        int pid;
+                        var parts = k.Split('_');
+                        if (parts.Length > 0 && int.TryParse(parts[0], out pid))
+                        {
+                            return !allRunningPids.Contains(pid);
+                        }
+                        return true;
+                    }).ToList();
 
-                lock (ExpandedLock)
-                {
-                    CollapsedSessionPids.RemoveWhere(pid => !allRunningPids.Contains(pid));
+                    foreach (var deadKey in deadCacheKeys)
+                    {
+                        _sessionContextCache.Remove(deadKey);
+                    }
+
+                    var deadChildCacheKeys = _childProcessCache.Keys.Where(k =>
+                    {
+                        int pid;
+                        var parts = k.Split('_');
+                        if (parts.Length > 0 && int.TryParse(parts[0], out pid))
+                        {
+                            return !allRunningPids.Contains(pid);
+                        }
+                        return true;
+                    }).ToList();
+
+                    foreach (var deadKey in deadChildCacheKeys)
+                    {
+                        _childProcessCache.Remove(deadKey);
+                    }
+
+                    lock (ExpandedLock)
+                    {
+                        CollapsedSessionPids.RemoveWhere(pid => !allRunningPids.Contains(pid));
+                    }
                 }
             }
 
@@ -808,6 +811,20 @@ namespace SimplePCMonitor.Modules
             return null;
         }
 
+        private static string ExtractCommandLineFlag(string cmd, string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(cmd)) return null;
+
+            try
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(cmd, pattern);
+                if (match.Success) return match.Groups[1].Value;
+            }
+            catch { }
+
+            return null;
+        }
+
         private CachedSessionInfo ResolveSessionContext(Process rootProc, int rootPid, string rootExe, DateTime rootStartTime, List<int> descendantPids)
         {
             string cacheKey = string.Format("{0}_{1}", rootPid, rootStartTime.Ticks);
@@ -845,13 +862,20 @@ namespace SimplePCMonitor.Modules
             }
             catch { }
 
+            string rootCmd = ProcessManager.SanitizeCommandLine(ProcessManager.GetProcessCommandLine(rootPid));
+            string modelName = ExtractCommandLineFlag(rootCmd, @"--model[\s=]+([a-zA-Z0-9_\-\.]+)");
+            string resumeId = ExtractCommandLineFlag(rootCmd, @"--resume[=\s]+([a-fA-F0-9\-]{8,})");
+
             string cleanWorkspace = CleanWindowTitle(rawTitle);
             string context = string.Empty;
-            string modelName = string.Empty;
 
             if (!string.IsNullOrWhiteSpace(cleanWorkspace))
             {
                 context = "📂 " + cleanWorkspace;
+            }
+            else if (!string.IsNullOrWhiteSpace(resumeId))
+            {
+                context = "🔗 Sesión " + resumeId.Substring(Math.Max(0, resumeId.Length - 8));
             }
             else
             {
@@ -862,7 +886,7 @@ namespace SimplePCMonitor.Modules
             {
                 Context = context,
                 Workspace = cleanWorkspace,
-                Model = modelName
+                Model = modelName ?? string.Empty
             };
 
             lock (_syncLock)
