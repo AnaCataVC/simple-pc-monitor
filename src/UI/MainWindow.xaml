@@ -736,7 +736,7 @@
                                                                         <TextBlock Text="{Binding ParentPid, StringFormat='PID: {0}'}" FontSize="9" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}"/>
                                                                     </Border>
                                                                     <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" Margin="6,0,0,0" VerticalAlignment="Center">
-                                                                        <TextBlock Text="{Binding StatusDisplay}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusOk}"/>
+                                                                        <TextBlock Text="{Binding StatusDisplay}" FontSize="9" FontWeight="Bold" Foreground="{Binding StatusBadgeColor}"/>
                                                                     </Border>
                                                                 </StackPanel>
 
@@ -762,7 +762,8 @@
                                                                     <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="5,1.5" Margin="0,0,8,0">
                                                                         <TextBlock Text="{Binding SessionContext}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentCpu}" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
                                                                     </Border>
-                                                                    <TextBlock Text="{Binding McpServersCount, StringFormat='{}Hijos/MCPs: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding ChildProcessCount, StringFormat='{}Subprocesos: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding McpServersCount, StringFormat='{} · MCP: {0}'}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                                                     <TextBlock Text="{Binding StartTimeDisplay, StringFormat='{}Iniciado: {0}'}" FontSize="9" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,8,0"/>

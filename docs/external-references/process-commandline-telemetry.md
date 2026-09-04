@@ -1,5 +1,5 @@
 > **Created:** 2026-09-02
-> **Last Updated:** 2026-09-02
+> **Last Updated:** 2026-09-04
 
 # Process Command Line Extraction & Subprocess Semantic Classification on Windows (.NET Framework / Win32)
 
@@ -54,6 +54,11 @@ To prevent buffer truncations or memory leaks:
 - **Elevated / Admin Processes**: When the monitor runs without elevation, opening an elevated process handle returns `IntPtr.Zero` (`Access Denied`). The code must cleanly return `null` and fall back to `FileVersionInfo` or pre-baked signatures.
 - **Process Termination Race**: If the target process dies between Toolhelp32 snapshot and inspection, `OpenProcess` returns `IntPtr.Zero`, handled cleanly with `try/finally`.
 
+### 3.4 Process Cold-Start & PEB Race Conditions
+When a new process is spawned in Windows, its entry appears in the Toolhelp32 snapshot immediately after kernel thread creation. However, user-mode initialization of `RTL_USER_PROCESS_PARAMETERS` in the Process Environment Block (PEB) takes several milliseconds:
+- During this transient startup window, `NtQueryInformationProcess(ProcessCommandLineInformation)` may return `null` or a zero-length string.
+- **Telemetry Invariant:** Telemetry collectors must **never insert negative cache entries** when `cmd == null`. Deferring caching allows the next sampling tick to accurately inspect the populated command line once user-mode initialization completes.
+
 ---
 
 ## 4. Semantic Subprocess Classification Catalog
@@ -62,39 +67,42 @@ Once the raw command line is extracted, Simple PC Monitor maps flags to clear, h
 
 ### 4.1 Chromium & Electron Framework Subprocesses
 Modern AI coding apps (Antigravity, Claude Desktop, Cursor, Windsurf) run on Chromium/Electron. Subprocesses follow strict command-line conventions:
-
-| Command Line Flag / Switch | Detected Role (Friendly Name) | Technical Purpose |
-| :--- | :--- | :--- |
-| `--type=renderer` | 🖥️ **Renderizador UI** | Webview and interface rendering per tab/editor |
-| `--type=gpu-process` | ⚡ **Aceleración GPU** | Hardware-accelerated graphics & DirectX compositor |
-| `--type=utility --utility-sub-type=network.mojom.NetworkService` | 🌐 **Servicio de Red** | HTTP/HTTPS, WebSockets, streaming AI requests |
-| `--type=utility --utility-sub-type=audio.mojom.AudioService` | 🔊 **Servicio de Audio** | Notification chimes and audio playback |
-| `--type=utility --utility-sub-type=video_capture...` | 📹 **Captura de Pantalla/Video** | Workspace capture and media streaming |
-| `--type=utility` (general) | ⚙️ **Servicio de Utilidad** | Auxiliary sandbox workers |
-| `--type=crashpad-handler` | 🛡️ **Monitor Crashpad** | Crash logging and diagnostic handler |
+- `--type=renderer`: 🌐 **Renderizador UI** (webview per tab/editor).
+- `--type=gpu-process`: ⚡ **Aceleración GPU** (DirectX hardware compositor).
+- `--type=crashpad-handler`: 🩺 **Monitor Crashpad** (crash reporter).
+- `--type=utility`: 🛠️ **Servicio de Utilidad** (network, audio, video capture).
 
 ### 4.2 Language Server & Background Agent Workers
 In Google Antigravity and VS Code forks:
-- `language_server.exe multicall schedule ...`:
-  - Identified as: ⏱️ **Cron: Tarea Programada**
-  - Tooltip: Extracts schedule (e.g. `"0 11 * * 5"`) and prompt summary.
-- `language_server.exe ... agentapi new-conversation`:
-  - Identified as: 🤖 **Subagente Autónomo (Worker)**
-- `language_server.exe ... --lsp`:
-  - Identified as: 🧩 **Servidor LSP (IntelliSense)**
+- `language_server.exe multicall schedule ...`: ⏱️ **Cron: Tarea Programada**.
+- `language_server.exe ... agentapi new-conversation`: 🤖 **Subagente Autónomo (Worker)**.
+- `language_server.exe ... --lsp`: 🧩 **Servidor LSP (IntelliSense)**.
 
 ### 4.3 Windows Console Host
-- `conhost.exe`:
-  - Identified as: 📟 **Host de Consola Windows**
+- `conhost.exe`: 📟 **Host de Consola Windows**.
 
-### 4.4 Model Context Protocol (MCP) Servers
-When autonomous agents launch MCP child servers:
-- `node.exe <path>\mcp-server-<name>\...`:
-  - Identified as: 🔌 **Servidor MCP: <name>** (`Node.js`)
-- `python.exe <path>\<script>.py`:
-  - Identified as: 🔌 **Servidor MCP: <script>** (`Python`)
-- `uvx mcp-server-<name>`:
-  - Identified as: 🔌 **Servidor MCP: <name>** (`uvx runner`)
+### 4.4 Model Context Protocol (MCP) Servers (Evidence-Based Resolution)
+MCP servers are identified by explicit command-line markers rather than runtime process names:
+- Markers: `mcp-remote`, `modelcontextprotocol`, `mcp-server`, `mcp_server`, `--stdio`, `/mcp`, `\mcp`.
+- Extraction Regex:
+  - Package/server name: `@?(?:[a-zA-Z0-9_-]+/)?(?:mcp[-_]server[-_][a-zA-Z0-9_\-]+|server[-_][a-zA-Z0-9_\-]+)`
+  - Python scripts: `(?i)([a-zA-Z0-9_\-]+\.py)`
+  - Node entrypoints: `(?i)([a-zA-Z0-9_\-]+)[\\/](?:index|server|main)\.js`
+- Classification: `Role = "Servidor MCP (" + procName + ")"`, `RoleBadgeColor = "#10B981"`, `IsMcpServer = true`.
+- Supports compiled native binaries (**Go**, **Rust**) while discarding plain Node/Python scripts without MCP markers.
+
+### 4.5 MCP Package Runner Isolation & Shell Exclusion
+- **Package Runners (`npx-cli.js`, `\npx\`, `uvx.exe`):**
+  - Identified via `IsMcpPackageRunner(lowerCmd)`.
+  - Classification: `Role = "Lanzador de paquete MCP"`, `RoleBadgeColor = "#64748B"`, `IsMcpServer = false`.
+  - Prevents double-counting the runner and the server as two MCP instances.
+- **Shell Launchers (`cmd`, `pwsh`, `powershell`, `bash`, `sh`, `wsl`, `conhost`):**
+  - Excluded via `ShellProcessNames`. Even though they contain `--stdio` or `mcp-server` in arguments passed to child tools, they are classified as `"Terminal Shell"` (`IsMcpServer = false`).
+
+### 4.6 Independent CLI Agent Sessions
+- **Session Markers (`AgentSessionCommandLineMarkers`):**
+  - `--output-format stream-json`, `--resume=`, `--session-id`.
+- When present on child processes matching known agent names, `IsIndependentAgentSession` triggers root promotion, decoupling the CLI agent from the parent IDE and pruning session boundaries to eliminate RAM/CPU double counting.
 
 ---
 

@@ -17,6 +17,7 @@ namespace SimplePCMonitor.Models
         public double CpuPercent { get; set; }
         public string CpuDisplay { get; set; }
         public DateTime StartTime { get; set; }
+        public bool IsMcpServer { get; set; }
 
         public AiAgentMcpServer()
         {
@@ -48,6 +49,7 @@ namespace SimplePCMonitor.Models
         public double TotalCpuPercent { get; set; }
         public string TotalCpuDisplay { get; set; }
         public int McpServersCount { get; set; }
+        public int ChildProcessCount { get; set; }
         public List<int> ChildPids { get; set; }
         public List<AiAgentMcpServer> ChildProcesses { get; set; }
         public bool IsIdle { get; set; }
@@ -85,6 +87,7 @@ namespace SimplePCMonitor.Models
     {
         public int ActiveSessionsCount { get; set; }
         public int TotalMcpServersCount { get; set; }
+        public int TotalChildProcessesCount { get; set; }
         public double TotalAggregatedRamMB { get; set; }
         public string TotalAggregatedRamDisplay { get; set; }
         public List<AiAgentSession> Sessions { get; set; }

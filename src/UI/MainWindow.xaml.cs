@@ -822,8 +822,8 @@ namespace SimplePCMonitor.UI
             if (session == null) return;
 
             var result = MessageBox.Show(
-                string.Format("¿Deseas forzar la finalización de toda la sesión '{0}' (PID: {1}) y sus {2} servidores MCP asociados en orden topológico inverso?",
-                    session.AgentName, session.ParentPid, session.McpServersCount),
+                string.Format("¿Deseas forzar la finalización de toda la sesión '{0}' (PID: {1}) y sus {2} subprocesos asociados ({3} servidores MCP) en orden topológico inverso?",
+                    session.AgentName, session.ParentPid, session.ChildProcessCount, session.McpServersCount),
                 "Terminar Árbol de Procesos",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning
