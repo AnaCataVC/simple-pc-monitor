@@ -87,8 +87,8 @@ Command line arguments pass through shell launchers (`cmd`, `pwsh`, `powershell`
 When an AI IDE (such as Google Antigravity, Cursor, or Windsurf) spawns an autonomous CLI agent (`claude`, `gemini`, `agy`), the CLI process is technically a child of the IDE. Simple PC Monitor resolves this via **Two-Tier Session Boundary Pruning**:
 1. **Root Promotion Gate (`IsIndependentAgentSession`):**
    Subprocesses matching `KnownAgentSignatures` are evaluated for session markers (`--output-format stream-json`, `--resume=`, `--session-id`). If present, the process is promoted to `rootAgentPids`.
-2. **Boundary-Cut Descendant Traversal (`CollectDescendants`):**
-   The set of promoted roots (`rootPidSet`) is passed as `sessionBoundaries`. If descendant traversal encounters a PID in `sessionBoundaries`, traversal stops for that branch.
+2. **Boundary-Cut Descendant Traversal (`CollectDescendantsWithMetrics`):**
+   The set of promoted roots (`rootPidSet`) is passed as `sessionBoundaries`. If descendant traversal encounters a PID in `sessionBoundaries`, traversal stops for that branch. This same recursive pass also opens each descendant's `Process` handle once to validate its `StartTime` and pull its RAM/CPU metrics, instead of opening it once for validation and again for metrics.
 
 #### Consolidated Formula with Boundary Pruning:
 $$\text{Descendants}(R) = \text{Tree}(R) \setminus \bigcup_{S \in \text{Roots}, S \neq R} \text{Tree}(S)$$
@@ -131,7 +131,7 @@ Every instantiation of `Process.GetProcessById()` acquires an underlying Win32 `
 - Zero handle leaks validated over 200 consecutive sampling passes.
 
 ### B. Anti-Reentrancy Concurrency Gate (`_sampleGate`)
-To prevent concurrent manual UI refreshes and periodic timer ticks from computing distorted delta fractions against `_prevCpuSamples`, a private `_sampleGate` re-entrancy lock serializes `Sample()` execution passes.
+To prevent concurrent manual UI refreshes and periodic timer ticks from computing distorted delta fractions against the shared `CpuUsageTracker`, a private `_sampleGate` re-entrancy lock serializes `Sample()` execution passes.
 
 ### C. Process Cold-Start Defense (PEB Initialization Timing)
 Windows requires several milliseconds after process creation to map and populate the user-mode PEB (`RTL_USER_PROCESS_PARAMETERS`). If `NtQueryInformationProcess` returns `null` for the command line during this startup window, `IsIndependentAgentSession` returns `false` without caching the result, ensuring the process is properly re-evaluated once initialized.

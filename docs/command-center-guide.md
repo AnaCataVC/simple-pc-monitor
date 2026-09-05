@@ -148,8 +148,8 @@ sequenceDiagram
   - `Idle` (Priority 4 — Runs only when CPU has idle cycles).
 
 ### 4.3 Concurrency Protection & In-Memory Fast Sorting
-- **`_syncLock` Concurrency Barrier:**
-  - In `ProcessCollector.cs`, access to `_prevCpuSamples` dictionary (PID -> `Tuple<TimeSpan, DateTime>`) is strictly synchronized with a private lock object.
+- **`CpuUsageTracker` Concurrency Barrier:**
+  - `ProcessCollector.cs` and `AiAgentCollector.cs` both delegate CPU delta math to a shared `Core/CpuUsageTracker.cs`, which synchronizes its internal PID -> `Tuple<TimeSpan, DateTime>` dictionary with its own private lock object.
   - Dead PID cleanup passes safely purge exited processes without race conditions against asynchronous collector tasks.
 - **`ApplyProcessSortingFast()` In-Memory Linq Sorting:**
   - When switching between CPU % and RAM sorting modes, `MainWindow.xaml.cs` re-sorts the in-memory `_lastProcs` cache directly.
@@ -165,7 +165,7 @@ Simple PC Monitor v2.4.0 features an enterprise-grade discovery and telemetry en
 - **Atomic Traversal:** Captures the full Windows process hierarchy in $<0.8\text{ ms}$ via `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)`.
 - **Triple PID Reuse Gate:** Because Windows recycles PIDs rapidly upon process exit, Simple PC Monitor verifies `child.StartTime >= parent.StartTime.AddSeconds(-2)` to prevent associating recycled PIDs with older parent orchestrators.
 - **Snapshot Resilience & Cache Eviction Safeguard (`allRunningPids.Count > 0`):** Under severe OS memory pressure or transient kernel handle exhaustion, `CreateToolhelp32Snapshot` can fail or return an empty process list. Without defensive gating, a dead PID cleanup pass (`!allRunningPids.Contains(k)`) would incorrectly interpret the empty set as all processes having terminated, immediately wiping:
-  1. `_prevCpuSamples`: Erasing baseline CPU kernel and user time-series measurements, resulting in 0.0% spikes on recovery.
+  1. The shared `CpuUsageTracker` samples: Erasing baseline CPU kernel and user time-series measurements, resulting in 0.0% spikes on recovery.
   2. `_sessionContextCache` and `_childProcessCache`: Dropping resolved workspace names, session labels, and MCP roles.
   3. `_independentSessionCache`: Forcing expensive CLI session re-evaluation.
   4. `CollapsedSessionPids`: Abruptly resetting the user's UI tree expansion/collapse states.
@@ -204,7 +204,7 @@ Autonomous coding CLIs (such as `claude`, `gemini`, `agy`) are frequently launch
   }
   ```
   This replaces ambiguous or generic process labels with human-readable session hashes (e.g., `🔗 Sesión a1b2c3d4`).
-- **Session Boundary Tree Pruning:** During recursive descendant collection (`CollectDescendants`), the set of promoted root PIDs (`rootPidSet`) is passed as `sessionBoundaries`. If a child PID exists in `sessionBoundaries`, traversal immediately stops at that branch:
+- **Session Boundary Tree Pruning:** During recursive descendant collection (`CollectDescendantsWithMetrics`), the set of promoted root PIDs (`rootPidSet`) is passed as `sessionBoundaries`. If a child PID exists in `sessionBoundaries`, traversal immediately stops at that branch:
   ```csharp
   if (sessionBoundaries != null && sessionBoundaries.Contains(childPid))
   {
@@ -214,12 +214,13 @@ Autonomous coding CLIs (such as `claude`, `gemini`, `agy`) are frequently launch
   This eliminates duplicate memory and CPU metrics between parent IDE sessions and nested CLI sessions.
 
 ### 5.6 Deterministic Win32 Handle Disposal (`SafeProcessHandle`)
-In high-frequency telemetry loops (polling every 1–2 seconds), unmanaged `SafeProcessHandle` descriptors instantiated via `Process.GetProcessById()` can accumulate rapidly if not explicitly freed.
-- Every invocation in `AiAgentCollector.cs` (`rootProc`, `childProc`, `cp`) is wrapped in scoped `using (...)` blocks or disposed in `finally`.
+In high-frequency telemetry loops (polling every 1–2 seconds), unmanaged `SafeProcessHandle` descriptors instantiated via `Process.GetProcessById()` or `Process.GetProcesses()` can accumulate rapidly if not explicitly freed.
+- Every invocation in `AiAgentCollector.cs` (`rootProc`, `childProc`, `cp`) is wrapped in scoped `using (...)` blocks or disposed in `finally`; `CollectDescendantsWithMetrics` opens each descendant's handle once, reusing it for both `StartTime` validation and RAM/CPU metrics instead of reopening it.
+- `ProcessCollector.cs` disposes every `Process` instance returned by `Process.GetProcesses()` in a `finally` block once its metrics have been read.
 - Validated via automated 200-cycle stress test with a net handle delta of zero leaks.
 
 ### 5.7 Anti-Reentrancy Concurrency Gate (`_sampleGate`)
-When manual UI refreshes (e.g. clicking *"Actualizar"* or expanding/collapsing nodes) overlap with the periodic timer loop, concurrent passes over `Sample()` would compute delta deltas against `_prevCpuSamples` within milliseconds, yielding spurious 0.0% CPU calculations.
+When manual UI refreshes (e.g. clicking *"Actualizar"* or expanding/collapsing nodes) overlap with the periodic timer loop, concurrent passes over `Sample()` would compute delta deltas against the shared `CpuUsageTracker` within milliseconds, yielding spurious 0.0% CPU calculations.
 - A private `_sampleGate` lock serializes `Sample()` execution passes, ensuring strict temporal integrity for CPU delta mathematics.
 
 ### 5.8 Process Cold-Start, AI Model Badge Extraction & Null/Empty DataTrigger Resilience
