@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  let latestVersionTag = 'v2.4.0';
+  let latestVersionTag = 'v2.5.0';
 
   // --- 1. Internationalization (i18n) Engine ---
   const translations = {
@@ -16,9 +16,9 @@
       nav_specs: "Especificaciones",
       nav_downloads: "Descargas",
       nav_faq: "FAQ",
-      btn_download_nav: "Descargar v2.4.0",
+      btn_download_nav: "Descargar v2.5.0",
 
-      hero_badge: "Versión 2.4.0 • 361 KB Standalone",
+      hero_badge: "Versión 2.5.0 • 361 KB Standalone",
       hero_title: "Monitor ultra ligero para Windows",
       hero_subtitle: "Telemetría en tiempo real, gestión de procesos, optimizador de memoria RAM y control de planes de energía en un único ejecutable sin dependencias.",
       btn_setup: "Descargar Instalador (.exe)",
@@ -116,9 +116,9 @@
       nav_specs: "Specifications",
       nav_downloads: "Downloads",
       nav_faq: "FAQ",
-      btn_download_nav: "Download v2.4.0",
+      btn_download_nav: "Download v2.5.0",
 
-      hero_badge: "Version 2.4.0 • 361 KB Standalone",
+      hero_badge: "Version 2.5.0 • 361 KB Standalone",
       hero_title: "Ultra-lightweight system monitor for Windows",
       hero_subtitle: "Real-time telemetry, process management, RAM optimizer, and native Win32 power plan control in a single standalone executable.",
       btn_setup: "Download Installer (.exe)",
