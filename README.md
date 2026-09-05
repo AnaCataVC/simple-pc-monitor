@@ -12,13 +12,14 @@
 
 *A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 585 KB binary.*
 
-[English](#-english) • [Español](#-español)
+[English](#english) • [Español](#español)
 
 </div>
 
 ---
 
-## 🇺🇸 English
+<a name="english"></a>
+## English
 
 ### 1. Project Description
 **Simple PC Monitor v2.5.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# and Windows Presentation Foundation (WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` without third-party runtimes or background services.
@@ -150,7 +151,8 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 
 ---
 
-## 🇪🇸 Español
+<a name="español"></a>
+## Español
 
 ### 1. Descripción del Proyecto
 **Simple PC Monitor v2.5.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **585 KB** sin dependencias externas.
