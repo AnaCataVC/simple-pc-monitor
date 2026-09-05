@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simple PC Monitor • Monitor de Sistema Ligero para Windows</title>
-  <meta name="description" content="Monitor de recursos nativo en C# WPF para Windows 10 y 11. 585 KB standalone, telemetría Win32 en sub-milisegundos, gestión segura de procesos y conmutador de energía.">
+  <meta name="description" content="Monitor de recursos nativo en C# WPF para Windows 10 y 11. 361 KB standalone, telemetría Win32 en sub-milisegundos, gestión segura de procesos y conmutador de energía.">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -16,7 +16,7 @@
       <div class="brand-link">
         <img src="icon.png" alt="Simple PC Monitor Icon" class="brand-icon">
         <span class="brand-text">Simple PC Monitor</span>
-        <span class="brand-badge">v2.0.0</span>
+        <span class="brand-badge" id="brand-badge">v2.4.0</span>
       </div>
 
       <ul class="nav-menu">
@@ -40,7 +40,7 @@
         </a>
 
         <!-- CTA Nav -->
-        <a href="#downloads" class="btn btn-primary btn-sm" data-i18n="btn_download_nav">Descargar v2.0.0</a>
+        <a href="#downloads" class="btn btn-primary btn-sm" data-i18n="btn_download_nav" id="nav-dl-btn">Descargar v2.4.0</a>
       </div>
     </div>
   </header>
@@ -55,14 +55,14 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
             </svg>
-            <span data-i18n="hero_badge">Versión 2.0.0 • 585 KB Standalone</span>
+            <span data-i18n="hero_badge" id="hero-badge">Versión 2.4.0 • 361 KB Standalone</span>
           </div>
 
           <h1 class="hero-title" data-i18n="hero_title">Monitor ultra ligero para Windows</h1>
           <p class="hero-subtitle" data-i18n="hero_subtitle">Telemetría en tiempo real, gestión de procesos, optimizador de memoria RAM y control de planes de energía en un único ejecutable sin dependencias.</p>
 
           <div class="hero-actions">
-            <a href="releases/SimplePCMonitor-Setup.exe" class="btn btn-primary btn-lg" download>
+            <a href="https://github.com/AnaCataVC/simple-pc-monitor/releases/latest/download/SimplePCMonitor-Setup.exe" class="btn btn-primary btn-lg" data-dl-type="setup">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
@@ -70,19 +70,19 @@
               </svg>
               <span data-i18n="btn_setup">Descargar Instalador (.exe)</span>
             </a>
-            <a href="releases/SimplePCMonitor.exe" class="btn btn-secondary btn-lg" download>
+            <a href="https://github.com/AnaCataVC/simple-pc-monitor/releases/latest/download/SimplePCMonitor.exe" class="btn btn-secondary btn-lg" data-dl-type="standalone">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
-              <span data-i18n="btn_standalone">Ejecutable Standalone (585 KB)</span>
+              <span data-i18n="btn_standalone">Ejecutable Standalone (361 KB)</span>
             </a>
-            <a href="releases/Simple-PC-Monitor-v2.0.0-Portable.zip" class="btn btn-secondary btn-lg" download>
+            <a href="https://github.com/AnaCataVC/simple-pc-monitor/releases/latest/download/Simple-PC-Monitor-v2.4.0-Portable.zip" class="btn btn-secondary btn-lg" data-dl-type="portable">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="21 8 21 21 3 21 3 8"></polyline>
                 <rect x="1" y="3" width="22" height="5"></rect>
                 <line x1="10" y1="12" x2="14" y2="12"></line>
               </svg>
-              <span data-i18n="btn_portable_zip">Portable ZIP (1.9 MB)</span>
+              <span data-i18n="btn_portable_zip">Portable ZIP (577 KB)</span>
             </a>
           </div>
 
@@ -330,7 +330,7 @@
                 </li>
               </ul>
             </div>
-            <a href="releases/SimplePCMonitor-Setup.exe" class="btn btn-primary" download data-i18n="btn_download">Descargar Ahora</a>
+            <a href="https://github.com/AnaCataVC/simple-pc-monitor/releases/latest/download/SimplePCMonitor-Setup.exe" class="btn btn-primary" data-dl-type="setup" data-i18n="btn_download">Descargar Ahora</a>
           </div>
 
           <!-- Standalone Binary -->
@@ -338,8 +338,8 @@
             <div class="card-ribbon" data-i18n="dl_card2_tag">El más popular</div>
             <div>
               <h3 class="download-type" data-i18n="dl_card2_title">Standalone .EXE</h3>
-              <div class="download-size">585 KB</div>
-              <p class="download-info" data-i18n="dl_card2_info">Un solo archivo ejecutable de 585 KB. Llévalo en una memoria USB y ejecútalo sin instalar.</p>
+              <div class="download-size" id="standalone-size-card">361 KB</div>
+              <p class="download-info" data-i18n="dl_card2_info">Un solo archivo ejecutable de 361 KB. Llévalo en una memoria USB y ejecútalo sin instalar.</p>
               <ul class="download-specs">
                 <li>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -347,7 +347,7 @@
                 </li>
                 <li>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  Ultra-portátil (585 Kilobytes)
+                  Ultra-portátil (361 Kilobytes)
                 </li>
                 <li>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -355,7 +355,7 @@
                 </li>
               </ul>
             </div>
-            <a href="releases/SimplePCMonitor.exe" class="btn btn-secondary" download data-i18n="btn_download">Descargar Ahora</a>
+            <a href="https://github.com/AnaCataVC/simple-pc-monitor/releases/latest/download/SimplePCMonitor.exe" class="btn btn-secondary" data-dl-type="standalone" data-i18n="btn_download">Descargar Ahora</a>
           </div>
 
           <!-- Portable ZIP -->
@@ -363,7 +363,7 @@
             <div class="card-ribbon" data-i18n="dl_card3_tag">Completo</div>
             <div>
               <h3 class="download-type" data-i18n="dl_card3_title">Portable ZIP</h3>
-              <div class="download-size">1.9 MB</div>
+              <div class="download-size" id="portable-size-card">577 KB</div>
               <p class="download-info" data-i18n="dl_card3_info">Incluye todos los ensamblados y recursos de idioma (Español e Inglés) empaquetados.</p>
               <ul class="download-specs">
                 <li>
@@ -380,7 +380,7 @@
                 </li>
               </ul>
             </div>
-            <a href="releases/Simple-PC-Monitor-v2.0.0-Portable.zip" class="btn btn-secondary" download data-i18n="btn_download">Descargar Ahora</a>
+            <a href="https://github.com/AnaCataVC/simple-pc-monitor/releases/latest/download/Simple-PC-Monitor-v2.4.0-Portable.zip" class="btn btn-secondary" data-dl-type="portable" data-i18n="btn_download">Descargar Ahora</a>
           </div>
         </div>
 
@@ -426,7 +426,7 @@
               </tr>
               <tr>
                 <td data-i18n="spec_row3_p">Tamaño del Binario</td>
-                <td data-i18n="spec_row3_v">585 KB (Standalone Ejecutable único)</td>
+                <td data-i18n="spec_row3_v">361 KB (Standalone Ejecutable único)</td>
               </tr>
               <tr>
                 <td data-i18n="spec_row4_p">Consumo de RAM</td>
@@ -467,7 +467,7 @@
 
           <div class="faq-item">
             <button class="faq-question">
-              <span data-i18n="faq2_q">¿Por qué el ejecutable es tan ligero (585 KB)?</span>
+              <span data-i18n="faq2_q">¿Por qué el ejecutable es tan ligero (361 KB)?</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             <div class="faq-answer">

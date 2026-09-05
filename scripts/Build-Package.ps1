@@ -173,15 +173,18 @@ Copy-Item -Path (Join-Path $ProjectRoot "README.md") -Destination $StageDir -For
 # 6. Compress Portable Release ZIP
 Write-Host "[4/5] Compressing portable distribution into ZIP..." -ForegroundColor Yellow
 Compress-Archive -Path "$StageDir\*" -DestinationPath $ZipOutput -CompressionLevel Optimal -Force
+$unversionedZip = Join-Path $ReleasesDir "Simple-PC-Monitor-Portable.zip"
+Copy-Item -Path $ZipOutput -Destination $unversionedZip -Force
 
 Write-Host "[5/5] Native C# Deliverables Ready!" -ForegroundColor Green
 Write-Host ""
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Generated Native C# Deliverables in releases/: " -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "  1. Standalone Executable : releases\SimplePCMonitor.exe (585 KB)" -ForegroundColor White
+Write-Host "  1. Standalone Executable : releases\SimplePCMonitor.exe" -ForegroundColor White
 Write-Host "     -> Doble clic directo en cualquier PC Windows 10/11 sin instalador." -ForegroundColor Gray
 Write-Host "  2. Setup Wizard Installer: releases\SimplePCMonitor-Setup.exe" -ForegroundColor White
 Write-Host "     -> Asistente visual de instalación paso a paso con accesos directos y desinstalador." -ForegroundColor Gray
 Write-Host "  3. Paquete ZIP Portable  : $ZipOutput" -ForegroundColor White
+Write-Host "     -> Copia genérica     : $unversionedZip" -ForegroundColor Gray
 Write-Host "=================================================" -ForegroundColor Cyan

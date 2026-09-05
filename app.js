@@ -1,10 +1,12 @@
 /**
  * Simple PC Monitor - Product Landing Page Vanilla JS
- * Features: i18n Dictionary, Clean Language Switcher (No Flags), FAQ Accordion
+ * Features: i18n Dictionary, Clean Language Switcher (No Flags), FAQ Accordion, Dynamic GitHub Releases Resolver
  */
 
 (function () {
   'use strict';
+
+  let latestVersionTag = 'v2.4.0';
 
   // --- 1. Internationalization (i18n) Engine ---
   const translations = {
@@ -14,14 +16,14 @@
       nav_specs: "Especificaciones",
       nav_downloads: "Descargas",
       nav_faq: "FAQ",
-      btn_download_nav: "Descargar v2.0.0",
+      btn_download_nav: "Descargar v2.4.0",
 
-      hero_badge: "Versión 2.0.0 • 585 KB Standalone",
+      hero_badge: "Versión 2.4.0 • 361 KB Standalone",
       hero_title: "Monitor ultra ligero para Windows",
       hero_subtitle: "Telemetría en tiempo real, gestión de procesos, optimizador de memoria RAM y control de planes de energía en un único ejecutable sin dependencias.",
       btn_setup: "Descargar Instalador (.exe)",
-      btn_standalone: "Ejecutable Standalone (585 KB)",
-      btn_portable_zip: "Portable ZIP (1.9 MB)",
+      btn_standalone: "Ejecutable Standalone (361 KB)",
+      btn_portable_zip: "Portable ZIP (577 KB)",
       hl_no_install: "Sin instalación requerida",
       hl_low_cpu: "0.0% CPU en reposo",
       hl_win_compat: "Windows 10 / 11 Nativo",
@@ -67,7 +69,7 @@
       dl_card1_info: "Instalación estándar con accesos directos en el menú inicio y escritorio.",
       dl_card2_tag: "El más popular",
       dl_card2_title: "Standalone .EXE",
-      dl_card2_info: "Un solo archivo ejecutable de 585 KB. Llévalo en una memoria USB y ejecútalo sin instalar.",
+      dl_card2_info: "Un solo archivo ejecutable de 361 KB. Llévalo en una memoria USB y ejecútalo sin instalar.",
       dl_card3_tag: "Completo",
       dl_card3_title: "Portable ZIP",
       dl_card3_info: "Incluye todos los ensamblados y recursos de idioma (Español e Inglés) empaquetados.",
@@ -81,7 +83,7 @@
       spec_row2_p: "Arquitectura",
       spec_row2_v: "C# / .NET Framework 4.8.1 (Nativo WPF XAML)",
       spec_row3_p: "Tamaño del Binario",
-      spec_row3_v: "585 KB (Standalone Ejecutable único)",
+      spec_row3_v: "361 KB (Standalone Ejecutable único)",
       spec_row4_p: "Consumo de RAM",
       spec_row4_v: "~28 MB en segundo plano (optimizado)",
       spec_row5_p: "Permisos de Usuario",
@@ -96,7 +98,7 @@
       faq_title: "Preguntas Frecuentes",
       faq1_q: "¿Requiere privilegios de Administrador (UAC) para funcionar?",
       faq1_a: "No. Toda la telemetría de CPU, RAM, discos, red, conmutación de planes de energía y limpieza de archivos temporales de usuario opera con permisos normales de usuario estándar.",
-      faq2_q: "¿Por qué el ejecutable es tan ligero (585 KB)?",
+      faq2_q: "¿Por qué el ejecutable es tan ligero (361 KB)?",
       faq2_a: "A diferencia de monitores modernos construidos con Electron que empaquetan un navegador Chromium entero (>150 MB), Simple PC Monitor está compilado directamente en C# nativo utilizando las librerías integradas de Windows.",
       faq3_q: "¿Cómo protege el sistema contra el cierre accidental de procesos?",
       faq3_a: "El gestor de procesos cuenta con una lista negra interna estricta que bloquea la finalización de componentes críticos como dwm.exe, csrss.exe, svchost.exe y explorer.exe.",
@@ -114,14 +116,14 @@
       nav_specs: "Specifications",
       nav_downloads: "Downloads",
       nav_faq: "FAQ",
-      btn_download_nav: "Download v2.0.0",
+      btn_download_nav: "Download v2.4.0",
 
-      hero_badge: "Version 2.0.0 • 585 KB Standalone",
+      hero_badge: "Version 2.4.0 • 361 KB Standalone",
       hero_title: "Ultra-lightweight system monitor for Windows",
       hero_subtitle: "Real-time telemetry, process management, RAM optimizer, and native Win32 power plan control in a single standalone executable.",
       btn_setup: "Download Installer (.exe)",
-      btn_standalone: "Standalone Binary (585 KB)",
-      btn_portable_zip: "Portable ZIP (1.9 MB)",
+      btn_standalone: "Standalone Binary (361 KB)",
+      btn_portable_zip: "Portable ZIP (577 KB)",
       hl_no_install: "Zero Install Required",
       hl_low_cpu: "0.0% CPU Idle Overhead",
       hl_win_compat: "Native Windows 10 / 11",
@@ -167,7 +169,7 @@
       dl_card1_info: "Standard setup wizard with Start Menu and Desktop shortcuts.",
       dl_card2_tag: "Most Popular",
       dl_card2_title: "Standalone .EXE",
-      dl_card2_info: "A single 585 KB executable file. Place it on a USB drive and run anywhere without installing.",
+      dl_card2_info: "A single 361 KB executable file. Place it on a USB drive and run anywhere without installing.",
       dl_card3_tag: "Complete",
       dl_card3_title: "Portable ZIP",
       dl_card3_info: "Includes all localized satellite assemblies (English and Spanish) in a single zip archive.",
@@ -181,7 +183,7 @@
       spec_row2_p: "Architecture",
       spec_row2_v: "C# / .NET Framework 4.8.1 (Native WPF XAML)",
       spec_row3_p: "Binary Size",
-      spec_row3_v: "585 KB (Single standalone .exe)",
+      spec_row3_v: "361 KB (Single standalone .exe)",
       spec_row4_p: "Memory Footprint",
       spec_row4_v: "~28 MB background footprint (optimized)",
       spec_row5_p: "User Privileges",
@@ -196,7 +198,7 @@
       faq_title: "Frequently Asked Questions",
       faq1_q: "Does it require Administrator (UAC) elevation?",
       faq1_a: "No. All CPU, RAM, disk, network latency metrics, power plan switching, and temporary file cleaning run under standard user permissions.",
-      faq2_q: "Why is the executable so small (585 KB)?",
+      faq2_q: "Why is the executable so small (361 KB)?",
       faq2_a: "Unlike modern Electron-based tools that bundle an entire Chromium browser (>150 MB), Simple PC Monitor is compiled directly in native C# targeting built-in Windows runtime libraries.",
       faq3_q: "How does it prevent accidentally terminating system processes?",
       faq3_a: "The built-in Process Manager has a hardcoded protection blacklist preventing termination of critical OS tasks like dwm.exe, csrss.exe, svchost.exe, and explorer.exe.",
@@ -228,12 +230,70 @@
     if (langBtn) {
       langBtn.textContent = lang === 'es' ? 'EN' : 'ES';
     }
+
+    const navBtn = document.getElementById('nav-dl-btn');
+    if (navBtn) {
+      navBtn.textContent = lang === 'es' ? `Descargar ${latestVersionTag}` : `Download ${latestVersionTag}`;
+    }
   }
 
-  // --- 2. DOM Initialization ---
+  // --- 2. Dynamic GitHub Release Fetcher ---
+  async function fetchLatestRelease() {
+    try {
+      const response = await fetch('https://api.github.com/repos/AnaCataVC/simple-pc-monitor/releases/latest');
+      if (!response.ok) return;
+      const release = await response.json();
+      if (!release || !release.tag_name) return;
+
+      latestVersionTag = release.tag_name;
+
+      // Update brand and nav badges
+      const brandBadge = document.getElementById('brand-badge');
+      if (brandBadge) brandBadge.textContent = latestVersionTag;
+
+      const navBtn = document.getElementById('nav-dl-btn');
+      if (navBtn) {
+        navBtn.textContent = currentLang === 'es' ? `Descargar ${latestVersionTag}` : `Download ${latestVersionTag}`;
+      }
+
+      // Match release assets
+      let setupUrl = '';
+      let standaloneUrl = '';
+      let portableZipUrl = '';
+
+      if (Array.isArray(release.assets)) {
+        for (const asset of release.assets) {
+          const name = (asset.name || '').toLowerCase();
+          if (name.endsWith('-setup.exe') || name === 'simplepcmonitor-setup.exe') {
+            setupUrl = asset.browser_download_url;
+          } else if (name === 'simplepcmonitor.exe') {
+            standaloneUrl = asset.browser_download_url;
+          } else if (name.includes('portable') && name.endsWith('.zip')) {
+            portableZipUrl = asset.browser_download_url;
+          }
+        }
+      }
+
+      // Update download buttons
+      if (setupUrl) {
+        document.querySelectorAll('[data-dl-type="setup"]').forEach(el => { el.href = setupUrl; });
+      }
+      if (standaloneUrl) {
+        document.querySelectorAll('[data-dl-type="standalone"]').forEach(el => { el.href = standaloneUrl; });
+      }
+      if (portableZipUrl) {
+        document.querySelectorAll('[data-dl-type="portable"]').forEach(el => { el.href = portableZipUrl; });
+      }
+    } catch (e) {
+      // Graceful fallback to static URLs in index.html
+    }
+  }
+
+  // --- 3. DOM Initialization ---
   document.addEventListener('DOMContentLoaded', () => {
     // Initial Setup
     setLanguage(currentLang);
+    fetchLatestRelease();
 
     // Clean Language Toggle Button Handler (No Flags)
     const langBtn = document.getElementById('lang-toggle-btn');
