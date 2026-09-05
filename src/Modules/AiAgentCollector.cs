@@ -78,7 +78,6 @@ namespace SimplePCMonitor.Modules
             public string ProcessDisplayName { get; set; }
             public string SemanticRole { get; set; }
             public string RoleBadgeColor { get; set; }
-            public string CommandLineSummary { get; set; }
             public string TooltipText { get; set; }
             public bool IsMcpServer { get; set; }
         }
@@ -153,10 +152,9 @@ namespace SimplePCMonitor.Modules
         private readonly Dictionary<string, CachedSessionInfo> _sessionContextCache = new Dictionary<string, CachedSessionInfo>();
         private readonly Dictionary<string, CachedChildProcessInfo> _childProcessCache = new Dictionary<string, CachedChildProcessInfo>();
         private readonly Dictionary<int, bool> _independentSessionCache = new Dictionary<int, bool>();
-        private readonly Dictionary<int, Tuple<TimeSpan, DateTime>> _prevCpuSamples = new Dictionary<int, Tuple<TimeSpan, DateTime>>();
+        private readonly CpuUsageTracker _cpuTracker = new CpuUsageTracker();
         private readonly object _syncLock = new object();
         private readonly object _sampleGate = new object();
-        private readonly int _processorCount = Environment.ProcessorCount > 0 ? Environment.ProcessorCount : 1;
 
         public AiAgentMetric Sample()
         {
@@ -237,7 +235,6 @@ namespace SimplePCMonitor.Modules
             DateTime now = DateTime.UtcNow;
             double grandTotalRamMB = 0.0;
             int totalMcpCount = 0;
-            int totalChildCount = 0;
 
             // Step 3: Build Consolidated Sessions with Triple-Check PID Reuse Mitigation
             foreach (var rootPid in rootAgentPids)
@@ -275,50 +272,12 @@ namespace SimplePCMonitor.Modules
                         ParentCpuPercent = rootCpuPct
                     };
 
-                    // Discover all child processes recursively with StartTime validation
+                    // Discover all child processes recursively with StartTime validation,
+                    // gathering their metrics in the same pass (one handle open per child, not two)
                     var descendants = new List<int>();
-                    CollectDescendants(rootPid, parentToChildren, rootStartTime, descendants, rootPidSet);
-
                     double childrenRamMB = 0.0;
                     double childrenCpuPct = 0.0;
-
-                    foreach (int childPid in descendants)
-                    {
-                        try
-                        {
-                            using (var childProc = Process.GetProcessById(childPid))
-                            {
-                                long childWs = TryGetWorkingSet(childProc);
-                                double childMemMB = Math.Round((double)childWs / (1024.0 * 1024.0), 1);
-                                double childCpu = CalculateCpuDelta(childPid, childProc, now);
-                                DateTime childStart = TryGetStartTime(childProc);
-                                string childProcName = childProc.ProcessName;
-
-                                childrenRamMB += childMemMB;
-                                childrenCpuPct += childCpu;
-
-                                var meta = ResolveChildMetadata(childPid, childProcName, childStart);
-                                session.ChildPids.Add(childPid);
-                                session.ChildProcesses.Add(new AiAgentMcpServer
-                                {
-                                    Pid = childPid,
-                                    ProcessName = meta.ProcessDisplayName,
-                                    Description = meta.SemanticRole,
-                                    SemanticRole = meta.SemanticRole,
-                                    RoleBadgeColor = meta.RoleBadgeColor,
-                                    CommandLineSummary = meta.CommandLineSummary,
-                                    TooltipText = meta.TooltipText,
-                                    WorkingSetMB = childMemMB,
-                                    MemoryDisplay = string.Format("{0:N1} MB", childMemMB),
-                                    CpuPercent = childCpu,
-                                    CpuDisplay = string.Format("{0:N1}%", childCpu),
-                                    StartTime = childStart,
-                                    IsMcpServer = meta.IsMcpServer
-                                });
-                            }
-                        }
-                        catch { }
-                    }
+                    CollectDescendantsWithMetrics(rootPid, parentToChildren, rootStartTime, descendants, rootPidSet, now, session, ref childrenRamMB, ref childrenCpuPct);
 
                     session.ChildrenWorkingSetMB = Math.Round(childrenRamMB, 1);
                     session.ChildrenCpuPercent = Math.Round(childrenCpuPct, 1);
@@ -343,33 +302,26 @@ namespace SimplePCMonitor.Modules
                     // Resolve Context (Project Workspace / Model / CLI Session) with 0ms Cache
                     var sessionInfo = ResolveSessionContext(rootProc, rootPid, rootExe, rootStartTime, descendants);
                     session.SessionContext = sessionInfo.Context;
-                    session.WorkspaceName = sessionInfo.Workspace;
                     session.ModelName = sessionInfo.Model;
 
                     metric.Sessions.Add(session);
                     grandTotalRamMB += session.TotalWorkingSetMB;
                     totalMcpCount += session.McpServersCount;
-                    totalChildCount += session.ChildProcessCount;
                 }
             }
 
             metric.ActiveSessionsCount = metric.Sessions.Count;
             metric.TotalMcpServersCount = totalMcpCount;
-            metric.TotalChildProcessesCount = totalChildCount;
             metric.TotalAggregatedRamMB = Math.Round(grandTotalRamMB, 1);
             metric.TotalAggregatedRamDisplay = string.Format("{0:N1} MB", grandTotalRamMB);
 
             // Cleanup stale CPU samples, cached session contexts and child metadata (only when snapshot succeeded)
             if (allRunningPids.Count > 0)
             {
+                _cpuTracker.RemoveDeadPids(allRunningPids);
+
                 lock (_syncLock)
                 {
-                    var deadPids = _prevCpuSamples.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
-                    foreach (var dead in deadPids)
-                    {
-                        _prevCpuSamples.Remove(dead);
-                    }
-
                     var deadSessionPids = _independentSessionCache.Keys.Where(k => !allRunningPids.Contains(k)).ToList();
                     foreach (var dead in deadSessionPids)
                     {
@@ -419,39 +371,82 @@ namespace SimplePCMonitor.Modules
         }
         }
 
-        private void CollectDescendants(int parentPid, Dictionary<int, List<int>> tree, DateTime parentStartTime, List<int> result, HashSet<int> sessionBoundaries)
+        private void CollectDescendantsWithMetrics(
+            int parentPid,
+            Dictionary<int, List<int>> tree,
+            DateTime parentStartTime,
+            List<int> result,
+            HashSet<int> sessionBoundaries,
+            DateTime now,
+            AiAgentSession session,
+            ref double childrenRamMB,
+            ref double childrenCpuPct)
         {
             List<int> directChildren;
-            if (tree.TryGetValue(parentPid, out directChildren))
+            if (!tree.TryGetValue(parentPid, out directChildren))
             {
-                foreach (int childPid in directChildren)
+                return;
+            }
+
+            foreach (int childPid in directChildren)
+            {
+                if (sessionBoundaries != null && sessionBoundaries.Contains(childPid))
                 {
-                    if (sessionBoundaries != null && sessionBoundaries.Contains(childPid))
-                    {
-                        continue; // Owned by its own session row; counting it here would duplicate it
-                    }
-
-                    try
-                    {
-                        using (var childProc = Process.GetProcessById(childPid))
-                        {
-                            DateTime childStart = TryGetStartTime(childProc);
-
-                            // Invariant: child cannot start before parent
-                            if (parentStartTime != DateTime.MinValue && childStart != DateTime.MinValue && childStart < parentStartTime.AddSeconds(-2))
-                            {
-                                continue; // PID reuse collision detected and rejected
-                            }
-
-                            if (!result.Contains(childPid))
-                            {
-                                result.Add(childPid);
-                                CollectDescendants(childPid, tree, childStart != DateTime.MinValue ? childStart : parentStartTime, result, sessionBoundaries);
-                            }
-                        }
-                    }
-                    catch { }
+                    continue; // Owned by its own session row; counting it here would duplicate it
                 }
+
+                if (result.Contains(childPid))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using (var childProc = Process.GetProcessById(childPid))
+                    {
+                        DateTime childStart = TryGetStartTime(childProc);
+
+                        // Invariant: child cannot start before parent
+                        if (parentStartTime != DateTime.MinValue && childStart != DateTime.MinValue && childStart < parentStartTime.AddSeconds(-2))
+                        {
+                            continue; // PID reuse collision detected and rejected
+                        }
+
+                        result.Add(childPid);
+
+                        long childWs = TryGetWorkingSet(childProc);
+                        double childMemMB = Math.Round((double)childWs / (1024.0 * 1024.0), 1);
+                        double childCpu = CalculateCpuDelta(childPid, childProc, now);
+                        string childProcName = childProc.ProcessName;
+
+                        childrenRamMB += childMemMB;
+                        childrenCpuPct += childCpu;
+
+                        var meta = ResolveChildMetadata(childPid, childProcName, childStart);
+                        session.ChildPids.Add(childPid);
+                        session.ChildProcesses.Add(new AiAgentMcpServer
+                        {
+                            Pid = childPid,
+                            ProcessName = meta.ProcessDisplayName,
+                            SemanticRole = meta.SemanticRole,
+                            RoleBadgeColor = meta.RoleBadgeColor,
+                            TooltipText = meta.TooltipText,
+                            WorkingSetMB = childMemMB,
+                            MemoryDisplay = string.Format("{0:N1} MB", childMemMB),
+                            CpuPercent = childCpu,
+                            CpuDisplay = string.Format("{0:N1}%", childCpu),
+                            StartTime = childStart,
+                            IsMcpServer = meta.IsMcpServer
+                        });
+
+                        CollectDescendantsWithMetrics(
+                            childPid, tree,
+                            childStart != DateTime.MinValue ? childStart : parentStartTime,
+                            result, sessionBoundaries, now, session,
+                            ref childrenRamMB, ref childrenCpuPct);
+                    }
+                }
+                catch { }
             }
         }
 
@@ -459,23 +454,7 @@ namespace SimplePCMonitor.Modules
         {
             try
             {
-                TimeSpan totalTime = proc.TotalProcessorTime;
-                Tuple<TimeSpan, DateTime> prev;
-                lock (_syncLock)
-                {
-                    if (_prevCpuSamples.TryGetValue(pid, out prev))
-                    {
-                        double cpuDeltaMs = (totalTime - prev.Item1).TotalMilliseconds;
-                        double timeDeltaMs = (now - prev.Item2).TotalMilliseconds;
-                        if (timeDeltaMs > 100 && cpuDeltaMs >= 0)
-                        {
-                            double pct = Math.Round((cpuDeltaMs / (timeDeltaMs * _processorCount)) * 100.0, 1);
-                            _prevCpuSamples[pid] = Tuple.Create(totalTime, now);
-                            return Math.Min(100.0, pct);
-                        }
-                    }
-                    _prevCpuSamples[pid] = Tuple.Create(totalTime, now);
-                }
+                return _cpuTracker.CalculateDelta(pid, proc.TotalProcessorTime, now);
             }
             catch { }
             return 0.0;
@@ -705,7 +684,6 @@ namespace SimplePCMonitor.Modules
                 ProcessDisplayName = displayName,
                 SemanticRole = role,
                 RoleBadgeColor = color,
-                CommandLineSummary = sanitizedCmd,
                 TooltipText = tooltip,
                 IsMcpServer = isMcpServer
             };

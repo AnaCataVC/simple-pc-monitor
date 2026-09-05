@@ -97,6 +97,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Core\NativeMethods.cs" />
+    <Compile Include="Core\CpuUsageTracker.cs" />
+    <Compile Include="Core\TimedCache.cs" />
+    <Compile Include="Core\MetricFormatting.cs" />
     <Compile Include="Core\CrashLogger.cs" />
     <Compile Include="Core\WindowPlacementHelper.cs" />
     <Compile Include="Core\DxgiHelper.cs" />

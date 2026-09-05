@@ -9,9 +9,7 @@ namespace SimplePCMonitor.Modules
 {
     public class ProcessCollector
     {
-        private readonly Dictionary<int, Tuple<TimeSpan, DateTime>> _prevCpuSamples = new Dictionary<int, Tuple<TimeSpan, DateTime>>();
-        private readonly object _syncLock = new object();
-        private readonly int _processorCount = Environment.ProcessorCount > 0 ? Environment.ProcessorCount : 1;
+        private readonly CpuUsageTracker _cpuTracker = new CpuUsageTracker();
 
         public List<ProcessMetric> Sample(int topCount, double totalRamGB, bool sortByCpu = false, string searchFilter = "")
         {
@@ -42,22 +40,7 @@ namespace SimplePCMonitor.Modules
                         double cpuPct = 0.0;
                         try
                         {
-                            TimeSpan totalProcTime = p.TotalProcessorTime;
-                            Tuple<TimeSpan, DateTime> prev;
-                            lock (_syncLock)
-                            {
-                                if (_prevCpuSamples.TryGetValue(p.Id, out prev))
-                                {
-                                    double cpuDeltaMs = (totalProcTime - prev.Item1).TotalMilliseconds;
-                                    double timeDeltaMs = (now - prev.Item2).TotalMilliseconds;
-                                    if (timeDeltaMs > 100 && cpuDeltaMs >= 0)
-                                    {
-                                        cpuPct = Math.Round((cpuDeltaMs / (timeDeltaMs * _processorCount)) * 100.0, 1);
-                                        if (cpuPct > 100.0) cpuPct = 100.0;
-                                    }
-                                }
-                                _prevCpuSamples[p.Id] = Tuple.Create(totalProcTime, now);
-                            }
+                            cpuPct = _cpuTracker.CalculateDelta(p.Id, p.TotalProcessorTime, now);
                         }
                         catch { }
 
@@ -98,17 +81,14 @@ namespace SimplePCMonitor.Modules
                         });
                     }
                     catch { }
+                    finally
+                    {
+                        p.Dispose();
+                    }
                 }
 
                 // Cleanup dead PIDs from cache
-                lock (_syncLock)
-                {
-                    var deadPids = _prevCpuSamples.Keys.Where(k => !activePids.Contains(k)).ToList();
-                    foreach (var dead in deadPids)
-                    {
-                        _prevCpuSamples.Remove(dead);
-                    }
-                }
+                _cpuTracker.RemoveDeadPids(activePids);
             }
             catch { }
 

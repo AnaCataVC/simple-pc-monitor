@@ -695,24 +695,14 @@ namespace SimplePCMonitor.Core
             }
         }
 
-        public static void SearchProcessOnline(string processName)
+        public static void SearchProcessOnline(string processName, string querySuffix = "windows process")
         {
             try
             {
                 if (string.IsNullOrEmpty(processName)) return;
-                string query = Uri.EscapeDataString(processName + " windows process");
+                string query = Uri.EscapeDataString(processName + " " + querySuffix);
                 string url = "https://www.google.com/search?q=" + query;
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch { }
-        }
-
-        public static void CopyProcessDetailsToClipboard(int pid, string processName, double memMB, double memPct)
-        {
-            try
-            {
-                string text = string.Format("Process: {0} | PID: {1} | RAM: {2:N1} MB ({3:N1}%)", processName, pid, memMB, memPct);
-                Clipboard.SetText(text);
             }
             catch { }
         }

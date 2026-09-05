@@ -66,10 +66,7 @@ namespace SimplePCMonitor.UI
         private NetworkMetric _lastNet;
         private HardwareMetric _lastHw;
         private List<ProcessMetric> _lastProcs;
-        private AiAgentMetric _lastAiAgents;
         private ServiceMetric _lastSvc;
-        private List<StartupItem> _lastStartup;
-        private List<TaskItem> _lastTasks;
 
         private DispatcherTimer _toastTimer;
         private Rect? _lastFullBounds;
@@ -467,34 +464,12 @@ namespace SimplePCMonitor.UI
             _lastNet = net;
             _lastHw = hw;
             if (procs != null) _lastProcs = procs;
-            if (aiAgents != null) _lastAiAgents = aiAgents;
             if (svc != null) _lastSvc = svc;
-            if (tasks != null) _lastTasks = tasks;
-            if (startup != null) _lastStartup = startup;
 
             // Update AI Agent Tab & Metrics if available
             if (aiAgents != null)
             {
-                if (TxtAiSessionsCount != null) TxtAiSessionsCount.Text = aiAgents.ActiveSessionsCount.ToString();
-                if (TxtAiMcpCount != null) TxtAiMcpCount.Text = aiAgents.TotalMcpServersCount.ToString();
-                if (TxtAiTotalRam != null) TxtAiTotalRam.Text = aiAgents.TotalAggregatedRamDisplay;
-
-                if (ListAiSessions != null)
-                {
-                    ListAiSessions.ItemsSource = aiAgents.Sessions;
-                }
-
-                if (BorderNoAiAgents != null)
-                {
-                    BorderNoAiAgents.Visibility = aiAgents.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-                }
-
-                if (TabBtnAiAgents != null)
-                {
-                    TabBtnAiAgents.Content = aiAgents.ActiveSessionsCount > 0
-                        ? string.Format("\uE99A Agentes IA ({0})", aiAgents.ActiveSessionsCount)
-                        : "\uE99A Agentes IA & MCP";
-                }
+                UpdateAiAgentsPanel(aiAgents);
             }
 
             // 1. CPU
@@ -753,6 +728,21 @@ namespace SimplePCMonitor.UI
             RefreshAiAgentsManually();
         }
 
+        private void UpdateAiAgentsPanel(AiAgentMetric metric)
+        {
+            if (TxtAiSessionsCount != null) TxtAiSessionsCount.Text = metric.ActiveSessionsCount.ToString();
+            if (TxtAiMcpCount != null) TxtAiMcpCount.Text = metric.TotalMcpServersCount.ToString();
+            if (TxtAiTotalRam != null) TxtAiTotalRam.Text = metric.TotalAggregatedRamDisplay;
+            if (ListAiSessions != null) ListAiSessions.ItemsSource = metric.Sessions;
+            if (BorderNoAiAgents != null) BorderNoAiAgents.Visibility = metric.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (TabBtnAiAgents != null)
+            {
+                TabBtnAiAgents.Content = metric.ActiveSessionsCount > 0
+                    ? string.Format("\uE99A Agentes IA ({0})", metric.ActiveSessionsCount)
+                    : "\uE99A Agentes IA & MCP";
+            }
+        }
+
         private async void RefreshAiAgentsManually()
         {
             try
@@ -760,18 +750,7 @@ namespace SimplePCMonitor.UI
                 var metric = await Task.Run(() => _aiAgents.Sample()).ConfigureAwait(true);
                 if (metric != null)
                 {
-                    _lastAiAgents = metric;
-                    if (TxtAiSessionsCount != null) TxtAiSessionsCount.Text = metric.ActiveSessionsCount.ToString();
-                    if (TxtAiMcpCount != null) TxtAiMcpCount.Text = metric.TotalMcpServersCount.ToString();
-                    if (TxtAiTotalRam != null) TxtAiTotalRam.Text = metric.TotalAggregatedRamDisplay;
-                    if (ListAiSessions != null) ListAiSessions.ItemsSource = metric.Sessions;
-                    if (BorderNoAiAgents != null) BorderNoAiAgents.Visibility = metric.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-                    if (TabBtnAiAgents != null)
-                    {
-                        TabBtnAiAgents.Content = metric.ActiveSessionsCount > 0
-                            ? string.Format("\uE99A Agentes IA ({0})", metric.ActiveSessionsCount)
-                            : "\uE99A Agentes IA & MCP";
-                    }
+                    UpdateAiAgentsPanel(metric);
                 }
             }
             catch { }
@@ -1196,13 +1175,18 @@ namespace SimplePCMonitor.UI
         // INTERACTIVE BENTO CARD CLICKS
         // =========================================================================
 
+        private void ApplySortAndToast(bool sortByCpu, string toastMessage)
+        {
+            _sortByCpu = sortByCpu;
+            UpdateSortButtonsHighlight();
+            ApplyProcessSortingFast();
+            ShowToast(toastMessage);
+        }
+
         private void CardCpu_Click(object sender, MouseButtonEventArgs e)
         {
             ShowTab(ViewProcesses, TabBtnProcesses);
-            _sortByCpu = true;
-            UpdateSortButtonsHighlight();
-            ApplyProcessSortingFast();
-            ShowToast("⚡ Filtrando procesos por mayor uso de CPU");
+            ApplySortAndToast(true, "⚡ Filtrando procesos por mayor uso de CPU");
         }
 
         private void CardGpu_Click(object sender, MouseButtonEventArgs e)
@@ -1220,10 +1204,7 @@ namespace SimplePCMonitor.UI
         private void CardRam_Click(object sender, MouseButtonEventArgs e)
         {
             ShowTab(ViewProcesses, TabBtnProcesses);
-            _sortByCpu = false;
-            UpdateSortButtonsHighlight();
-            ApplyProcessSortingFast();
-            ShowToast("🧠 Filtrando procesos por mayor uso de memoria RAM");
+            ApplySortAndToast(false, "🧠 Filtrando procesos por mayor uso de memoria RAM");
         }
 
         private void CardDisk_Click(object sender, MouseButtonEventArgs e)
@@ -1450,29 +1431,22 @@ namespace SimplePCMonitor.UI
 
         private void BtnTaskMgr_Click(object sender, RoutedEventArgs e)
         {
-            try { Process.Start("taskmgr.exe"); } catch { }
+            ToolLauncher.StartTaskManager();
         }
 
         private void BtnResMon_Click(object sender, RoutedEventArgs e)
         {
-            try { Process.Start("resmon.exe"); } catch { }
+            ToolLauncher.StartResourceMonitor();
         }
 
         private void BtnPCMgr_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo("ms-settings:storagesense") { UseShellExecute = true });
-            }
-            catch
-            {
-                try { Process.Start("cleanmgr.exe"); } catch { }
-            }
+            ToolLauncher.StartPCManager();
         }
 
         private void MenuOpenServices_Click(object sender, RoutedEventArgs e)
         {
-            try { Process.Start("services.msc"); } catch { }
+            ToolLauncher.StartServicesConsole();
         }
 
         // =========================================================================
@@ -1719,18 +1693,12 @@ namespace SimplePCMonitor.UI
 
         private void BtnSortCpu_Click(object sender, RoutedEventArgs e)
         {
-            _sortByCpu = true;
-            UpdateSortButtonsHighlight();
-            ApplyProcessSortingFast();
-            ShowToast("⚡ Ordenado por mayor uso de CPU");
+            ApplySortAndToast(true, "⚡ Ordenado por mayor uso de CPU");
         }
 
         private void BtnSortRam_Click(object sender, RoutedEventArgs e)
         {
-            _sortByCpu = false;
-            UpdateSortButtonsHighlight();
-            ApplyProcessSortingFast();
-            ShowToast("🧠 Ordenado por mayor uso de RAM");
+            ApplySortAndToast(false, "🧠 Ordenado por mayor uso de RAM");
         }
 
         private void UpdateSortButtonsHighlight()
@@ -1948,15 +1916,7 @@ namespace SimplePCMonitor.UI
             var proc = mi != null ? mi.Tag as ProcessMetric : null;
             if (proc != null)
             {
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = string.Format("https://www.google.com/search?q={0}+process+windows", Uri.EscapeDataString(proc.Name)),
-                        UseShellExecute = true
-                    });
-                }
-                catch { }
+                ProcessManager.SearchProcessOnline(proc.Name, "process windows");
             }
         }
 
@@ -2065,14 +2025,7 @@ namespace SimplePCMonitor.UI
 
         private void BtnDriveClean_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo("ms-settings:storagesense") { UseShellExecute = true });
-            }
-            catch
-            {
-                try { Process.Start("cleanmgr.exe"); } catch { }
-            }
+            ToolLauncher.StartPCManager();
         }
 
         // =========================================================================
@@ -2188,12 +2141,7 @@ namespace SimplePCMonitor.UI
             var mi = sender as MenuItem;
             var svcItem = mi != null ? mi.Tag as ServiceItem : null;
             if (svcItem == null) return;
-            try
-            {
-                string url = "https://www.google.com/search?q=" + Uri.EscapeDataString(svcItem.ServiceName + " windows service");
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch { }
+            ProcessManager.SearchProcessOnline(svcItem.ServiceName, "windows service");
         }
 
         private void MenuServiceCopy_Click(object sender, RoutedEventArgs e)
@@ -2261,14 +2209,7 @@ namespace SimplePCMonitor.UI
 
         private void MenuOpenTaskSchd_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo("taskschd.msc") { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
+            ToolLauncher.StartTaskScheduler();
         }
 
         private void MenuTaskSearch_Click(object sender, RoutedEventArgs e)
@@ -2276,12 +2217,7 @@ namespace SimplePCMonitor.UI
             var mi = sender as MenuItem;
             var task = mi != null ? mi.Tag as TaskItem : null;
             if (task == null) return;
-            try
-            {
-                string url = "https://www.google.com/search?q=" + Uri.EscapeDataString(task.TaskName + " windows scheduled task");
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch { }
+            ProcessManager.SearchProcessOnline(task.TaskName, "windows scheduled task");
         }
 
         private void MenuTaskCopy_Click(object sender, RoutedEventArgs e)
@@ -2360,13 +2296,8 @@ namespace SimplePCMonitor.UI
         private void SearchStartupItemOnline(StartupItem item)
         {
             if (item == null) return;
-            try
-            {
-                string query = !string.IsNullOrEmpty(item.DisplayName) ? item.DisplayName : item.Name;
-                string url = "https://www.google.com/search?q=" + Uri.EscapeDataString(query + " startup application windows");
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-            }
-            catch { }
+            string query = !string.IsNullOrEmpty(item.DisplayName) ? item.DisplayName : item.Name;
+            ProcessManager.SearchProcessOnline(query, "startup application windows");
         }
 
         private void MenuStartupCopyCmd_Click(object sender, RoutedEventArgs e)

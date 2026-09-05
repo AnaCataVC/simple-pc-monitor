@@ -67,6 +67,27 @@ namespace SimplePCMonitor.Core
             { "teams", new ProcessMetadataInfo { FriendlyName = "Microsoft Teams", CompanyName = "Microsoft Corporation" } }
         };
 
+        public static bool TryReadFileVersionInfo(string path, out string description, out string publisher, out string fileVersion)
+        {
+            description = string.Empty;
+            publisher = string.Empty;
+            fileVersion = string.Empty;
+            try
+            {
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return false;
+
+                var fvi = FileVersionInfo.GetVersionInfo(path);
+                if (!string.IsNullOrWhiteSpace(fvi.FileDescription)) description = fvi.FileDescription.Trim();
+                if (!string.IsNullOrWhiteSpace(fvi.CompanyName)) publisher = fvi.CompanyName.Trim();
+                if (!string.IsNullOrWhiteSpace(fvi.FileVersion)) fileVersion = fvi.FileVersion.Trim();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static ProcessMetadataInfo GetMetadata(int pid, string processName)
         {
             if (string.IsNullOrEmpty(processName))
@@ -100,10 +121,10 @@ namespace SimplePCMonitor.Core
                     if (!string.IsNullOrEmpty(path))
                     {
                         item.ExecutablePath = path;
-                        if (File.Exists(path))
+                        string desc, pub, ver;
+                        if (TryReadFileVersionInfo(path, out desc, out pub, out ver) && !string.IsNullOrEmpty(ver))
                         {
-                            var fvi = FileVersionInfo.GetVersionInfo(path);
-                            if (!string.IsNullOrEmpty(fvi.FileVersion)) item.FileVersion = fvi.FileVersion;
+                            item.FileVersion = ver;
                         }
                     }
                 }
@@ -128,22 +149,12 @@ namespace SimplePCMonitor.Core
                 if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
                 {
                     info.ExecutablePath = exePath;
-                    var fvi = FileVersionInfo.GetVersionInfo(exePath);
+                    string desc, pub, ver;
+                    TryReadFileVersionInfo(exePath, out desc, out pub, out ver);
 
-                    if (!string.IsNullOrWhiteSpace(fvi.FileDescription))
-                    {
-                        info.FriendlyName = fvi.FileDescription.Trim();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(fvi.CompanyName))
-                    {
-                        info.CompanyName = fvi.CompanyName.Trim();
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(fvi.FileVersion))
-                    {
-                        info.FileVersion = fvi.FileVersion.Trim();
-                    }
+                    if (!string.IsNullOrEmpty(desc)) info.FriendlyName = desc;
+                    if (!string.IsNullOrEmpty(pub)) info.CompanyName = pub;
+                    if (!string.IsNullOrEmpty(ver)) info.FileVersion = ver;
                 }
             }
             catch { }

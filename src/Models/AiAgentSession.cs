@@ -7,10 +7,8 @@ namespace SimplePCMonitor.Models
     {
         public int Pid { get; set; }
         public string ProcessName { get; set; }
-        public string Description { get; set; }
         public string SemanticRole { get; set; }
         public string RoleBadgeColor { get; set; }
-        public string CommandLineSummary { get; set; }
         public string TooltipText { get; set; }
         public double WorkingSetMB { get; set; }
         public string MemoryDisplay { get; set; }
@@ -22,10 +20,8 @@ namespace SimplePCMonitor.Models
         public AiAgentMcpServer()
         {
             ProcessName = string.Empty;
-            Description = string.Empty;
             SemanticRole = "Subproceso";
             RoleBadgeColor = "#38BDF8";
-            CommandLineSummary = string.Empty;
             TooltipText = string.Empty;
             MemoryDisplay = "0.0 MB";
             CpuDisplay = "0.0%";
@@ -53,14 +49,11 @@ namespace SimplePCMonitor.Models
         public List<int> ChildPids { get; set; }
         public List<AiAgentMcpServer> ChildProcesses { get; set; }
         public bool IsIdle { get; set; }
-        public bool IsOrphaned { get; set; }
         public bool IsExpanded { get; set; }
         public string ExpandToggleText { get; set; }
-        public bool HasChildren { get { return ChildProcesses != null && ChildProcesses.Count > 0; } }
         public string StatusDisplay { get; set; }
         public string StatusBadgeColor { get; set; }
         public string SessionContext { get; set; }
-        public string WorkspaceName { get; set; }
         public string ModelName { get; set; }
 
         public AiAgentSession()
@@ -78,7 +71,6 @@ namespace SimplePCMonitor.Models
             StatusDisplay = "Active";
             StatusBadgeColor = "#10B981"; // Emerald
             SessionContext = string.Empty;
-            WorkspaceName = string.Empty;
             ModelName = string.Empty;
         }
     }
@@ -87,16 +79,13 @@ namespace SimplePCMonitor.Models
     {
         public int ActiveSessionsCount { get; set; }
         public int TotalMcpServersCount { get; set; }
-        public int TotalChildProcessesCount { get; set; }
         public double TotalAggregatedRamMB { get; set; }
         public string TotalAggregatedRamDisplay { get; set; }
         public List<AiAgentSession> Sessions { get; set; }
-        public List<AiAgentMcpServer> OrphanedMcpServers { get; set; }
 
         public AiAgentMetric()
         {
             Sessions = new List<AiAgentSession>();
-            OrphanedMcpServers = new List<AiAgentMcpServer>();
             TotalAggregatedRamDisplay = "0.0 MB";
         }
     }

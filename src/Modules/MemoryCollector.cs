@@ -15,16 +15,16 @@ namespace SimplePCMonitor.Modules
                 return new MemoryMetric();
             }
 
-            double totalGB = Math.Round((double)_buffer.ullTotalPhys / (1024.0 * 1024.0 * 1024.0), 1);
-            double freeGB  = Math.Round((double)_buffer.ullAvailPhys / (1024.0 * 1024.0 * 1024.0), 1);
+            double totalGB = MetricFormatting.BytesToGB(_buffer.ullTotalPhys);
+            double freeGB  = MetricFormatting.BytesToGB(_buffer.ullAvailPhys);
             double usedGB  = Math.Round(totalGB - freeGB, 1);
             double percent = (double)_buffer.dwMemoryLoad;
 
-            double pfTotal = Math.Round((double)_buffer.ullTotalPageFile / (1024.0 * 1024.0 * 1024.0), 1);
-            double pfFree  = Math.Round((double)_buffer.ullAvailPageFile / (1024.0 * 1024.0 * 1024.0), 1);
+            double pfTotal = MetricFormatting.BytesToGB(_buffer.ullTotalPageFile);
+            double pfFree  = MetricFormatting.BytesToGB(_buffer.ullAvailPageFile);
             double pfUsed  = Math.Round(pfTotal - pfFree, 1);
 
-            string status = percent >= 90.0 ? "Crit" : (percent >= 80.0 ? "Warn" : "Ok");
+            string status = MetricFormatting.ClassifyStatus(percent);
 
             return new MemoryMetric
             {

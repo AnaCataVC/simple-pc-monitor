@@ -52,7 +52,7 @@ namespace SimplePCMonitor.Modules
                 percent = Math.Round(Math.Max(0.0, Math.Min(100.0, raw)), 1);
             }
 
-            string status = percent >= 90.0 ? "Crit" : (percent >= 75.0 ? "Warn" : "Ok");
+            string status = MetricFormatting.ClassifyStatus(percent, 75.0);
 
             return new CpuMetric
             {

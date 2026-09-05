@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
 using SimplePCMonitor.Core;
@@ -10,8 +9,16 @@ namespace SimplePCMonitor.Modules
 {
     public class StartupCollector
     {
-        public List<StartupItem> Sample()
+        private readonly TimedCache<List<StartupItem>> _cache = new TimedCache<List<StartupItem>>(TimeSpan.FromSeconds(60));
+
+        public List<StartupItem> Sample(bool forceRefresh = false)
         {
+            List<StartupItem> cached;
+            if (_cache.TryGetFresh(forceRefresh, out cached))
+            {
+                return cached;
+            }
+
             var items = new List<StartupItem>();
 
             // 1. Current User Registry Run Key
@@ -84,7 +91,7 @@ namespace SimplePCMonitor.Modules
             }
             catch { }
 
-            return items;
+            return items.Count > 0 ? _cache.Store(items) : (_cache.LastValue ?? items);
         }
 
         private StartupItem BuildStartupItem(string name, string rawCommand, string locationType)
@@ -94,21 +101,11 @@ namespace SimplePCMonitor.Modules
             string publisher = string.Empty;
 
             // Check if file exists to read FileVersionInfo metadata
-            if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
+            string fviDescription, fviPublisher, fviVersion;
+            if (ProcessMetadataCache.TryReadFileVersionInfo(exePath, out fviDescription, out fviPublisher, out fviVersion))
             {
-                try
-                {
-                    var vi = FileVersionInfo.GetVersionInfo(exePath);
-                    if (!string.IsNullOrWhiteSpace(vi.FileDescription))
-                    {
-                        displayName = vi.FileDescription.Trim();
-                    }
-                    if (!string.IsNullOrWhiteSpace(vi.CompanyName))
-                    {
-                        publisher = vi.CompanyName.Trim();
-                    }
-                }
-                catch { }
+                if (!string.IsNullOrEmpty(fviDescription)) displayName = fviDescription;
+                if (!string.IsNullOrEmpty(fviPublisher)) publisher = fviPublisher;
             }
 
             // Clean common known startup names

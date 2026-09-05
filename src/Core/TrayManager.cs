@@ -17,11 +17,6 @@ namespace SimplePCMonitor.Core
 
         public const uint TrayIconId = 1001;
 
-        public bool IsAdded
-        {
-            get { return _isAdded; }
-        }
-
         public void Initialize(IntPtr hwnd, string initialTip)
         {
             lock (_lock)

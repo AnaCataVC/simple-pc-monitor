@@ -20,16 +20,7 @@ namespace SimplePCMonitor.Core
 
         public string HumanSize
         {
-            get
-            {
-                if (BytesFreed >= 1024L * 1024L * 1024L)
-                    return string.Format("{0:N2} GB", (double)BytesFreed / (1024.0 * 1024.0 * 1024.0));
-                if (BytesFreed >= 1024L * 1024L)
-                    return string.Format("{0:N1} MB", (double)BytesFreed / (1024.0 * 1024.0));
-                if (BytesFreed >= 1024L)
-                    return string.Format("{0:N0} KB", (double)BytesFreed / 1024.0);
-                return string.Format("{0} Bytes", BytesFreed);
-            }
+            get { return MetricFormatting.FormatBytesAuto(BytesFreed); }
         }
     }
 

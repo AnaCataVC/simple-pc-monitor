@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.ServiceProcess;
+using SimplePCMonitor.Core;
 using SimplePCMonitor.Models;
 
 namespace SimplePCMonitor.Modules
@@ -10,8 +11,16 @@ namespace SimplePCMonitor.Modules
     {
         private static readonly string[] CriticalNames = new[] { "wuauserv", "Spooler", "WinDefend", "Dnscache", "lanmanserver" };
 
-        public ServiceMetric Sample()
+        private readonly TimedCache<ServiceMetric> _cache = new TimedCache<ServiceMetric>(TimeSpan.FromSeconds(30));
+
+        public ServiceMetric Sample(bool forceRefresh = false)
         {
+            ServiceMetric cached;
+            if (_cache.TryGetFresh(forceRefresh, out cached))
+            {
+                return cached;
+            }
+
             var metric = new ServiceMetric();
             try
             {
@@ -49,7 +58,7 @@ namespace SimplePCMonitor.Modules
             }
             catch { }
 
-            return metric;
+            return _cache.Store(metric);
         }
     }
 }

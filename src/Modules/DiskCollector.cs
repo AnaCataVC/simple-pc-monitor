@@ -1,14 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using SimplePCMonitor.Core;
 using SimplePCMonitor.Models;
 
 namespace SimplePCMonitor.Modules
 {
     public class DiskCollector
     {
-        public List<DiskMetric> Sample()
+        private readonly TimedCache<List<DiskMetric>> _cache = new TimedCache<List<DiskMetric>>(TimeSpan.FromSeconds(5));
+
+        public List<DiskMetric> Sample(bool forceRefresh = false)
         {
+            List<DiskMetric> cached;
+            if (_cache.TryGetFresh(forceRefresh, out cached))
+            {
+                return cached;
+            }
+
             var results = new List<DiskMetric>();
             try
             {
@@ -20,13 +29,13 @@ namespace SimplePCMonitor.Modules
                         if (!d.IsReady || (d.DriveType != DriveType.Fixed && d.DriveType != DriveType.Removable))
                             continue;
 
-                        double totalGB = Math.Round((double)d.TotalSize / (1024.0 * 1024.0 * 1024.0), 1);
-                        double freeGB  = Math.Round((double)d.TotalFreeSpace / (1024.0 * 1024.0 * 1024.0), 1);
+                        double totalGB = MetricFormatting.BytesToGB(d.TotalSize);
+                        double freeGB  = MetricFormatting.BytesToGB(d.TotalFreeSpace);
                         double usedGB  = Math.Round(totalGB - freeGB, 1);
                         double percent = totalGB > 0 ? Math.Round((usedGB * 100.0) / totalGB, 1) : 0.0;
 
                         string label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "Local Disk" : d.VolumeLabel;
-                        string status = percent >= 90.0 ? "Crit" : (percent >= 80.0 ? "Warn" : "Ok");
+                        string status = MetricFormatting.ClassifyStatus(percent);
 
                         results.Add(new DiskMetric
                         {
@@ -45,7 +54,7 @@ namespace SimplePCMonitor.Modules
             }
             catch { }
 
-            return results;
+            return results.Count > 0 ? _cache.Store(results) : (_cache.LastValue ?? results);
         }
     }
 }

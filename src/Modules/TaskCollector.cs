@@ -2,21 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using SimplePCMonitor.Core;
 using SimplePCMonitor.Models;
 
 namespace SimplePCMonitor.Modules
 {
     public class TaskCollector
     {
-        private List<TaskItem> _cachedItems = new List<TaskItem>();
-        private DateTime _lastSampleTime = DateTime.MinValue;
-        private readonly TimeSpan _cacheDuration = TimeSpan.FromSeconds(60);
+        private readonly TimedCache<List<TaskItem>> _cache = new TimedCache<List<TaskItem>>(TimeSpan.FromSeconds(60));
 
         public List<TaskItem> Sample(bool forceRefresh = false)
         {
-            if (!forceRefresh && _cachedItems.Count > 0 && (DateTime.UtcNow - _lastSampleTime) < _cacheDuration)
+            List<TaskItem> cached;
+            if (_cache.TryGetFresh(forceRefresh, out cached))
             {
-                return _cachedItems;
+                return cached;
             }
 
             var items = new List<TaskItem>();
@@ -67,13 +67,12 @@ namespace SimplePCMonitor.Modules
 
                 if (items.Count > 0)
                 {
-                    _cachedItems = items;
-                    _lastSampleTime = DateTime.UtcNow;
+                    _cache.Store(items);
                 }
             }
             catch { }
 
-            return items.Count > 0 ? items : _cachedItems;
+            return items.Count > 0 ? items : (_cache.LastValue ?? items);
         }
     }
 }

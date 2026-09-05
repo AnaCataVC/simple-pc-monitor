@@ -8,7 +8,6 @@ namespace SimplePCMonitor.Modules
     public class NpuCollector
     {
         private NpuDeviceInfo _npuInfo;
-        private string _targetLuid;
         private bool _scanned;
 
         public NpuCollector()
@@ -69,7 +68,6 @@ namespace SimplePCMonitor.Modules
                         if (!string.Equals(luid, gpuLuid, StringComparison.OrdinalIgnoreCase))
                         {
                             // NPU / MCDM compute accelerators typically execute on Compute engine
-                            _targetLuid = luid;
                             metric.LuidString = luid;
                             metric.LoadPercent = Math.Round(Math.Min(100.0, kvp.Value.Compute > 0 ? kvp.Value.Compute : kvp.Value.TotalLoad), 1);
                             break;
