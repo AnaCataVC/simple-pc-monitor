@@ -12,6 +12,7 @@ This document provides a comprehensive technical breakdown of the interactive co
    - [3.2 Instant DNS Resolver Flushing](#32-instant-dns-resolver-flushing)
    - [3.3 Multizone Hardened Temp Storage Cleaner](#33-multizone-hardened-temp-storage-cleaner)
    - [3.4 Hung Application Rescue Watchdog](#34-hung-application-rescue-watchdog)
+   - [3.5 Storage Analyzer: Folder Breakdown & Hidden Bloat Detection](#35-storage-analyzer-folder-breakdown--hidden-bloat-detection)
 4. [Deep Dive: Real-Time Process Management](#4-deep-dive-real-time-process-management)
    - [4.1 Thread Freezing (NtSuspendProcess) & Resuming (NtResumeProcess)](#41-thread-freezing-ntsuspendprocess--resuming-ntresumeprocess)
    - [4.2 Dynamic CPU Scheduler Priority Control](#42-dynamic-cpu-scheduler-priority-control)
@@ -125,6 +126,40 @@ sequenceDiagram
   - During telemetry refresh, the process enumerator inspects `process.Responding` (which sends a non-blocking `WM_NULL` probe via Win32 `SendMessageTimeout`).
   - If a process with an active window handle returns `Responding == false`, an alert banner illuminates in the title bar.
   - Clicking *Rescue* terminates the hung process gracefully via `Process.Kill()`, immediately restoring desktop responsiveness.
+
+### 3.5 Storage Analyzer: Folder Breakdown & Hidden Bloat Detection
+- **Primary Goal:** Answer *where* the space went, which a per-volume usage bar cannot express. A drive reporting "92% used" restates a number the user already knows; it never names the folder or the artifact responsible.
+
+#### Traversal Invariants
+- **`SearchOption.AllDirectories` is forbidden.** The framework raises `UnauthorizedAccessException` from inside the deferred iterator, killing the entire enumeration with no way to skip the branch and resume — one protected folder silently truncates a whole-drive scan. `PathTooLongException` behaves identically on deeply nested dependency trees. Traversal is therefore manual recursion over `TopDirectoryOnly`, with exception handling **around `MoveNext()` itself**, bounded by `MaxDirectoryDepth = 40`.
+- **Reparse points never contribute bytes.** Junctions, symlinks and cloud placeholders project data stored elsewhere — another volume, a remote service, a paired mobile device. Following them reports capacity the physical disk does not contain. Every entry is tested with `FileSystemSafety.IsReparsePoint` and recorded as a `SkippedEntry` with reason `ReparsePoint`.
+- **The attribute check fails closed.** If attributes cannot be read, the entry is treated as a reparse point and traversal refuses to descend. Inverting this default would reopen the junction-traversal sandbox escape that `SafeTempCleaner` is hardened against.
+- **The scan total is never presented as a reconciliation** of the volume's used bytes. Hard links, sparse files and skipped branches guarantee a discrepancy, so the skipped count is surfaced in the UI to explain it rather than leave it mysterious.
+
+#### Concurrency & Responsiveness
+- First-level subtrees are independent, so they are measured with `Parallel.For` bounded by `Environment.ProcessorCount`; recursion *within* a subtree stays sequential, because the bottleneck is metadata I/O rather than CPU.
+- Shared state is guarded accordingly: `Interlocked` for the byte and directory counters, a lock for the skipped-entry list.
+- Progress is **throttled by elapsed time (~150 ms), never per item** — an unthrottled report floods the WPF `Dispatcher` on trees full of small directories. The report carries the current path and accumulated bytes, deliberately not a percentage: a total is unknowable without an equally expensive pre-scan.
+- Cancellation is cooperative and checked per directory rather than per file. Workers return normally instead of throwing, so `Parallel.For` never wraps the outcome in an `AggregateException`.
+
+#### Hidden Bloat Detectors
+`BloatDetector` surfaces consumers that are structurally invisible to a usage bar, each classified by severity and paired with a concrete remediation:
+
+| Detector | Why a usage bar misses it | Action class |
+| :--- | :--- | :--- |
+| Docker / WSL VHDX | Dynamically expanding images grow as data is written but never release blocks when it is deleted, so file size says nothing about internal usage | `LaunchTool` |
+| Build caches (Gradle, NuGet, npm, pip, Maven, Android) | Regenerable, scattered across the profile, individually unremarkable | `SafeDelete` |
+| Recycle Bin | Queried through `SHQueryRecycleBin`; invisible as a normal folder | `SafeDelete` |
+| `pagefile.sys` / `hiberfil.sys` | Large and system-owned — labeled explicitly so users stop hunting them | `Informational` |
+| WinSxS component store | Only DISM knows which components are still referenced | `LaunchTool` |
+
+- **Internal VHDX usage is deliberately not inferred.** Doing so would require mounting the image or shelling out to an external CLI, neither of which belongs in a dependency-free binary. Reporting the on-disk file size with an explanation is both honest and actionable.
+
+#### Deletion Safety
+- `BloatDetector.IsWhitelistedForDeletion` is an **exact normalized match** against a constant list of regenerable cache roots — not a prefix check, and never a path derived from user input or from a scan result.
+- Deletion runs through `SafeTempCleaner.CleanWhitelistedCache`, inheriting the dual-timestamp age gate and the junction guard. That age gate is not incidental: it is what prevents a cleaner from destroying data that a process is actively writing.
+- `IsSafeTempRoot` remains a second, independent barrier, rejecting drive roots and system/profile directories even if a caller were to skip its whitelist check.
+- Items classified `Informational` expose **no delete affordance at all**, and anything requiring elevation (compacting a VHDX, running DISM) is surfaced as the exact command rather than executed — the application holds no elevation subsystem by design.
 
 ---
 

@@ -5,12 +5,12 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![C# .NET](https://img.shields.io/badge/C%23-WPF%20%2F%20XAML-512BD4?style=flat-square&logo=csharp)](https://dotnet.microsoft.com/)
 [![Version](https://img.shields.io/badge/Release-v2.5.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.5.0)
-[![Binary Size](https://img.shields.io/badge/Binary%20Size-585%20KB-success?style=flat-square)]()
-[![Tests](https://img.shields.io/badge/Tests-20%20Passed-brightgreen?style=flat-square)]()
+[![Binary Size](https://img.shields.io/badge/Binary%20Size-382%20KB-success?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/Tests-24%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 585 KB binary.*
+*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 382 KB binary.*
 
 [English](#english) • [Español](#español)
 
@@ -38,6 +38,9 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 | **⚡ Reverse Tree Kill** | AI Agents Tab | Reverse Topological Tree Termination | Terminates entire process trees in reverse topological order (leaf MCP subprocesses first $\rightarrow$ root CLI last) eliminating orphaned background processes and memory leaks. |
 | **🌐 Flush DNS** | Top Ribbon | Native `dnsapi.dll` (`DnsFlushResolverCache`) | Directly purges and resets the Windows DNS name resolver cache in 0.01 ms, resolving stale routes, domain lookup glitches, and network timeouts without needing CMD. |
 | **🧹 Clean Temp** | Top Ribbon | Multizone `SafeTempCleaner` (>24h Cutoff) | Safely cleans obsolete cache files in `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download`, and `DeliveryOptimization`. Protected by **NTFS Reparse Point (Junction/Symlink) isolation** and **Dual Timestamp Gate** (`CreationTime` + `LastWriteTime`). |
+| **🔍 Storage Scan** | Drives Tab | `FolderSizeScanner` + `IProgress<T>` / `CancellationToken` | Measures the recursive size of every first-level folder under a chosen root and ranks the heaviest, answering *where* the space went instead of only how full the volume is. Subtrees are walked in parallel, progress is throttled to one report per 150 ms, and the scan is cancellable mid-run. Reparse points are reported as skipped and **never contribute bytes**. |
+| **🔎 Bloat Analysis** | Drives Tab | `BloatDetector` + `SHQueryRecycleBin` | Surfaces large consumers a per-volume bar cannot show: dynamically grown Docker/WSL VHDX files, regenerable build caches (Gradle, NuGet, npm, pip, Maven, Android), the Recycle Bin, the paging/hibernation files and the WinSxS component store — each classified by severity with a concrete remediation. |
+| **🧹 Clean Cache** | Bloat Row | Whitelist-validated `SafeTempCleaner.CleanWhitelistedCache` | Deletes a regenerable cache only after an **exact match against an explicit whitelist**; arbitrary paths are refused. Inherits the dual-timestamp age gate and never follows junctions. System-owned items expose no delete action at all. |
 | **⚠️ Rescue Process** | Dynamic Title Alert | Win32 `IsResponding` Watchdog + Two-Phase Close | Real-time watchdog detects windowed processes that stop responding to the Windows message loop (`IsResponding == false`). Clicking *"Rescue"* dispatches a safe two-phase close. |
 | **⏸️ Suspend Process** | Process List / Context | Kernel `ntdll.dll` (`NtSuspendProcess`) | Freezes all execution threads of a CPU-intensive or runaway background task, dropping its CPU consumption to 0.0% instantly without closing the window or losing unsaved work. |
 | **▶️ Resume Process** | Process List / Context | Kernel `ntdll.dll` (`NtResumeProcess`) | Safely reactivates a suspended process, restoring its threads to active scheduling immediately. |
@@ -63,6 +66,8 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 - **Responsive 100% Full-Width Bento Grid:** Eliminates dead UI margins, delivering clean, high-density telemetry across all monitor aspect ratios.
 - **Enterprise Crash Logging & Exception Traps:** Centralized `CrashLogger` captures unhandled domain exceptions, unobserved task faults, and recoverable UI dispatcher errors with a 1MB size cap, sliding rate limiting, and log rotation.
 - **Dedicated Multi-Drive Storage Hub:** Live partition visualizer with filesystem health, drive type detection (NVMe/SSD/HDD), activity meters, and 1-click Explorer shortcuts.
+- **🔍 Storage Analyzer & Hidden Bloat Detection:** On-demand folder-size breakdown with parallel subtree walking, throttled progress and mid-run cancellation, plus detection of the space consumers a usage bar structurally cannot reveal — grown Docker/WSL virtual disks, regenerable build caches, the Recycle Bin, and system-owned paging/hibernation files labeled as such so they are never chased in vain.
+- **☁️ Cloud Mount Disambiguation:** Virtual drives that Windows reports as fixed disks (Google Drive and similar) are badged and excluded from every storage calculation, so a mount mirroring the host volume never double-reports the machine's real capacity.
 - **🔍 360° Process Inspector & Metadata Resolver:** Resolves human-readable application names (`FileDescription`), verified publishers (`CompanyName`), architectures, and window titles with 0ms cache overhead.
 - **Protected System Process Blacklist:** Hardened guardrails strictly prevent accidental termination or suspension of essential operating system services (`csrss`, `dwm`, `svchost`, `explorer`, `services`, `lsass`).
 - **ICMP Ping Latency Monitor:** Constant background network latency measurement without UI locking.
@@ -84,6 +89,9 @@ simple-pc-monitor/
 │   │   ├── ProcessManager.cs       # Two-phase graceful close, reverse topological tree kill & blacklist guards
 │   │   ├── ProcessMetadataCache.cs # High-performance 0ms metadata caching
 │   │   ├── SafeTempCleaner.cs      # Hardened multizone storage cleaner (Anti-TOCTOU & Junction safe)
+│   │   ├── FileSystemSafety.cs     # Shared reparse-point guard & cloud/virtual volume classifier
+│   │   ├── FolderSizeScanner.cs    # Cancellable folder-size breakdown with throttled progress
+│   │   ├── BloatDetector.cs        # Hidden space consumers + whitelist-gated cache cleanup
 │   │   ├── MemoryOptimizer.cs      # Working set trim & CLR GC collector
 │   │   ├── SnapshotExporter.cs     # System diagnostic report generator
 │   │   ├── ConfigManager.cs        # Persistent settings in %APPDATA%
@@ -108,7 +116,7 @@ simple-pc-monitor/
 ├── scripts/
 │   └── Build-Package.ps1           # MSBuild dynamic resolver & packaging pipeline
 ├── tests/
-│   ├── Metrics.Tests.ps1           # 15-Test Health & Reflection validation suite
+│   ├── Metrics.Tests.ps1           # 19-Test Health & Reflection validation suite
 │   └── DeepStress.Tests.ps1        # 5-Test Live Process Tree, Handle Leak & 5s Smoke suite
 └── releases/                       # Standalone .exe, Setup installer & Portable ZIP
 ```
@@ -128,9 +136,9 @@ Run the compiled standalone executable inside `releases/`:
 powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.5.0"
 ```
 
-#### Run Automated Health & Stress Tests (20 Tests):
+#### Run Automated Health & Stress Tests (24 Tests):
 ```powershell
-# 1. Health and Type Tests (15 tests)
+# 1. Health and Type Tests (19 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
 
 # 2. Deep Stress, Handle Leaks & Smoke Tests (5 tests)
@@ -148,6 +156,10 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 6. **Seamless Multi-Monitor Window Maximization (`WM_GETMINMAXINFO`):** Handling Win32 `0x0024` and extracting per-monitor work area dimensions via `MonitorFromWindow` eliminates window clipping across high-DPI and multi-monitor setups.
 7. **Resilient Crash Trapping Architecture (`CrashLogger.cs`):** Multi-tier exception hooking across `AppDomain`, `TaskScheduler`, and `Dispatcher` with 1MB size caps and 5-log/10s rate limiting prevents diagnostic spam and application crashes from unobserved background threads.
 8. **Resilient Session Context & Cache Eviction Safeguards:** Headless or resumed autonomous CLI agents frequently lack window titles; Simple PC Monitor resolves these via regex CLI inspection (`--resume=`) into compact session hashes (`🔗 Sesión <8-char-hash>`) and extracts active AI models (`--model`) displayed as `🧬 <ModelName>`. In WPF XAML, dual null-and-empty `DataTriggers` (`Value=""` and `Value="{x:Null}"`) guarantee seamless visual collapse when no model flag exists. Crucially, cache eviction passes across CPU delta histories, resolved session metadata, and UI collapse states (`CollapsedSessionPids`) are protected behind an `allRunningPids.Count > 0` boundary check, preventing catastrophic cache purges if a transient OS snapshot call fails under high resource contention.
+9. **Recursive Enumeration Cannot Use `SearchOption.AllDirectories`:** `EnumerateFiles`/`EnumerateFileSystemInfos` with `AllDirectories` raises `UnauthorizedAccessException` from *inside* the deferred iterator, aborting the entire walk with no way to skip the offending branch and resume — a single protected folder silently truncates a whole-drive scan. The same applies to `PathTooLongException` on deeply nested dependency trees. Correct traversal is manual recursion over `TopDirectoryOnly` with per-directory exception handling, guarding `MoveNext()` itself, so one unreadable directory costs that directory and nothing more.
+10. **Reparse Points Invent Storage That Does Not Exist:** Junctions, symlinks and cloud placeholders project data that lives elsewhere — another volume, a remote service, or a paired mobile device. Any size aggregation that follows them reports space the physical volume does not contain, and the error is large enough to dominate a report. Every traversal must test `FileAttributes.ReparsePoint`, exclude those entries from all totals, and surface them as explicitly *skipped* so the discrepancy between a scan total and the volume's used space is visible rather than mysterious. The attribute check must fail closed: if attributes cannot be read, assume a reparse point and refuse to descend.
+11. **A Fixed FAT32 Volume Above 32 GB Is Impossible:** Windows refuses to format FAT32 beyond 32 GB, so a drive simultaneously reporting `DriveType.Fixed`, FAT32 and a capacity above that cap is a cloud or virtual mount surfacing through a filesystem filter, not physical storage. Such mounts typically mirror the host volume's capacity, so counting them double-reports the machine's real storage. Checking whether the drive root is a reparse point does *not* detect them — the mount presents a normal root directory.
+12. **Dynamically Expanding Virtual Disks Never Shrink:** VHDX files backing Docker Desktop's WSL2 engine and WSL distributions grow as data is written but do not release blocks when it is deleted. The file size on disk therefore says nothing about how much is stored inside, and reclaiming the space requires compacting the image rather than deleting anything. Reporting the file size alone is honest and useful; inferring internal usage would require mounting the image or depending on an external CLI, neither of which belongs in a dependency-free binary.
 
 ---
 
@@ -155,7 +167,7 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ## Español
 
 ### 1. Descripción del Proyecto
-**Simple PC Monitor v2.5.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **585 KB** sin dependencias externas.
+**Simple PC Monitor v2.5.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **382 KB** sin dependencias externas.
 
 ---
 
@@ -171,6 +183,9 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 | **⚡ Terminar Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. |
 | **🌐 Vaciar DNS** | Ribbon Superior | Nativa `dnsapi.dll` (`DnsFlushResolverCache`) | Purga y reinicia la caché del solucionador de nombres DNS de Windows en 0.01 ms, corrigiendo errores de navegación y resolución de dominios sin abrir CMD. |
 | **🧹 Limpiar Temporales** | Ribbon Superior | Multizona `SafeTempCleaner` (>24h Cutoff) | Limpieza segura de archivos temporales en `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download` y `DeliveryOptimization`. Blindado con **aislamiento de Junctions/Symlinks** y **Guarda de Doble Marca de Tiempo** (`CreationTime` + `LastWriteTime`). |
+| **🔍 Escanear Almacenamiento** | Pestaña Discos | `FolderSizeScanner` + `IProgress<T>` / `CancellationToken` | Mide el tamaño recursivo de cada carpeta de primer nivel bajo una raíz elegida y ordena las más pesadas, respondiendo *dónde* se fue el espacio en vez de solo cuán lleno está el volumen. Los subárboles se recorren en paralelo, el progreso se limita a un reporte cada 150 ms y el escaneo se puede cancelar a mitad de camino. Los reparse points se reportan como omitidos y **nunca aportan bytes**. |
+| **🔎 Análisis de Bloat** | Pestaña Discos | `BloatDetector` + `SHQueryRecycleBin` | Expone los grandes consumidores que una barra por volumen no puede mostrar: discos virtuales Docker/WSL (VHDX) que crecieron, cachés de compilación regenerables (Gradle, NuGet, npm, pip, Maven, Android), la papelera, los archivos de paginación/hibernación y el almacén de componentes WinSxS — cada uno clasificado por severidad y con una remediación concreta. |
+| **🧹 Limpiar Caché** | Fila de Bloat | `SafeTempCleaner.CleanWhitelistedCache` validado por whitelist | Borra una caché regenerable solo tras una **coincidencia exacta contra una whitelist explícita**; cualquier ruta arbitraria se rechaza. Hereda la guarda de antigüedad de doble marca de tiempo y nunca sigue junctions. Los elementos del sistema no exponen acción de borrado. |
 | **⚠️ Rescatar Proceso** | Alerta en Barra de Título | Watchdog Win32 `IsResponding` + Cierre en Dos Fases | Detecta en vivo procesos con ventanas que no responden a la cola de mensajes de Windows (`IsResponding == false`). El botón *"Rescatar"* ejecuta el protocolo seguro de cierre en dos fases. |
 | **⏸️ Suspender Proceso** | Lista de Procesos / Contexto | Kernel `ntdll.dll` (`NtSuspendProcess`) | Congela todos los hilos de ejecución de un proceso desbocado, reduciendo su consumo de CPU al 0.0% instantáneamente sin cerrarlo ni perder el trabajo abierto. |
 | **▶️ Resume Process** | Lista de Procesos / Contexto | Kernel `ntdll.dll` (`NtResumeProcess`) | Reactiva un proceso previamente suspendido, devolviendo sus hilos al planificador de tareas de Windows. |
@@ -196,6 +211,8 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 - **Diseño Bento a Ancho Completo:** Cuadrícula de alta densidad sin márgenes muertos, optimizada para resoluciones modernas.
 - **Registro Resiliente de Fallos (`CrashLogger.cs`):** Captura global de excepciones en `AppDomain`, `TaskScheduler` y `Dispatcher` con rotación automática a 1MB y límite de tasa de 5 registros cada 10 segundos.
 - **Centro de Almacenamiento Multidisco:** Visualizador en tiempo real de unidades de disco (NVMe/SSD/HDD), estado de salud, espacio libre y accesos directos al Explorador de archivos.
+- **🔍 Analizador de Almacenamiento y Detección de Bloat Oculto:** Desglose de tamaño por carpeta bajo demanda, con recorrido paralelo de subárboles, progreso limitado y cancelación a mitad de camino, más la detección de los consumidores de espacio que una barra de uso no puede revelar por diseño — discos virtuales Docker/WSL que crecieron, cachés de compilación regenerables, la papelera, y los archivos de paginación/hibernación etiquetados como del sistema para que nadie los persiga en vano.
+- **☁️ Desambiguación de Unidades en la Nube:** Las unidades virtuales que Windows reporta como discos fijos (Google Drive y similares) se marcan con un badge y se excluyen de todo cálculo de almacenamiento, evitando que un montaje que refleja el volumen anfitrión duplique la capacidad real del equipo.
 - **🔍 Inspector 360° de Procesos:** Identificación amigable de nombres comerciales, publicadores certificados, arquitectura y memoria con 0ms de retardo.
 - **Lista Negra de Protección del Sistema:** Protección estricta que previene la suspensión o cierre de procesos vitales del sistema (`csrss`, `dwm`, `svchost`, `explorer`, `services`, `lsass`).
 - **Pipeline de CI/CD Automatizado:** Compilación y ejecución de 20 tests automatizados de salud, estrés en vivo y arquitectura en cada release.
@@ -214,9 +231,9 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.5.0"
 ```
 
-#### Ejecutar Pruebas Automatizadas (20 Tests):
+#### Ejecutar Pruebas Automatizadas (24 Tests):
 ```powershell
-# 1. Pruebas de Salud y Arquitectura (15 tests)
+# 1. Pruebas de Salud y Arquitectura (19 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
 
 # 2. Pruebas de Estrés en Vivo, Fugas de Handles y Smoke (5 tests)

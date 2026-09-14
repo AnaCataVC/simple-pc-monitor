@@ -15,7 +15,10 @@ This document serves as the operational manual, architecture reference, and work
   - `PowerPlanManager.cs`: Native Win32 power scheme switcher via `PowrProf.dll` (Balanced, High Performance, Power Saver).
   - `ProcessManager.cs`: Two-phase graceful close engine (`RequestGracefulCloseAsync`), reverse topological tree termination (`TerminateProcessTree`), 16-process protected blacklist, Session 0 isolation, priority setter, and suspend/resume engine.
   - `ProcessMetadataCache.cs`: High-performance 0ms metadata caching (`FileDescription`, `CompanyName`, icon extraction).
-  - `SafeTempCleaner.cs`: Multizone storage cleaner with anti-Junction traversal guard and dual-timestamp protection (>24h).
+  - `SafeTempCleaner.cs`: Multizone storage cleaner with anti-Junction traversal guard and dual-timestamp protection (>24h). Also exposes `CleanWhitelistedCache`, which clears a single regenerable cache root with the exclusion list disabled (those substring exclusions are tuned for live app data inside `%TEMP%` and would wrongly spare legitimate cache roots such as NuGet's `packages`); `IsSafeTempRoot` still blocks drive roots and system/profile directories, and callers must whitelist the path first.
+  - `FileSystemSafety.cs`: Shared storage guards used by the cleaner, the scanner, the bloat detector and `DiskCollector`. `IsReparsePoint` fails closed (unreadable attributes are treated as a reparse point, so traversal refuses to descend); `IsLikelyVirtualVolume` classifies cloud mounts that Windows reports as fixed drives, taking primitives rather than a `DriveInfo` so it stays unit-testable.
+  - `FolderSizeScanner.cs`: Read-only recursive folder-size breakdown with `IProgress<T>` reporting, `CancellationToken` support, parallel first-level subtree walking and reparse-point exclusion. `MeasureTotalBytes` is the shared single-directory total, so no second traversal implementation exists in the codebase.
+  - `BloatDetector.cs`: Detects Docker/WSL VHDX growth, regenerable build caches, the Recycle Bin (`SHQueryRecycleBin`), paging/hibernation files and the WinSxS component store. Owns the deletion whitelist: `IsWhitelistedForDeletion` is an exact normalized match and is the only gate through which `DeleteWhitelistedCache` will remove anything.
   - `MemoryOptimizer.cs`: Working set RAM trimmer and CLR garbage collection invoker.
   - `LocalizationManager.cs`: Real-time bilingual localization provider (ES/EN).
   - `DxgiHelper.cs` & `SetupApiHelper.cs`: DirectX DXGI GPU telemetry and SetupAPI NPU hardware discovery.
@@ -46,14 +49,14 @@ simple-pc-monitor/
 ├── src/
 │   ├── SimplePCMonitor.csproj     # C# WPF project file (.NET Framework 4.8)
 │   ├── App.xaml / App.xaml.cs     # App entrypoint, CrashLogger traps, and 4-theme manager
-│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process guards (20 modules)
+│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process & storage guards (23 modules)
 │   ├── Models/                    # Telemetry data models and AI Agent / MCP structures
 │   ├── Modules/                   # Metric collectors (12 collectors: CPU, RAM, AI Agents, GPU, NPU, Disks...)
 │   └── UI/                        # XAML vector gauges, custom Bento controls, themes, dialogs
 ├── scripts/
 │   └── Build-Package.ps1          # Dynamic MSBuild discovery and packaging pipeline
 ├── tests/
-│   ├── Metrics.Tests.ps1          # 15-Test Health & Reflection validation suite
+│   ├── Metrics.Tests.ps1          # 19-Test Health & Reflection validation suite
 │   └── DeepStress.Tests.ps1       # 5-Test Live Process Tree, Handle Leak & 5s Smoke suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
 ├── docs/                          # Architecture guides, command center manual, benchmarks
@@ -88,9 +91,9 @@ simple-pc-monitor/
 & "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe" src\SimplePCMonitor.csproj /p:Configuration=Release
 ```
 
-### Run Tests (20 Automated Tests)
+### Run Tests (24 Automated Tests)
 ```powershell
-# 1. Run Health & Architecture Tests (15 tests)
+# 1. Run Health & Architecture Tests (19 tests)
 powershell -ExecutionPolicy Bypass -File tests\Metrics.Tests.ps1
 
 # 2. Run Deep Stress, Handle Leaks & Smoke Tests (5 tests)
@@ -116,3 +119,6 @@ powershell -ExecutionPolicy Bypass -File scripts/Build-Package.ps1
 7. **Toolhelp32 Snapshot Cache Eviction Safeguard**: Cache evictions (the `CpuUsageTracker` samples, `_sessionContextCache`, `_childProcessCache`, and `CollapsedSessionPids`) must be strictly guarded behind `if (allRunningPids.Count > 0)`. Transient snapshot failures during heavy OS resource contention must never wipe historical CPU baselines or reset user UI collapse states.
 8. **WPF Null/Empty DataTrigger Resilience**: Optional string metadata visualized inside styled containers (such as `ModelName` in the session header) must declare dual `DataTrigger` rules for both `Value=""` and `Value="{x:Null}"` to collapse the container cleanly without leaving empty background boxes or visual gaps.
 9. **Collector Enumeration Caching**: Collectors whose underlying OS enumeration is expensive and slow-changing (installed services, startup entries, drive info) must cache the result for a short `TimeSpan` (with an optional `forceRefresh` parameter) instead of re-enumerating on every poll tick, mirroring the pattern in `TaskCollector.cs`, `ServiceCollector.cs`, `StartupCollector.cs`, and `DiskCollector.cs`.
+10. **Long Operations Report Progress and Accept Cancellation**: Work that can run for minutes (filesystem scans, bulk analysis) must never be a blocking spinner. It takes an `IProgress<T>` and a `CancellationToken`, checks the token at coarse boundaries (per directory, not per file), and **throttles progress reports by elapsed time** (~150 ms) rather than by item count — an unthrottled report per item floods the WPF `Dispatcher` on trees full of tiny entries. Cancellation is checked cooperatively and returns normally instead of throwing across parallel workers, so `Parallel.*` never wraps the result in an `AggregateException`. The reference implementation is `FolderSizeScanner.cs`.
+11. **On-Demand Work Never Joins the Telemetry Tick**: Expensive user-initiated analysis must be triggered only from an explicit user action and dispatched with `Task.Run`, never wired into the periodic collector tick that refreshes the HUD. Results are held in a field for redraw; `TimedCache<T>` is for tick-driven metrics where a stale-by-seconds value is still valid, not for scans the user expects to re-run deliberately.
+12. **Filesystem Traversal Is Reparse-Point Aware and Whitelist-Gated**: Any new code that walks directories must refuse to descend into reparse points via `FileSystemSafety.IsReparsePoint` (they project data that does not occupy this volume), must use manual recursion over `TopDirectoryOnly` rather than `SearchOption.AllDirectories`, and must never delete a path that has not passed an exact-match whitelist check. Deletion paths are always derived from a known constant, never from user input or from a scan result.
