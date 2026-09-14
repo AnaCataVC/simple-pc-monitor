@@ -214,7 +214,38 @@ namespace SimplePCMonitor.Core
             { "ToastServiceStarted", "▶️ Servicio iniciado: {0}" },
             { "ToastServiceStopped", "⏹️ Servicio detenido: {0}" },
             { "ToastTaskExecuted", "📅 Tarea ejecutada: {0}" },
-            { "ToastStartupCopied", "📋 Ruta copiada al portapapeles" }
+            { "ToastStartupCopied", "📋 Ruta copiada al portapapeles" },
+
+            // Storage Analyzer
+            { "DriveKindCloud", "Nube" },
+            { "StorageScanTitle", "¿Dónde se fue mi espacio?" },
+            { "StorageScanButton", "🔍 Escanear" },
+            { "StorageScanCancel", "✖ Cancelar" },
+            { "StorageScanRunning", "🔍 Escaneando {0}..." },
+            { "StorageScanDone", "🔍 Escaneo completo: {0} en {1} carpetas ({2:N1}s)" },
+            { "StorageScanCancelled", "🔍 Escaneo cancelado" },
+            { "StorageScanEmpty", "Sin resultados para esta ruta" },
+            { "StorageScanSkipped", "{0} entradas omitidas (enlaces virtuales o sin acceso). Los enlaces virtuales apuntan a datos que no ocupan espacio en este disco." },
+            { "StorageScanRootProfile", "Carpeta personal" },
+            { "StorageBloatTitle", "Bloat detectado" },
+            { "StorageBloatEmpty", "No se detectaron consumidores ocultos de espacio" },
+            { "StorageBloatScanning", "🔎 Buscando consumidores ocultos de espacio..." },
+            { "BloatActionClean", "🧹 Limpiar" },
+            { "BloatActionTool", "🛠 Abrir herramienta" },
+            { "BloatCleanDone", "🧹 {0} liberados de {1}" },
+            { "BloatCleanRejected", "⚠️ Esa ruta no está habilitada para limpieza automática" },
+            { "BloatVirtualDiskTitle", "Disco virtual Docker/WSL" },
+            { "BloatVirtualDiskHint", "Los discos virtuales crecen pero nunca se achican solos. Ejecuta 'docker system prune' y luego compacta el archivo con diskpart (requiere administrador)." },
+            { "BloatBuildCacheTitle", "Caché de compilación" },
+            { "BloatBuildCacheHint", "Se regenera sola en la próxima compilación. Borrarla solo hace más lenta la primera build posterior." },
+            { "BloatRecycleBinTitle", "Papelera de reciclaje" },
+            { "BloatRecycleBinHint", "Vaciar la papelera libera este espacio de inmediato." },
+            { "BloatPageFileTitle", "Archivo de paginación (sistema)" },
+            { "BloatPageFileHint", "Lo administra Windows: no se borra. Su tamaño se ajusta en Configuración avanzada del sistema." },
+            { "BloatHiberFileTitle", "Archivo de hibernación (sistema)" },
+            { "BloatHiberFileHint", "Lo administra Windows: no se borra. Se elimina desactivando la hibernación con 'powercfg /hibernate off'." },
+            { "BloatComponentStoreTitle", "Almacén de componentes de Windows (WinSxS)" },
+            { "BloatComponentStoreHint", "Nunca borrar a mano: solo DISM sabe qué componentes siguen en uso. Usa 'Dism /Online /Cleanup-Image /StartComponentCleanup'." }
         };
 
         private static readonly Dictionary<string, string> StringsEn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -419,7 +450,38 @@ namespace SimplePCMonitor.Core
             { "ToastServiceStarted", "▶️ Service Started: {0}" },
             { "ToastServiceStopped", "⏹️ Service Stopped: {0}" },
             { "ToastTaskExecuted", "📅 Task Executed: {0}" },
-            { "ToastStartupCopied", "📋 Path copied to clipboard" }
+            { "ToastStartupCopied", "📋 Path copied to clipboard" },
+
+            // Storage Analyzer
+            { "DriveKindCloud", "Cloud" },
+            { "StorageScanTitle", "Where did my space go?" },
+            { "StorageScanButton", "🔍 Scan" },
+            { "StorageScanCancel", "✖ Cancel" },
+            { "StorageScanRunning", "🔍 Scanning {0}..." },
+            { "StorageScanDone", "🔍 Scan complete: {0} across {1} folders ({2:N1}s)" },
+            { "StorageScanCancelled", "🔍 Scan cancelled" },
+            { "StorageScanEmpty", "No results for this path" },
+            { "StorageScanSkipped", "{0} entries skipped (virtual links or no access). Virtual links point to data that takes up no space on this disk." },
+            { "StorageScanRootProfile", "Home folder" },
+            { "StorageBloatTitle", "Detected bloat" },
+            { "StorageBloatEmpty", "No hidden space consumers detected" },
+            { "StorageBloatScanning", "🔎 Looking for hidden space consumers..." },
+            { "BloatActionClean", "🧹 Clean" },
+            { "BloatActionTool", "🛠 Open tool" },
+            { "BloatCleanDone", "🧹 {0} freed from {1}" },
+            { "BloatCleanRejected", "⚠️ That path is not enabled for automatic cleanup" },
+            { "BloatVirtualDiskTitle", "Docker/WSL virtual disk" },
+            { "BloatVirtualDiskHint", "Virtual disks grow but never shrink on their own. Run 'docker system prune', then compact the file with diskpart (requires administrator)." },
+            { "BloatBuildCacheTitle", "Build cache" },
+            { "BloatBuildCacheHint", "Regenerates itself on the next build. Deleting it only slows down the first build afterwards." },
+            { "BloatRecycleBinTitle", "Recycle Bin" },
+            { "BloatRecycleBinHint", "Emptying the Recycle Bin frees this space immediately." },
+            { "BloatPageFileTitle", "Paging file (system)" },
+            { "BloatPageFileHint", "Managed by Windows: do not delete. Its size is adjusted in Advanced system settings." },
+            { "BloatHiberFileTitle", "Hibernation file (system)" },
+            { "BloatHiberFileHint", "Managed by Windows: do not delete. It is removed by disabling hibernation with 'powercfg /hibernate off'." },
+            { "BloatComponentStoreTitle", "Windows component store (WinSxS)" },
+            { "BloatComponentStoreHint", "Never delete by hand: only DISM knows which components are still in use. Use 'Dism /Online /Cleanup-Image /StartComponentCleanup'." }
         };
 
         public static string Get(string key, string langOrFallback = null)

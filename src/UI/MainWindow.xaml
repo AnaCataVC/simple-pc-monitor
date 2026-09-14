@@ -1140,19 +1140,107 @@
                                                                     <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0">
                                                                         <TextBlock Text="{Binding DriveFormat}" FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
                                                                     </Border>
+                                                                    <Border x:Name="BadgeCloud" Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" Margin="4,0,0,0" Visibility="Collapsed"
+                                                                            ToolTip="Unidad virtual montada en la nube: su capacidad refleja el disco anfitrión y no ocupa espacio propio">
+                                                                        <TextBlock Text="{Binding KindLabel}" FontSize="9" Foreground="{DynamicResource AccentNet}"/>
+                                                                    </Border>
                                                                 </StackPanel>
                                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding FreeGB, StringFormat='{}{0:N1} GB Libres'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                    <TextBlock x:Name="TxtDriveFree" Text="{Binding FreeGB, StringFormat='{}{0:N1} GB Libres'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                     <Button Content="📂 Abrir" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Abrir en el Explorador de Windows" Click="BtnDriveOpen_Click" Tag="{Binding}" Margin="0,0,4,0"/>
-                                                                    <Button Content="🧹 Limpiar" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Abrir Sensor de Almacenamiento de Windows" Click="BtnDriveClean_Click" Tag="{Binding}"/>
+                                                                    <Button x:Name="BtnDriveCleanAction" Content="🧹 Limpiar" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Abrir Sensor de Almacenamiento de Windows" Click="BtnDriveClean_Click" Tag="{Binding}"/>
                                                                 </StackPanel>
                                                             </DockPanel>
-                                                            <ProgressBar Grid.Row="1" Value="{Binding PercentUsed}" Style="{DynamicResource PastelProgressBarStyle}" Foreground="{DynamicResource AccentDisk}" Margin="0,6,0,0" Height="8"/>
+                                                            <ProgressBar x:Name="BarDriveUsage" Grid.Row="1" Value="{Binding PercentUsed}" Style="{DynamicResource PastelProgressBarStyle}" Foreground="{DynamicResource AccentDisk}" Margin="0,6,0,0" Height="8"/>
                                                         </Grid>
                                                     </Border>
+                                                    <DataTemplate.Triggers>
+                                                        <!-- Virtual mounts have no honest usage figure: their capacity mirrors the host volume -->
+                                                        <DataTrigger Binding="{Binding IsVirtual}" Value="True">
+                                                            <Setter TargetName="BadgeCloud" Property="Visibility" Value="Visible"/>
+                                                            <Setter TargetName="TxtDriveFree" Property="Visibility" Value="Collapsed"/>
+                                                            <Setter TargetName="BarDriveUsage" Property="Visibility" Value="Collapsed"/>
+                                                            <Setter TargetName="BtnDriveCleanAction" Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
+
+                                        <!-- WHERE DID MY SPACE GO: on-demand folder breakdown -->
+                                        <Border Background="{DynamicResource BgControl}" CornerRadius="7" Padding="10,8" Margin="0,10,0,3">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock x:Name="TxtStorageScanTitle" Text="¿Dónde se fue mi espacio?" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                                        <TextBlock x:Name="TxtStorageScanRoot" Text="" FontSize="10" Foreground="{DynamicResource TextMuted}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button x:Name="BtnStorageScanRoot" Content="📁 Cambiar raíz" Style="{DynamicResource PillActionButtonStyle}" Click="BtnStorageScanRoot_Click" Margin="0,0,4,0"/>
+                                                        <Button x:Name="BtnStorageScan" Content="🔍 Escanear" Style="{DynamicResource PillActionButtonStyle}" Click="BtnStorageScan_Click"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                                <TextBlock x:Name="TxtStorageScanStatus" Text="" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
+                                                <ItemsControl x:Name="ListFolderSizes" Margin="0,6,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="0,3">
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto"/>
+                                                                    <RowDefinition Height="Auto"/>
+                                                                </Grid.RowDefinitions>
+                                                                <DockPanel Grid.Row="0">
+                                                                    <TextBlock Text="{Binding Name}" FontSize="11" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding SizeDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Right"/>
+                                                                </DockPanel>
+                                                                <ProgressBar Grid.Row="1" Value="{Binding PercentOfLargest}" Style="{DynamicResource PastelProgressBarStyle}" Foreground="{DynamicResource AccentDisk}" Margin="0,3,0,0" Height="6"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <TextBlock x:Name="TxtStorageSkipped" Text="" FontSize="9.5" Foreground="{DynamicResource TextMuted}" Margin="0,6,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- DETECTED BLOAT: consumers a per-volume bar cannot surface -->
+                                        <Border Background="{DynamicResource BgControl}" CornerRadius="7" Padding="10,8" Margin="0,3,0,3">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock x:Name="TxtStorageBloatTitle" Text="Bloat detectado" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                    <Button x:Name="BtnBloatRefresh" DockPanel.Dock="Right" Content="🔎 Analizar" Style="{DynamicResource PillActionButtonStyle}" Click="BtnBloatRefresh_Click" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                                <TextBlock x:Name="TxtBloatStatus" Text="" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                                <ItemsControl x:Name="ListBloatFindings" Margin="0,6,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border x:Name="BloatRow" Background="{DynamicResource BgCard}" CornerRadius="6" Padding="9,7" Margin="0,3">
+                                                                <StackPanel>
+                                                                    <DockPanel>
+                                                                        <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                                            <TextBlock x:Name="TxtBloatSize" Text="{Binding SizeDisplay}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                            <Button x:Name="BtnBloatAction" Content="{Binding ActionLabel}" Style="{DynamicResource PillActionButtonStyle}" Click="BtnBloatAction_Click" Tag="{Binding}"/>
+                                                                        </StackPanel>
+                                                                    </DockPanel>
+                                                                    <TextBlock Text="{Binding ActionHint}" FontSize="9.5" Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <DataTemplate.Triggers>
+                                                                <DataTrigger Binding="{Binding HasAction}" Value="False">
+                                                                    <Setter TargetName="BtnBloatAction" Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="Warn">
+                                                                    <Setter TargetName="TxtBloatSize" Property="Foreground" Value="{DynamicResource StatusWarn}"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Severity}" Value="Crit">
+                                                                    <Setter TargetName="TxtBloatSize" Property="Foreground" Value="{DynamicResource StatusCrit}"/>
+                                                                </DataTrigger>
+                                                            </DataTemplate.Triggers>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>

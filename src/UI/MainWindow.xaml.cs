@@ -558,11 +558,20 @@ namespace SimplePCMonitor.UI
             // 5. DISK
             if (disks != null && disks.Count > 0)
             {
-                var primaryDisk = disks[0];
-                TxtDiskVal.Text = string.Format("{0:N0}%", primaryDisk.PercentUsed);
-                ProgressDisk.Value = Math.Max(0, Math.Min(100, primaryDisk.PercentUsed));
-                TxtDiskTotalBadge.Text = primaryDisk.Name;
-                TxtDiskSub.Text = string.Format(LocalizationManager.Get("DiskFreeLabel"), primaryDisk.FreeGB);
+                // Headline the drive under most pressure. Virtual mounts are excluded:
+                // their capacity mirrors the host volume, so they carry no real usage.
+                var primaryDisk = disks
+                    .Where(d => !d.IsVirtual)
+                    .OrderByDescending(d => d.PercentUsed)
+                    .FirstOrDefault();
+
+                if (primaryDisk != null)
+                {
+                    TxtDiskVal.Text = string.Format("{0:N0}%", primaryDisk.PercentUsed);
+                    ProgressDisk.Value = Math.Max(0, Math.Min(100, primaryDisk.PercentUsed));
+                    TxtDiskTotalBadge.Text = primaryDisk.Name;
+                    TxtDiskSub.Text = string.Format(LocalizationManager.Get("DiskFreeLabel"), primaryDisk.FreeGB);
+                }
 
                 ListDrivesFull.ItemsSource = disks;
             }
@@ -1122,6 +1131,12 @@ namespace SimplePCMonitor.UI
             if (TabBtnTasks != null) TabBtnTasks.Content = LocalizationManager.Get("TabTasks");
             if (TabBtnStartup != null) TabBtnStartup.Content = LocalizationManager.Get("TabStartup");
             if (TabBtnDrives != null) TabBtnDrives.Content = LocalizationManager.Get("TabDrives", "💾 Discos & Almacenamiento");
+
+            // Storage Analyzer
+            if (TxtStorageScanTitle != null) TxtStorageScanTitle.Text = LocalizationManager.Get("StorageScanTitle");
+            if (TxtStorageBloatTitle != null) TxtStorageBloatTitle.Text = LocalizationManager.Get("StorageBloatTitle");
+            if (BtnStorageScan != null && _storageScanCts == null) BtnStorageScan.Content = LocalizationManager.Get("StorageScanButton");
+            if (TxtStorageScanRoot != null && string.IsNullOrEmpty(TxtStorageScanRoot.Text)) TxtStorageScanRoot.Text = GetStorageScanRoot();
 
             // Table & Column Headers
             if (TxtColPid != null) TxtColPid.Text = LocalizationManager.Get("ColPid", "PID");
@@ -2026,6 +2041,196 @@ namespace SimplePCMonitor.UI
         private void BtnDriveClean_Click(object sender, RoutedEventArgs e)
         {
             ToolLauncher.StartPCManager();
+        }
+
+        // =========================================================================
+        // STORAGE ANALYZER (folder breakdown + hidden bloat)
+        // =========================================================================
+
+        private CancellationTokenSource _storageScanCts;
+        private string _storageScanRoot;
+
+        private string GetStorageScanRoot()
+        {
+            if (string.IsNullOrEmpty(_storageScanRoot))
+            {
+                _storageScanRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
+            return _storageScanRoot;
+        }
+
+        /// <summary>
+        /// Cycles through the user profile and the real drive roots. A folder picker would
+        /// pull in a WinForms reference, which this project deliberately avoids.
+        /// </summary>
+        private void BtnStorageScanRoot_Click(object sender, RoutedEventArgs e)
+        {
+            var candidates = new List<string> { Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) };
+
+            if (_lastDisks != null)
+            {
+                foreach (var disk in _lastDisks)
+                {
+                    if (disk.IsVirtual || string.IsNullOrEmpty(disk.Name)) continue;
+                    candidates.Add(disk.Name.EndsWith("\\") ? disk.Name : disk.Name + "\\");
+                }
+            }
+
+            int current = candidates.FindIndex(p => string.Equals(p, GetStorageScanRoot(), StringComparison.OrdinalIgnoreCase));
+            _storageScanRoot = candidates[(current + 1) % candidates.Count];
+            TxtStorageScanRoot.Text = _storageScanRoot;
+        }
+
+        private async void BtnStorageScan_Click(object sender, RoutedEventArgs e)
+        {
+            // The button doubles as the cancel control while a scan is in flight.
+            if (_storageScanCts != null)
+            {
+                _storageScanCts.Cancel();
+                return;
+            }
+
+            string root = GetStorageScanRoot();
+            TxtStorageScanRoot.Text = root;
+
+            var cts = new CancellationTokenSource();
+            _storageScanCts = cts;
+            BtnStorageScan.Content = LocalizationManager.Get("StorageScanCancel");
+            BtnStorageScanRoot.IsEnabled = false;
+            ListFolderSizes.ItemsSource = null;
+            TxtStorageSkipped.Visibility = Visibility.Collapsed;
+
+            var progress = new Progress<FolderScanProgress>(p =>
+            {
+                TxtStorageScanStatus.Text = string.Format(LocalizationManager.Get("StorageScanRunning"), p.CurrentPath);
+            });
+
+            try
+            {
+                var result = await Task.Run(() => FolderSizeScanner.Scan(root, 15, progress, cts.Token));
+
+                ListFolderSizes.ItemsSource = result.TopEntries;
+
+                if (result.WasCancelled)
+                {
+                    TxtStorageScanStatus.Text = LocalizationManager.Get("StorageScanCancelled");
+                }
+                else if (result.TopEntries.Count == 0)
+                {
+                    TxtStorageScanStatus.Text = LocalizationManager.Get("StorageScanEmpty");
+                }
+                else
+                {
+                    TxtStorageScanStatus.Text = string.Format(
+                        LocalizationManager.Get("StorageScanDone"),
+                        MetricFormatting.FormatBytesAuto(result.TotalScannedBytes),
+                        result.TopEntries.Count,
+                        result.ElapsedMilliseconds / 1000.0);
+                }
+
+                // Skipped entries are surfaced because they are exactly why the total never
+                // reconciles with the volume's used space.
+                if (result.SkippedCount > 0)
+                {
+                    TxtStorageSkipped.Text = string.Format(LocalizationManager.Get("StorageScanSkipped"), result.SkippedCount);
+                    TxtStorageSkipped.Visibility = Visibility.Visible;
+                }
+            }
+            catch (Exception ex)
+            {
+                TxtStorageScanStatus.Text = ex.Message;
+                CrashLogger.LogException("StorageScan", ex, false);
+            }
+            finally
+            {
+                _storageScanCts = null;
+                cts.Dispose();
+                BtnStorageScan.Content = LocalizationManager.Get("StorageScanButton");
+                BtnStorageScanRoot.IsEnabled = true;
+            }
+        }
+
+        private async void BtnBloatRefresh_Click(object sender, RoutedEventArgs e)
+        {
+            BtnBloatRefresh.IsEnabled = false;
+            TxtBloatStatus.Text = LocalizationManager.Get("StorageBloatScanning");
+
+            try
+            {
+                var findings = await Task.Run(() => BloatDetector.Scan());
+                ListBloatFindings.ItemsSource = findings;
+                TxtBloatStatus.Text = findings.Count == 0 ? LocalizationManager.Get("StorageBloatEmpty") : "";
+            }
+            catch (Exception ex)
+            {
+                TxtBloatStatus.Text = ex.Message;
+                CrashLogger.LogException("BloatScan", ex, false);
+            }
+            finally
+            {
+                BtnBloatRefresh.IsEnabled = true;
+            }
+        }
+
+        private async void BtnBloatAction_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var finding = btn != null ? btn.Tag as BloatFinding : null;
+            if (finding == null) return;
+
+            if (string.Equals(finding.ActionKind, BloatDetector.ActionLaunchTool, StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(finding.Category, "VirtualDisk", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { Process.Start("explorer.exe", "/select,\"" + finding.Path + "\""); }
+                    catch { }
+                }
+                else
+                {
+                    ToolLauncher.StartPCManager();
+                }
+
+                ShowToast(finding.ActionHint);
+                return;
+            }
+
+            if (!string.Equals(finding.ActionKind, BloatDetector.ActionSafeDelete, StringComparison.OrdinalIgnoreCase)) return;
+
+            // The recycle bin is emptied through the shell so Windows shows its own
+            // confirmation for an action that cannot be undone.
+            if (string.Equals(finding.Category, "RecycleBin", StringComparison.OrdinalIgnoreCase))
+            {
+                try { NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, null, 0); }
+                catch (Exception ex) { CrashLogger.LogException("EmptyRecycleBin", ex, false); }
+
+                BtnBloatRefresh_Click(sender, e);
+                return;
+            }
+
+            if (!BloatDetector.IsWhitelistedForDeletion(finding.Path))
+            {
+                ShowToast(LocalizationManager.Get("BloatCleanRejected"));
+                return;
+            }
+
+            btn.IsEnabled = false;
+            try
+            {
+                string path = finding.Path;
+                var result = await Task.Run(() => BloatDetector.DeleteWhitelistedCache(path));
+                ShowToast(string.Format(LocalizationManager.Get("BloatCleanDone"), result.HumanSize, finding.Title));
+            }
+            catch (Exception ex)
+            {
+                CrashLogger.LogException("BloatClean", ex, false);
+                ShowToast(ex.Message);
+            }
+            finally
+            {
+                btn.IsEnabled = true;
+            }
+
+            BtnBloatRefresh_Click(sender, e);
         }
 
         // =========================================================================

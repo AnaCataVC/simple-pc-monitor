@@ -112,6 +112,9 @@
     <Compile Include="Core\ProcessManager.cs" />
     <Compile Include="Core\ProcessMetadataCache.cs" />
     <Compile Include="Core\SafeTempCleaner.cs" />
+    <Compile Include="Core\FileSystemSafety.cs" />
+    <Compile Include="Core\FolderSizeScanner.cs" />
+    <Compile Include="Core\BloatDetector.cs" />
     <Compile Include="Core\MemoryOptimizer.cs" />
     <Compile Include="Core\SnapshotExporter.cs" />
     <Compile Include="Core\TrayManager.cs" />

@@ -183,6 +183,14 @@ Write-Host "  Generated Native C# Deliverables in releases/: " -ForegroundColor 
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  1. Standalone Executable : releases\SimplePCMonitor.exe" -ForegroundColor White
 Write-Host "     -> Doble clic directo en cualquier PC Windows 10/11 sin instalador." -ForegroundColor Gray
+
+# El badge "Binary Size" del README se escribe a mano: reportarlo aqui es lo que
+# hace visible que quedo desfasado, en vez de que envejezca en silencio.
+$standaloneExe = Join-Path $ReleasesDir "SimplePCMonitor.exe"
+if (Test-Path $standaloneExe) {
+    $sizeKB = [math]::Round((Get-Item $standaloneExe).Length / 1KB)
+    Write-Host "     -> Tamano medido      : $sizeKB KB (badge del README debe coincidir)" -ForegroundColor Gray
+}
 Write-Host "  2. Setup Wizard Installer: releases\SimplePCMonitor-Setup.exe" -ForegroundColor White
 Write-Host "     -> Asistente visual de instalación paso a paso con accesos directos y desinstalador." -ForegroundColor Gray
 Write-Host "  3. Paquete ZIP Portable  : $ZipOutput" -ForegroundColor White

@@ -348,5 +348,28 @@ namespace SimplePCMonitor.Core
         public static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
 
         #endregion
+
+        #region Recycle Bin (shell32)
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct SHQUERYRBINFO
+        {
+            public int cbSize;
+            public long i64Size;
+            public long i64NumItems;
+        }
+
+        public const uint SHERB_NOCONFIRMATION = 0x00000001;
+        public const uint SHERB_NOPROGRESSUI   = 0x00000002;
+        public const uint SHERB_NOSOUND        = 0x00000004;
+
+        /// <summary>Queries recycle bin size. Pass null for pszRootPath to cover all drives.</summary>
+        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+        public static extern int SHQueryRecycleBin(string pszRootPath, ref SHQUERYRBINFO pSHQueryRBInfo);
+
+        [DllImport("shell32.dll", CharSet = CharSet.Auto)]
+        public static extern int SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
+
+        #endregion
     }
 }

@@ -102,18 +102,6 @@ namespace SimplePCMonitor.Core
             }
         }
 
-        private static bool IsReparsePoint(FileSystemInfo info)
-        {
-            try
-            {
-                return (info.Attributes & FileAttributes.ReparsePoint) != 0;
-            }
-            catch
-            {
-                return true;
-            }
-        }
-
         public static TempCleanResult CleanDeepStorage(bool cleanWindowsUpdate = true, int minAgeHours = 24)
         {
             var result = new TempCleanResult();
@@ -161,25 +149,50 @@ namespace SimplePCMonitor.Core
 
             foreach (var rootPath in pathsToClean)
             {
-                CleanDirectory(rootPath, cutoff, result, 0);
+                CleanDirectory(rootPath, cutoff, result, 0, true);
             }
 
             return result;
         }
 
-        private static void CleanDirectory(string dirPath, DateTime cutoff, TempCleanResult result, int currentDepth)
+        /// <summary>
+        /// Clears a regenerable cache directory that the caller has already validated
+        /// against an explicit whitelist (see BloatDetector).
+        ///
+        /// The %TEMP% exclusion list does not apply here: it is tuned to protect live
+        /// application data inside the temp folder, and its substring matching would
+        /// wrongly spare legitimate cache roots such as the NuGet "packages" folder.
+        /// IsSafeTempRoot still blocks drive roots and system/profile directories, so a
+        /// caller that skips its whitelist check cannot reach anything catastrophic.
+        /// </summary>
+        public static TempCleanResult CleanWhitelistedCache(string rootPath, int minAgeHours = 24)
+        {
+            var result = new TempCleanResult();
+
+            if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath) || !IsSafeTempRoot(rootPath))
+            {
+                result.SkippedReasons.Add("Path rejected by safety guard");
+                return result;
+            }
+
+            DateTime cutoff = DateTime.Now.AddHours(-Math.Max(1, minAgeHours));
+            CleanDirectory(Path.GetFullPath(rootPath), cutoff, result, 0, false);
+            return result;
+        }
+
+        private static void CleanDirectory(string dirPath, DateTime cutoff, TempCleanResult result, int currentDepth, bool applyExclusions)
         {
             if (currentDepth > MaxDirectoryDepth) return;
 
             try
             {
-                if (IsExcluded(dirPath)) return;
+                if (applyExclusions && IsExcluded(dirPath)) return;
 
                 var dirInfo = new DirectoryInfo(dirPath);
                 if (!dirInfo.Exists) return;
 
                 // If folder is a Junction Point or Symlink, DO NOT traverse it (prevents sandbox escape)
-                if (IsReparsePoint(dirInfo) && currentDepth > 0)
+                if (FileSystemSafety.IsReparsePoint(dirInfo) && currentDepth > 0)
                 {
                     try
                     {
@@ -207,7 +220,7 @@ namespace SimplePCMonitor.Core
                     {
                         try
                         {
-                            if (IsExcluded(file.FullName)) continue;
+                            if (applyExclusions && IsExcluded(file.FullName)) continue;
 
                             // DUAL TIMESTAMP GUARD: Verify BOTH LastWriteTime and CreationTime
                             // to never delete newly extracted files from ZIP/MSI installers
@@ -216,7 +229,7 @@ namespace SimplePCMonitor.Core
                                 long len = 0;
                                 try { len = file.Length; } catch { }
 
-                                if (!IsReparsePoint(file))
+                                if (!FileSystemSafety.IsReparsePoint(file))
                                 {
                                     file.Attributes = FileAttributes.Normal;
                                 }
@@ -247,10 +260,10 @@ namespace SimplePCMonitor.Core
                     {
                         try
                         {
-                            if (IsExcluded(subDir.FullName)) continue;
+                            if (applyExclusions && IsExcluded(subDir.FullName)) continue;
 
                             // If subfolder is a Junction / Symlink, DO NOT enter recursively
-                            if (IsReparsePoint(subDir))
+                            if (FileSystemSafety.IsReparsePoint(subDir))
                             {
                                 if (subDir.LastWriteTime < cutoff && subDir.CreationTime < cutoff)
                                 {
@@ -260,7 +273,7 @@ namespace SimplePCMonitor.Core
                                 continue;
                             }
 
-                            CleanDirectory(subDir.FullName, cutoff, result, currentDepth + 1);
+                            CleanDirectory(subDir.FullName, cutoff, result, currentDepth + 1, applyExclusions);
 
                             if (subDir.LastWriteTime < cutoff && subDir.CreationTime < cutoff)
                             {

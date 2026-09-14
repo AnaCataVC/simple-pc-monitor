@@ -41,12 +41,21 @@ namespace SimplePCMonitor.Models
         public double PercentUsed { get; set; }
         public string Status { get; set; }
 
+        /// <summary>
+        /// True for cloud/virtual mounts that Windows reports as fixed drives.
+        /// Their capacity mirrors the host volume, so they are excluded from
+        /// aggregate storage math and rendered without a usage bar.
+        /// </summary>
+        public bool IsVirtual { get; set; }
+        public string KindLabel { get; set; }
+
         public DiskMetric()
         {
             Name = "";
             VolumeLabel = "";
             DriveFormat = "";
             Status = "Ok";
+            KindLabel = "";
         }
     }
 
@@ -319,6 +328,105 @@ namespace SimplePCMonitor.Models
             ExecutablePath = "";
             Location = "";
             Status = "Enabled";
+        }
+    }
+
+    public class FolderSizeEntry
+    {
+        public string Name { get; set; }
+        public string FullPath { get; set; }
+        public long SizeBytes { get; set; }
+        public string SizeDisplay { get; set; }
+        public double PercentOfLargest { get; set; }
+
+        /// <summary>True when part of this subtree could not be measured (access denied, path too long).</summary>
+        public bool IsPartial { get; set; }
+
+        public FolderSizeEntry()
+        {
+            Name = "";
+            FullPath = "";
+            SizeDisplay = "0 Bytes";
+        }
+    }
+
+    public class SkippedEntry
+    {
+        public string Path { get; set; }
+
+        /// <summary>"ReparsePoint" | "AccessDenied" | "PathTooLong" | "IOError"</summary>
+        public string Reason { get; set; }
+
+        public SkippedEntry()
+        {
+            Path = "";
+            Reason = "";
+        }
+    }
+
+    public class FolderSizeScanResult
+    {
+        public string RootPath { get; set; }
+        public List<FolderSizeEntry> TopEntries { get; set; }
+        public long TotalScannedBytes { get; set; }
+        public int SkippedCount { get; set; }
+        public List<SkippedEntry> SkippedEntries { get; set; }
+        public bool WasCancelled { get; set; }
+        public long ElapsedMilliseconds { get; set; }
+
+        public FolderSizeScanResult()
+        {
+            RootPath = "";
+            TopEntries = new List<FolderSizeEntry>();
+            SkippedEntries = new List<SkippedEntry>();
+        }
+    }
+
+    public class FolderScanProgress
+    {
+        public string CurrentPath { get; set; }
+        public long BytesScannedSoFar { get; set; }
+        public int DirectoriesVisited { get; set; }
+
+        public FolderScanProgress()
+        {
+            CurrentPath = "";
+        }
+    }
+
+    public class BloatFinding
+    {
+        public string Title { get; set; }
+        public string Path { get; set; }
+        public long SizeBytes { get; set; }
+        public string SizeDisplay { get; set; }
+
+        /// <summary>"Crit" | "Warn" | "Info"</summary>
+        public string Severity { get; set; }
+        public string Category { get; set; }
+
+        /// <summary>"SafeDelete" | "LaunchTool" | "Informational"</summary>
+        public string ActionKind { get; set; }
+        public string ActionHint { get; set; }
+
+        /// <summary>Localized button caption, resolved by the detector.</summary>
+        public string ActionLabel { get; set; }
+
+        public bool HasAction
+        {
+            get { return !string.Equals(ActionKind, "Informational", System.StringComparison.OrdinalIgnoreCase); }
+        }
+
+        public BloatFinding()
+        {
+            Title = "";
+            Path = "";
+            SizeDisplay = "0 Bytes";
+            Severity = "Info";
+            Category = "";
+            ActionKind = "Informational";
+            ActionHint = "";
+            ActionLabel = "";
         }
     }
 }

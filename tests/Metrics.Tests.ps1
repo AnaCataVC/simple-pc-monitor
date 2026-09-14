@@ -267,6 +267,119 @@ Assert-Test "Process Manager: RequestGracefulCloseAsync handles protected and us
     return ($result -eq "ProtectedProcess")
 }
 
+# Storage Analyzer: virtual volume heuristic
+Assert-Test "Storage: Cloud mounts detected, real volumes never misflagged" {
+    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
+    $fss = $asm.GetType("SimplePCMonitor.Core.FileSystemSafety")
+    if ($null -eq $fss) { return $false }
+
+    $m = $fss.GetMethod("IsLikelyVirtualVolume")
+    if ($null -eq $m) { return $false }
+
+    $gb = 1024L * 1024L * 1024L
+
+    # A fixed FAT32 volume above the 32 GB format cap cannot be physical storage
+    $cloudMount    = $m.Invoke($null, @([string]"FAT32", [long](457 * $gb), $true))
+    # Real volumes and legitimate small FAT32 media must never be hidden
+    $realNtfs      = $m.Invoke($null, @([string]"NTFS",  [long](457 * $gb), $true))
+    $smallFat32    = $m.Invoke($null, @([string]"FAT32", [long](8 * $gb),   $true))
+    $removableFat  = $m.Invoke($null, @([string]"FAT32", [long](64 * $gb),  $false))
+    $exFatVolume   = $m.Invoke($null, @([string]"exFAT", [long](457 * $gb), $true))
+    $emptyFormat   = $m.Invoke($null, @([string]"",      [long](457 * $gb), $true))
+
+    return ($cloudMount -eq $true -and $realNtfs -eq $false -and $smallFat32 -eq $false `
+            -and $removableFat -eq $false -and $exFatVolume -eq $false -and $emptyFormat -eq $false)
+}
+
+# Storage Analyzer: folder scan basics
+Assert-Test "Storage: Folder scan returns descending results and survives bad paths" {
+    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
+    $scanner = $asm.GetType("SimplePCMonitor.Core.FolderSizeScanner")
+    if ($null -eq $scanner) { return $false }
+
+    $scan = $scanner.GetMethod("Scan", [type[]]@([string], [int]))
+    if ($null -eq $scan) { return $false }
+
+    $result = $scan.Invoke($null, @([string]$env:TEMP, [int]10))
+    if ($null -eq $result) { return $false }
+
+    $entries = $result.TopEntries
+    for ($i = 1; $i -lt $entries.Count; $i++) {
+        if ($entries[$i].SizeBytes -gt $entries[$i - 1].SizeBytes) { return $false }
+    }
+
+    # A missing directory must return an empty result, never throw
+    $missing = $scan.Invoke($null, @([string]("C:\NoExiste_" + [Guid]::NewGuid().ToString("N")), [int]5))
+    return ($null -ne $missing -and $missing.TopEntries.Count -eq 0)
+}
+
+# Storage Analyzer: reparse points must never contribute phantom bytes
+Assert-Test "Storage: Reparse point bytes excluded from folder scan totals" {
+    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
+    $scanner = $asm.GetType("SimplePCMonitor.Core.FolderSizeScanner")
+    $scan = $scanner.GetMethod("Scan", [type[]]@([string], [int]))
+
+    $tmp = Join-Path $env:TEMP ("spm_reparse_" + [Guid]::NewGuid().ToString("N"))
+    $target = Join-Path $tmp "target"
+    $root = Join-Path $tmp "root"
+    $realDir = Join-Path $root "real"
+
+    try {
+        New-Item -ItemType Directory -Path $target, $root, $realDir -Force | Out-Null
+
+        # 2 MB behind a junction (must be ignored) and 1 MB in a real folder (must be counted)
+        [System.IO.File]::WriteAllBytes((Join-Path $target "phantom.bin"), (New-Object byte[] (2 * 1024 * 1024)))
+        [System.IO.File]::WriteAllBytes((Join-Path $realDir "real.bin"), (New-Object byte[] (1 * 1024 * 1024)))
+
+        # Junctions do not require elevation, unlike symlinks
+        cmd /c mklink /J "$root\link" "$target" | Out-Null
+
+        $result = $scan.Invoke($null, @([string]$root, [int]10))
+
+        $reparseSkipped = $false
+        foreach ($skipped in $result.SkippedEntries) {
+            if ($skipped.Reason -eq "ReparsePoint") { $reparseSkipped = $true }
+        }
+
+        return ($reparseSkipped -eq $true -and $result.TotalScannedBytes -eq 1048576)
+    } finally {
+        cmd /c rmdir /s /q "$tmp" 2>$null
+    }
+}
+
+# Storage Analyzer: deletion whitelist is the guard against wiping arbitrary folders
+Assert-Test "Security: Bloat cleanup refuses every path outside the whitelist" {
+    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
+    $detector = $asm.GetType("SimplePCMonitor.Core.BloatDetector")
+    if ($null -eq $detector) { return $false }
+
+    $isWhitelisted = $detector.GetMethod("IsWhitelistedForDeletion")
+    if ($null -eq $isWhitelisted) { return $false }
+
+    $forbidden = @(
+        "C:\",
+        "C:\Windows",
+        "C:\Windows\System32",
+        $env:USERPROFILE,
+        (Join-Path $env:USERPROFILE "Documents"),
+        (Join-Path $env:USERPROFILE ".gradle\caches\..\..\Documents"),
+        "\\server\share",
+        ""
+    )
+
+    foreach ($path in $forbidden) {
+        if ($isWhitelisted.Invoke($null, @([string]$path)) -eq $true) { return $false }
+    }
+
+    # Whatever the whitelist does contain must be accepted, so the guard is not vacuous
+    $allowed = $detector.GetMethod("GetDeletableCachePaths").Invoke($null, @())
+    foreach ($path in $allowed) {
+        if ($isWhitelisted.Invoke($null, @([string]$path)) -ne $true) { return $false }
+    }
+
+    return $true
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Results: $passed Passed, $failed Failed" -ForegroundColor $(if ($failed -eq 0) { "Green" } else { "Red" })
 Write-Host "=================================================" -ForegroundColor Cyan
