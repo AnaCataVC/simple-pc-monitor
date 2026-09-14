@@ -6,19 +6,25 @@
 (function () {
   'use strict';
 
-  let latestVersionTag = 'v2.5.0';
+  let latestVersionTag = 'v2.6.0';
+  const repoOwner = 'AnaCataVC';
+  const repoName = 'simple-pc-monitor';
 
-  // --- 1. Internationalization (i18n) Engine ---
+  // Strings bilingües de la interfaz web
   const translations = {
     es: {
-      nav_features: "Características",
+      nav_overview: "Resumen",
+      nav_features: "Módulos",
+      nav_architecture: "Arquitectura",
+      nav_install: "Instalación",
       nav_actions: "Acciones",
       nav_specs: "Especificaciones",
       nav_downloads: "Descargas",
       nav_faq: "FAQ",
-      btn_download_nav: "Descargar v2.5.0",
+      btn_download_nav: "Descargar v2.6.0",
 
-      hero_badge: "Versión 2.5.0 • 361 KB Standalone",
+      hero_pill: "Windows 10 / 11 Nativo • C# WPF",
+      hero_badge: "Versión 2.6.0 • 382 KB Standalone",
       hero_title: "Monitor ultra ligero para Windows",
       hero_subtitle: "Telemetría en tiempo real, gestión de procesos, optimizador de memoria RAM y control de planes de energía en un único ejecutable sin dependencias.",
       btn_setup: "Descargar Instalador (.exe)",
@@ -116,13 +122,13 @@
       nav_specs: "Specifications",
       nav_downloads: "Downloads",
       nav_faq: "FAQ",
-      btn_download_nav: "Download v2.5.0",
+      btn_download_nav: "Download v2.6.0",
 
-      hero_badge: "Version 2.5.0 • 361 KB Standalone",
+      hero_badge: "Version 2.6.0 • 382 KB Standalone",
       hero_title: "Ultra-lightweight system monitor for Windows",
       hero_subtitle: "Real-time telemetry, process management, RAM optimizer, and native Win32 power plan control in a single standalone executable.",
       btn_setup: "Download Installer (.exe)",
-      btn_standalone: "Standalone Binary (361 KB)",
+      btn_standalone: "Standalone Binary (382 KB)",
       btn_portable_zip: "Portable ZIP (577 KB)",
       hl_no_install: "Zero Install Required",
       hl_low_cpu: "0.0% CPU Idle Overhead",
