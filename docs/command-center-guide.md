@@ -1,6 +1,6 @@
 # ⚡ Simple PC Monitor — Command Center & Action Buttons Technical Manual
 
-This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **Simple PC Monitor v2.6.0**.
+This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **Simple PC Monitor v2.7.0**.
 
 ---
 
@@ -194,7 +194,7 @@ sequenceDiagram
 
 ## 5. AI Agent & MCP Session Telemetry Engine
 
-Simple PC Monitor v2.6.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
+Simple PC Monitor v2.7.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
 
 ### 5.1 Toolhelp32 Snapshot Traversal, PID Reuse Mitigation & Cache Eviction Safeguard
 - **Atomic Traversal:** Captures the full Windows process hierarchy in $<0.8\text{ ms}$ via `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)`.
@@ -286,6 +286,19 @@ When manual UI refreshes (e.g. clicking *"Actualizar"* or expanding/collapsing n
 
 ### 5.9 Reverse Topological Process Tree Termination
 When terminating an AI agent session via `"⚡ Terminar Árbol"`, the engine recursively builds the descendant hierarchy and terminates processes in **reverse topological order** (deepest leaf MCP subprocesses first $\rightarrow$ intermediary runners $\rightarrow$ root orchestrator last). This prevents orphaned zombie processes, hanging STDIO pipes, and locked repository indexes.
+
+The hierarchy is **not** the raw `PPID` graph. Windows never clears the parent PID a process recorded at creation, and it hands the freed number to unrelated processes, so a snapshot contains edges pointing from live processes to parents that died long ago. `CollectTreeNodes` therefore enforces the creation-order invariant — *a process cannot start before its own parent* — and refuses to descend into any child whose `StartTime` precedes its recorded parent's. Without it, terminating a tree rooted at a recycled PID reaches strangers, and on the destructive path a wrong edge does not display a bad number: it kills someone's work.
+
+The same identity problem applies across time. `TerminateProcessTree` accepts an optional `expectedStartTime`, and a termination driven by a previously sampled list passes the `StartTime` captured at scan time. Between the collector tick, a modal confirmation and a bulk loop that waits on each exit, a PID can change owner; when the root no longer matches, the whole operation aborts and reports it instead of terminating anything.
+
+### 5.10 Orphaned Runtime Process Detection
+`AiAgentCollector.CollectOrphans` reports the runtime processes an interrupted agent session abandoned: those no live session claims (diffed against the PIDs every session tree reclaimed in the same pass) whose parent is either absent from the snapshot or, once again, recycled onto a process that started later than its supposed child. The motivating case is a `multiprocessing.Pool` on Windows — which only supports the `spawn` start method — whose workers outlive a failed run. Windows provides no orphan reaper (there is no equivalent to `PR_SET_PDEATHSIG`), so across repeated retries these accumulate silently.
+
+Three properties keep the classifier honest:
+
+- **Minimum age gate.** A launcher that exits immediately after spawning its child (`npx`, `uvx`, a shell) legitimately leaves a parentless process behind for an instant. Below one minute, absence of a parent is ordinary startup, not abandonment.
+- **Snapshot failure is not evidence.** If the Toolhelp32 pass returned nothing, the detector returns an empty list rather than declaring every process orphaned.
+- **Detection reports, the user decides.** A dead parent is normal for plenty of legitimate processes launched from a terminal that has since closed, so each row carries its detection reason, age, RAM and sanitized command line, and nothing is terminated without explicit confirmation.
 
 ---
 
