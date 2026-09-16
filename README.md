@@ -5,12 +5,12 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![C# .NET](https://img.shields.io/badge/C%23-WPF%20%2F%20XAML-512BD4?style=flat-square&logo=csharp)](https://dotnet.microsoft.com/)
 [![Version](https://img.shields.io/badge/Release-v2.6.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.6.0)
-[![Binary Size](https://img.shields.io/badge/Binary%20Size-382%20KB-success?style=flat-square)]()
-[![Tests](https://img.shields.io/badge/Tests-24%20Passed-brightgreen?style=flat-square)]()
+[![Binary Size](https://img.shields.io/badge/Binary%20Size-389%20KB-success?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/Tests-25%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 382 KB binary.*
+*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, orphaned-process detection with PID-reuse-safe tree termination, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 382 KB binary.*
 
 [English](#english) • [Español](#español)
 
@@ -35,7 +35,8 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 | **🚀 Turbo Mode** | Top Ribbon / Tray | Win32 `PowrProf.dll` (`PowerSetActiveScheme`) + `EmptyWorkingSet` | Instantly switches the Windows power plan to **High Performance** (unparking CPU cores) and concurrently purges idle working set memory pages across user processes to reclaim physical RAM. |
 | **🤖 AI Agent & MCP Monitor** | AI Agents Tab | Win32 `CreateToolhelp32Snapshot` + `SafeProcessHandle` + `_sampleGate` + PID Reuse Gate + Snapshot Resilience | Discovers AI developer CLIs (`claude.exe`, `gemini.exe`, `codex.exe`, `aider.exe`, `ollama.exe`, `cursor.exe`, `antigravity.exe`), identifies resumed CLI sessions via hash/UUID (`--resume=`, `🔗 Sesión <8-char-hash>`), displays dynamic AI Model badges (`--model`, `🧬 <ModelName>`), decouples total child processes (`ChildProcessCount`) from verified MCP servers (`McpServersCount`), isolates ephemeral launchers (`npx`, `uvx`), detects Go/Rust compiled MCP binaries via CLI markers, promotes independent CLI sessions with tree boundary truncation, guards snapshot cache-eviction (`allRunningPids.Count > 0`), and dynamically reflects Active (Emerald `#10B981`) vs. Idle (Slate `#64748B`) states. |
 | **🛑 Two-Phase Graceful Close** | Process & AI Tabs | `CloseMainWindow` / `WM_CLOSE` + Tray Detection | **Phase 1**: Dispatches a non-blocking graceful close request and detects if the app minimized to the System Tray (`MainWindowHandle == IntPtr.Zero`). **Phase 2**: Prompts for force termination only if the process remains active or unresponsive. |
-| **⚡ Reverse Tree Kill** | AI Agents Tab | Reverse Topological Tree Termination | Terminates entire process trees in reverse topological order (leaf MCP subprocesses first $\rightarrow$ root CLI last) eliminating orphaned background processes and memory leaks. |
+| **⚡ Reverse Tree Kill** | AI Agents Tab | Reverse Topological Tree Termination + `(PID, StartTime)` Identity Gate | Terminates entire process trees in reverse topological order (leaf MCP subprocesses first $\rightarrow$ root CLI last) eliminating orphaned background processes and memory leaks. The walk refuses to descend into a process that started *before* its recorded parent, so a live process that merely inherited a recycled parent PID is never dragged into someone else's tree. |
+| **🧟 Orphan Detection & Cleanup** | AI Agents Tab | Toolhelp32 Claim Diff + Dead/Recycled Parent Test + Minimum Age Gate | Lists runtime processes (`python`, `node`, `docker`, shells…) that **no live agent session claims** and whose parent is either gone or was recycled onto a different process — what an interrupted session leaves behind, such as a `multiprocessing.Pool` whose workers outlived the run. Windows has no orphan reaper, so these accumulate silently across retries. Each row shows the detection reason, age and RAM, with the sanitized command line in the tooltip; nothing is ever terminated automatically, and both the per-row and "Terminate All" actions revalidate each PID's `StartTime` before killing. |
 | **🌐 Flush DNS** | Top Ribbon | Native `dnsapi.dll` (`DnsFlushResolverCache`) | Directly purges and resets the Windows DNS name resolver cache in 0.01 ms, resolving stale routes, domain lookup glitches, and network timeouts without needing CMD. |
 | **🧹 Clean Temp** | Top Ribbon | Multizone `SafeTempCleaner` (>24h Cutoff) | Safely cleans obsolete cache files in `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download`, and `DeliveryOptimization`. Protected by **NTFS Reparse Point (Junction/Symlink) isolation** and **Dual Timestamp Gate** (`CreationTime` + `LastWriteTime`). |
 | **🔍 Storage Scan** | Drives Tab | `FolderSizeScanner` + `IProgress<T>` / `CancellationToken` | Measures the recursive size of every first-level folder under a chosen root and ranks the heaviest, answering *where* the space went instead of only how full the volume is. Subtrees are walked in parallel, progress is throttled to one report per 150 ms, and the scan is cancellable mid-run. Reparse points are reported as skipped and **never contribute bytes**. |
@@ -63,6 +64,7 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 - **🤖 AI Agent & MCP Session Monitor:** Real-time discovery and consolidated telemetry of developer AI sessions, resumed session identification via CLI hash/UUID (`--resume=`, `🔗 Sesión <8-char-hash>`), dynamic AI model badges (`--model`, `🧬 <ModelName>`) with null/empty-safe WPF DataTriggers, decoupled MCP vs. child counters, Toolhelp32 snapshot failure resilience (`allRunningPids.Count > 0`), cold-start PEB resilience, and dynamic Active/Idle state badges.
 - **⚡ Zero-Leak Handle Architecture & Concurrency Guard:** Deterministic disposal of Win32 process handles (`SafeProcessHandle` via `using`/`Dispose()`) and anti-reentrancy synchronization (`_sampleGate`) for rock-solid CPU delta calculations under high-frequency polling.
 - **🛡️ Two-Phase Graceful Close Protocol:** Safe non-blocking process termination with System Tray minimization detection and topological tree kill.
+- **🧟 Orphan Detection Without Auto-Kill:** Surfaces the runtime processes an interrupted agent session abandoned — unclaimed by any live session, parent dead or recycled, older than the launcher-exit grace window — and leaves the decision to you, showing the reason, age, RAM and sanitized command line behind an explicit confirmation.
 - **Responsive 100% Full-Width Bento Grid:** Eliminates dead UI margins, delivering clean, high-density telemetry across all monitor aspect ratios.
 - **Enterprise Crash Logging & Exception Traps:** Centralized `CrashLogger` captures unhandled domain exceptions, unobserved task faults, and recoverable UI dispatcher errors with a 1MB size cap, sliding rate limiting, and log rotation.
 - **Dedicated Multi-Drive Storage Hub:** Live partition visualizer with filesystem health, drive type detection (NVMe/SSD/HDD), activity meters, and 1-click Explorer shortcuts.
@@ -86,7 +88,7 @@ simple-pc-monitor/
 │   │   ├── NativeMethods.cs        # Win32 & NT kernel P/Invoke (ntdll, user32, dnsapi, powrprof, toolhelp32)
 │   │   ├── CrashLogger.cs          # Resilient crash logging (1MB cap, rotation, rate limiting)
 │   │   ├── PowerPlanManager.cs     # Native Win32 power scheme switcher
-│   │   ├── ProcessManager.cs       # Two-phase graceful close, reverse topological tree kill & blacklist guards
+│   │   ├── ProcessManager.cs       # Two-phase graceful close, PID-reuse-safe tree kill & blacklist guards
 │   │   ├── ProcessMetadataCache.cs # High-performance 0ms metadata caching
 │   │   ├── SafeTempCleaner.cs      # Hardened multizone storage cleaner (Anti-TOCTOU & Junction safe)
 │   │   ├── FileSystemSafety.cs     # Shared reparse-point guard & cloud/virtual volume classifier
@@ -105,7 +107,7 @@ simple-pc-monitor/
 │   │   ├── DiskCollector.cs        # DriveInfo multi-volume evaluator
 │   │   ├── NetworkCollector.cs     # NetworkInterface live Rx/Tx & ICMP Ping
 │   │   ├── ProcessCollector.cs     # Thread-safe debounced process sampler (_syncLock + fast sorting)
-│   │   ├── AiAgentCollector.cs     # Toolhelp32 process tree scanner & MCP session aggregator
+│   │   ├── AiAgentCollector.cs     # Toolhelp32 process tree scanner, MCP session aggregator & orphan detector
 │   │   ├── ServiceCollector.cs     # Windows ServiceController census
 │   │   ├── HardwareCollector.cs    # Battery status, uptime, OS/CPU/GPU specs
 │   │   └── StartupCollector.cs     # Registry & Startup folder enumerator
@@ -117,7 +119,7 @@ simple-pc-monitor/
 │   └── Build-Package.ps1           # MSBuild dynamic resolver & packaging pipeline
 ├── tests/
 │   ├── Metrics.Tests.ps1           # 19-Test Health & Reflection validation suite
-│   └── DeepStress.Tests.ps1        # 5-Test Live Process Tree, Handle Leak & 5s Smoke suite
+│   └── DeepStress.Tests.ps1        # 6-Test Live Process Tree, PID Reuse Guard, Handle Leak & Smoke suite
 └── releases/                       # Standalone .exe, Setup installer & Portable ZIP
 ```
 
@@ -136,12 +138,13 @@ Run the compiled standalone executable inside `releases/`:
 powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.6.0"
 ```
 
-#### Run Automated Health & Stress Tests (24 Tests):
+#### Run Automated Health & Stress Tests (25 Tests):
+Both suites load the binary from `releases/`, so build the package first on a fresh clone.
 ```powershell
 # 1. Health and Type Tests (19 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
 
-# 2. Deep Stress, Handle Leaks & Smoke Tests (5 tests)
+# 2. Deep Stress, PID Reuse Guard, Handle Leaks & Smoke Tests (6 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ```
 
@@ -159,7 +162,8 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 9. **Recursive Enumeration Cannot Use `SearchOption.AllDirectories`:** `EnumerateFiles`/`EnumerateFileSystemInfos` with `AllDirectories` raises `UnauthorizedAccessException` from *inside* the deferred iterator, aborting the entire walk with no way to skip the offending branch and resume — a single protected folder silently truncates a whole-drive scan. The same applies to `PathTooLongException` on deeply nested dependency trees. Correct traversal is manual recursion over `TopDirectoryOnly` with per-directory exception handling, guarding `MoveNext()` itself, so one unreadable directory costs that directory and nothing more.
 10. **Reparse Points Invent Storage That Does Not Exist:** Junctions, symlinks and cloud placeholders project data that lives elsewhere — another volume, a remote service, or a paired mobile device. Any size aggregation that follows them reports space the physical volume does not contain, and the error is large enough to dominate a report. Every traversal must test `FileAttributes.ReparsePoint`, exclude those entries from all totals, and surface them as explicitly *skipped* so the discrepancy between a scan total and the volume's used space is visible rather than mysterious. The attribute check must fail closed: if attributes cannot be read, assume a reparse point and refuse to descend.
 11. **A Fixed FAT32 Volume Above 32 GB Is Impossible:** Windows refuses to format FAT32 beyond 32 GB, so a drive simultaneously reporting `DriveType.Fixed`, FAT32 and a capacity above that cap is a cloud or virtual mount surfacing through a filesystem filter, not physical storage. Such mounts typically mirror the host volume's capacity, so counting them double-reports the machine's real storage. Checking whether the drive root is a reparse point does *not* detect them — the mount presents a normal root directory.
-12. **Dynamically Expanding Virtual Disks Never Shrink:** VHDX files backing Docker Desktop's WSL2 engine and WSL distributions grow as data is written but do not release blocks when it is deleted. The file size on disk therefore says nothing about how much is stored inside, and reclaiming the space requires compacting the image rather than deleting anything. Reporting the file size alone is honest and useful; inferring internal usage would require mounting the image or depending on an external CLI, neither of which belongs in a dependency-free binary.
+12. **Windows Never Clears a Recorded Parent PID, So a Process Tree Is Not What `PPID` Says It Is:** A process keeps its parent's PID long after that parent dies, and Windows hands the freed number to something new. Walking `PPID` edges therefore reaches live, unrelated processes that merely inherited the number — measurable at any moment on a normal desktop, and dense precisely where orphans are, since old abandoned processes are the ones most likely to hold a recycled number. The invariant that restores the real tree is that **a process cannot start before its own parent**: an edge whose child predates its parent is an artifact and must not be traversed. This matters most on the destructive path, where a wrong edge does not display a bad number, it kills someone's work. For the same reason a PID captured in a previous sample is revalidated against its `StartTime` immediately before terminating: between the scan, a modal confirmation and a bulk loop that waits on each exit, the number can change owner.
+13. **Dynamically Expanding Virtual Disks Never Shrink:** VHDX files backing Docker Desktop's WSL2 engine and WSL distributions grow as data is written but do not release blocks when it is deleted. The file size on disk therefore says nothing about how much is stored inside, and reclaiming the space requires compacting the image rather than deleting anything. Reporting the file size alone is honest and useful; inferring internal usage would require mounting the image or depending on an external CLI, neither of which belongs in a dependency-free binary.
 
 ---
 
@@ -180,7 +184,8 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 | **🚀 Modo Turbo** | Ribbon Superior / Bandeja | Win32 `PowrProf.dll` (`PowerSetActiveScheme`) + `EmptyWorkingSet` | Activa al instante el plan de energía de **Alto Rendimiento** de Windows (desestaciona núcleos de CPU) y ejecuta simultáneamente una purga agresiva del *working set* de memoria RAM en procesos de usuario. |
 | **🤖 Monitor de Agentes IA & MCP** | Pestaña Agentes IA | Win32 `CreateToolhelp32Snapshot` + `SafeProcessHandle` + `_sampleGate` + Guarda PID Reuse + Resiliencia Snapshot | Detecta herramientas CLI de IA (`claude.exe`, `gemini.exe`, `codex.exe`, `aider.exe`, `ollama.exe`, `cursor.exe`, `antigravity.exe`), identifica sesiones CLI reanudadas por hash/UUID (`--resume=`, `🔗 Sesión <8-char-hash>`), visualiza badges dinámicos del Modelo de IA (`--model`, `🧬 <ModelName>`), desacopla subprocesos totales (`ChildProcessCount`) de servidores MCP verificados (`McpServersCount`), aísla lanzadores efímeros (`npx`, `uvx`), detecta servidores MCP compilados en Go/Rust por flags CLI, promueve sesiones CLI independientes con corte de fronteras en el árbol, blinda el vaciado de cachés ante fallos de snapshot (`allRunningPids.Count > 0`), y refleja dinámicamente estados Activo (Esmeralda `#10B981`) vs Inactivo (Pizarra `#64748B`). |
 | **🛑 Cierre Ordenado en Dos Fases** | Pestañas Procesos e IA | `CloseMainWindow` / `WM_CLOSE` + Detección Tray | **Fase 1**: Envío no bloqueante de solicitud de cierre ordenado y detección inteligente de minimizado a la Bandeja del Sistema (`MainWindowHandle == IntPtr.Zero`). **Fase 2**: Confirmación para forzar cierre solo si continúa activo o colgado. |
-| **⚡ Terminar Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. |
+| **⚡ Terminar Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa + Compuerta de Identidad `(PID, StartTime)` | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. El recorrido se niega a descender hacia un proceso que arrancó *antes* que su padre registrado, de modo que un proceso vivo que solo heredó un PID de padre reciclado nunca se arrastra dentro del árbol ajeno. |
+| **🧟 Detección y Limpieza de Huérfanos** | Pestaña Agentes IA | Diferencia de Reclamo Toolhelp32 + Prueba de Padre Muerto/Reasignado + Edad Mínima | Lista los procesos de runtime (`python`, `node`, `docker`, shells…) que **ninguna sesión de agente viva reclama** y cuyo padre ya no existe o fue reasignado a otro proceso — lo que deja atrás una sesión interrumpida, por ejemplo un `multiprocessing.Pool` cuyos workers sobrevivieron a la corrida. Windows no tiene un recolector de huérfanos, así que se acumulan en silencio entre reintentos. Cada fila muestra el motivo de detección, la antigüedad y la RAM, con la línea de comandos saneada en el tooltip; nada se termina automáticamente, y tanto la acción por fila como "Terminar Todos" revalidan el `StartTime` de cada PID antes de matar. |
 | **🌐 Vaciar DNS** | Ribbon Superior | Nativa `dnsapi.dll` (`DnsFlushResolverCache`) | Purga y reinicia la caché del solucionador de nombres DNS de Windows en 0.01 ms, corrigiendo errores de navegación y resolución de dominios sin abrir CMD. |
 | **🧹 Limpiar Temporales** | Ribbon Superior | Multizona `SafeTempCleaner` (>24h Cutoff) | Limpieza segura de archivos temporales en `%TEMP%`, `C:\Windows\Temp`, `WinSxS\Temp`, `SoftwareDistribution\Download` y `DeliveryOptimization`. Blindado con **aislamiento de Junctions/Symlinks** y **Guarda de Doble Marca de Tiempo** (`CreationTime` + `LastWriteTime`). |
 | **🔍 Escanear Almacenamiento** | Pestaña Discos | `FolderSizeScanner` + `IProgress<T>` / `CancellationToken` | Mide el tamaño recursivo de cada carpeta de primer nivel bajo una raíz elegida y ordena las más pesadas, respondiendo *dónde* se fue el espacio en vez de solo cuán lleno está el volumen. Los subárboles se recorren en paralelo, el progreso se limita a un reporte cada 150 ms y el escaneo se puede cancelar a mitad de camino. Los reparse points se reportan como omitidos y **nunca aportan bytes**. |
@@ -208,6 +213,7 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 - **🤖 Monitor de Agentes IA & Servidores MCP:** Detección en tiempo real de sesiones de herramientas de IA CLI y subprocesos MCP hijos con métricas desacopladas, identificación de sesiones reanudadas por hash (`--resume=`, `🔗 Sesión <8-char-hash>`), badge condicional de modelo (`--model`, `🧬 <ModelName>`) con DataTriggers resistentes a null/cadenas vacías, blindaje de vaciado de caché Toolhelp32 (`allRunningPids.Count > 0`), tolerancia a cold-start de PEB y badges dinámicos de estado Activo/Idle.
 - **⚡ Arquitectura Cero Fugas de Handles y Cerrojo Anti-Reentrada:** Disposición determinista de handles Win32 (`SafeProcessHandle` mediante `using`/`Dispose()`) y cerrojo anti-reentrada `_sampleGate` para cálculo estable de deltas de CPU bajo alta frecuencia de muestreo.
 - **🛡️ Protocolo de Cierre en Dos Fases:** Cierre seguro y no bloqueante con detección de aplicaciones minimizadas a la Bandeja del Sistema (*System Tray*) y terminación topológica inversa.
+- **🧟 Detección de Huérfanos sin Matar Solo:** Expone los procesos de runtime que dejó atrás una sesión de agente interrumpida — sin reclamar por ninguna sesión viva, con el padre muerto o reasignado, y más antiguos que la ventana de gracia de arranque — y deja la decisión en tus manos, mostrando el motivo, la antigüedad, la RAM y la línea de comandos saneada detrás de una confirmación explícita.
 - **Diseño Bento a Ancho Completo:** Cuadrícula de alta densidad sin márgenes muertos, optimizada para resoluciones modernas.
 - **Registro Resiliente de Fallos (`CrashLogger.cs`):** Captura global de excepciones en `AppDomain`, `TaskScheduler` y `Dispatcher` con rotación automática a 1MB y límite de tasa de 5 registros cada 10 segundos.
 - **Centro de Almacenamiento Multidisco:** Visualizador en tiempo real de unidades de disco (NVMe/SSD/HDD), estado de salud, espacio libre y accesos directos al Explorador de archivos.
@@ -231,12 +237,13 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.6.0"
 ```
 
-#### Ejecutar Pruebas Automatizadas (24 Tests):
+#### Ejecutar Pruebas Automatizadas (25 Tests):
+Ambas suites cargan el binario desde `releases/`, así que en un clon nuevo hay que compilar el paquete primero.
 ```powershell
 # 1. Pruebas de Salud y Arquitectura (19 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
 
-# 2. Pruebas de Estrés en Vivo, Fugas de Handles y Smoke (5 tests)
+# 2. Pruebas de Estrés en Vivo, Guarda de Reuso de PID, Fugas de Handles y Smoke (6 tests)
 powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ```
 

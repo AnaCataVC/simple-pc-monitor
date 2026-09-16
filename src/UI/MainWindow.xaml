@@ -703,6 +703,13 @@
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                         <Button Name="BtnRefreshAiAgents" Content="🔄 Actualizar" Style="{DynamicResource PillActionButtonStyle}" Margin="0,0,4,0" ToolTip="Escanear árbol de procesos Win32 de agentes de IA" Click="BtnRefreshAiAgents_Click"/>
                                     </StackPanel>
+
+                                    <Border Name="BorderOrphanBadge" Background="{DynamicResource BgCard}" CornerRadius="5" Padding="8,3" Margin="0,0,6,0" VerticalAlignment="Center" HorizontalAlignment="Left" Visibility="Collapsed">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="🧟 Posibles Huérfanos: " FontSize="9.5" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Name="TxtAiOrphanCount" Text="0" FontSize="9.5" FontWeight="Bold" Foreground="#F59E0B"/>
+                                        </StackPanel>
+                                    </Border>
                                 </DockPanel>
 
                                 <!-- Sessions List (Hierarchical Bento Style) -->
@@ -713,6 +720,48 @@
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <TextBlock Text="🤖 Cero Agentes IA o Servidores MCP Activos" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
                                                 <TextBlock Text="Cuando ejecutes herramientas como Claude Code CLI, Gemini CLI, Aider, Codex o Cursor, sus procesos y servidores MCP hijos aparecerán aquí automáticamente." FontSize="9.5" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Orphaned runtime processes: reported for the user to judge, never auto-killed -->
+                                        <Border Name="BorderOrphans" Background="{DynamicResource BgControl}" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,8" Visibility="Collapsed">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="🧟 " FontSize="12" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Procesos huérfanos sin sesión activa" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                        <Border Background="{DynamicResource BgCard}" CornerRadius="4" Padding="6,1.5" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                            <TextBlock Name="TxtAiOrphanRam" Text="0.0 MB" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentMem}"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Name="BtnCleanAllOrphans" Content="⚡ Terminar Todos" Style="{DynamicResource PillActionButtonStyle}" ToolTip="Terminar el árbol completo de cada huérfano listado, en orden topológico inverso" Click="BtnCleanAllOrphans_Click"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+
+                                                <TextBlock Text="Un padre muerto también es normal en procesos legítimos lanzados desde una terminal ya cerrada. Revisa la línea de comandos en el tooltip antes de terminar." FontSize="9" Foreground="{DynamicResource TextMuted}" TextWrapping="Wrap" Margin="2,4,0,6"/>
+
+                                                <ItemsControl Name="ListAiOrphans">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <DockPanel Margin="0,2" ToolTip="{Binding TooltipText}">
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text=" ↳ " FontSize="9.5" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding ProcessName}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                    <Border Background="{DynamicResource BgControl}" CornerRadius="3" Padding="5,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding OrphanReason}" FontSize="8.5" FontWeight="SemiBold" Foreground="{Binding RoleBadgeColor}"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding Pid, StringFormat=' [PID: {0}]'}" FontSize="8.5" FontFamily="Consolas" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                                </StackPanel>
+                                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding AgeDisplay, StringFormat='{}Activo hace {0}'}" FontSize="9" Foreground="{DynamicResource TextMuted}" Margin="0,0,8,0"/>
+                                                                    <TextBlock Text="{Binding MemoryDisplay}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentMem}" Margin="0,0,6,0"/>
+                                                                    <Button Content="✕" Style="{DynamicResource PillActionButtonStyle}" Padding="4,0" Height="16" FontSize="8" ToolTip="Terminar este huérfano y su árbol de subprocesos" Click="BtnAiOrphanKill_Click" Tag="{Binding}"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                             </StackPanel>
                                         </Border>
 

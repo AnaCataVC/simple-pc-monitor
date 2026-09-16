@@ -744,6 +744,15 @@ namespace SimplePCMonitor.UI
             if (TxtAiTotalRam != null) TxtAiTotalRam.Text = metric.TotalAggregatedRamDisplay;
             if (ListAiSessions != null) ListAiSessions.ItemsSource = metric.Sessions;
             if (BorderNoAiAgents != null) BorderNoAiAgents.Visibility = metric.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            _currentOrphans = metric.OrphanProcesses;
+            bool hasOrphans = metric.OrphanCount > 0;
+            if (TxtAiOrphanCount != null) TxtAiOrphanCount.Text = metric.OrphanCount.ToString();
+            if (TxtAiOrphanRam != null) TxtAiOrphanRam.Text = metric.OrphanRamDisplay;
+            if (ListAiOrphans != null) ListAiOrphans.ItemsSource = metric.OrphanProcesses;
+            if (BorderOrphanBadge != null) BorderOrphanBadge.Visibility = hasOrphans ? Visibility.Visible : Visibility.Collapsed;
+            if (BorderOrphans != null) BorderOrphans.Visibility = hasOrphans ? Visibility.Visible : Visibility.Collapsed;
+
             if (TabBtnAiAgents != null)
             {
                 TabBtnAiAgents.Content = metric.ActiveSessionsCount > 0
@@ -835,6 +844,60 @@ namespace SimplePCMonitor.UI
 
             AiAgentCollector.ToggleSessionExpanded(session.ParentPid);
             RefreshAiAgentsManually();
+        }
+
+        private List<AiAgentMcpServer> _currentOrphans = new List<AiAgentMcpServer>();
+
+        private void BtnAiOrphanKill_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            var orphan = btn != null ? btn.Tag as AiAgentMcpServer : null;
+            if (orphan == null) return;
+
+            var confirm = MessageBox.Show(
+                string.Format("¿Terminar '{0}' (PID: {1}) y todo su árbol de subprocesos?\n\nMotivo detectado: {2}\nActivo hace: {3} · RAM: {4}",
+                    orphan.ProcessName, orphan.Pid, orphan.OrphanReason, orphan.AgeDisplay, orphan.MemoryDisplay),
+                "Terminar Proceso Huérfano",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm != MessageBoxResult.Yes) return;
+
+            string msg;
+            bool success = ProcessManager.TerminateProcessTree(orphan.Pid, true, out msg, orphan.StartTime);
+            ShowToast(success ? "🧟 Huérfano terminado: " + orphan.ProcessName : msg);
+            RefreshAiAgentsManually();
+            RefreshProcessListManually();
+        }
+
+        private void BtnCleanAllOrphans_Click(object sender, RoutedEventArgs e)
+        {
+            var orphans = _currentOrphans;
+            if (orphans == null || orphans.Count == 0) return;
+
+            double totalRam = orphans.Sum(o => o.WorkingSetMB);
+            var confirm = MessageBox.Show(
+                string.Format("¿Terminar los {0} procesos huérfanos listados y sus árboles de subprocesos?\n\nRAM a liberar: {1:N1} MB\n\nRevisa la lista antes de confirmar: un padre muerto también es normal en procesos legítimos lanzados desde una terminal ya cerrada.",
+                    orphans.Count, totalRam),
+                "Terminar Todos los Huérfanos",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm != MessageBoxResult.Yes) return;
+
+            int terminated = 0;
+            foreach (var orphan in orphans)
+            {
+                string msg;
+                if (ProcessManager.TerminateProcessTree(orphan.Pid, true, out msg, orphan.StartTime))
+                {
+                    terminated++;
+                }
+            }
+
+            ShowToast(string.Format("🧟 {0} de {1} huérfanos terminados", terminated, orphans.Count));
+            RefreshAiAgentsManually();
+            RefreshProcessListManually();
         }
 
         private void BtnAiMcpSubprocessKill_Click(object sender, RoutedEventArgs e)

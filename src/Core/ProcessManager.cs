@@ -454,15 +454,34 @@ namespace SimplePCMonitor.Core
             }
         }
 
-        public static bool TerminateProcessTree(int rootPid, bool force, out string message)
+        /// <summary>
+        /// Terminates a process tree in reverse topological order. When <paramref name="expectedStartTime"/>
+        /// is supplied, the root is terminated only if it is still the same process that was sampled:
+        /// Windows reuses PIDs, and a list built one tick ago can name a number that now belongs to
+        /// something else entirely.
+        /// </summary>
+        public static bool TerminateProcessTree(int rootPid, bool force, out string message, DateTime expectedStartTime = default(DateTime))
         {
             message = string.Empty;
             string rootName = "Process";
-            try { rootName = Process.GetProcessById(rootPid).ProcessName; } catch { }
+            DateTime rootStartTime = DateTime.MinValue;
+            try
+            {
+                var rootProc = Process.GetProcessById(rootPid);
+                rootName = rootProc.ProcessName;
+                rootStartTime = TryGetStartTime(rootProc);
+            }
+            catch { }
 
             if (IsProtected(rootName) || rootPid <= 4)
             {
                 message = string.Format("'{0}' is a protected system process and its tree cannot be terminated.", rootName);
+                return false;
+            }
+
+            if (expectedStartTime != DateTime.MinValue && rootStartTime != expectedStartTime)
+            {
+                message = string.Format("PID {0} no longer identifies the sampled process; nothing was terminated.", rootPid);
                 return false;
             }
 
@@ -496,7 +515,7 @@ namespace SimplePCMonitor.Core
             }
 
             var treePids = new List<int>();
-            CollectTreeNodes(rootPid, parentToChildren, treePids);
+            CollectTreeNodes(rootPid, rootStartTime, parentToChildren, treePids);
 
             // Terminate in REVERSE topological order (leaves first, root last)
             int killedCount = 0;
@@ -520,7 +539,7 @@ namespace SimplePCMonitor.Core
             return killedCount > 0;
         }
 
-        private static void CollectTreeNodes(int parentPid, Dictionary<int, List<int>> tree, List<int> result)
+        private static void CollectTreeNodes(int parentPid, DateTime parentStartTime, Dictionary<int, List<int>> tree, List<int> result)
         {
             if (!result.Contains(parentPid))
             {
@@ -528,16 +547,48 @@ namespace SimplePCMonitor.Core
             }
 
             List<int> children;
-            if (tree.TryGetValue(parentPid, out children))
+            if (!tree.TryGetValue(parentPid, out children))
             {
-                foreach (int childPid in children)
+                return;
+            }
+
+            foreach (int childPid in children)
+            {
+                if (result.Contains(childPid))
                 {
-                    if (!result.Contains(childPid))
-                    {
-                        CollectTreeNodes(childPid, tree, result);
-                    }
+                    continue;
+                }
+
+                DateTime childStartTime = TryGetStartTime(childPid);
+
+                // A process cannot start before its own parent. Windows never clears the recorded
+                // parent PID, so a live process pointing at a recycled number is a stranger that
+                // would otherwise be killed along with the tree.
+                if (parentStartTime != DateTime.MinValue && childStartTime != DateTime.MinValue && childStartTime < parentStartTime)
+                {
+                    continue;
+                }
+
+                CollectTreeNodes(childPid, childStartTime, tree, result);
+            }
+        }
+
+        private static DateTime TryGetStartTime(Process p)
+        {
+            try { return p.StartTime; }
+            catch { return DateTime.MinValue; }
+        }
+
+        private static DateTime TryGetStartTime(int pid)
+        {
+            try
+            {
+                using (var p = Process.GetProcessById(pid))
+                {
+                    return TryGetStartTime(p);
                 }
             }
+            catch { return DateTime.MinValue; }
         }
 
         public static string GetProcessExecutablePath(int pid)

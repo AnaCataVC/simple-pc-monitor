@@ -72,7 +72,7 @@ Assert-DeepTest "Live Tree Termination: Kills child and parent in reverse topolo
 
     $killTreeMethod = $procMgr.GetMethod("TerminateProcessTree")
     $msg = ""
-    $params = [object[]]@([int]$parent.Id, [bool]$true, [string]$msg)
+    $params = [object[]]@([int]$parent.Id, [bool]$true, [string]$msg, [DateTime]::MinValue)
     $ok = $killTreeMethod.Invoke($null, $params)
     $msgResult = $params[2]
 
@@ -81,6 +81,36 @@ Assert-DeepTest "Live Tree Termination: Kills child and parent in reverse topolo
 
     Write-Host "         -> TerminateTree output: '$msgResult', Success: $ok, ParentExited: $parentExited" -ForegroundColor Gray
     return ($ok -eq $true -and $parentExited -eq $true)
+}
+
+# -------------------------------------------------------------
+# 2b. PID Identity Revalidation Before Killing a Sampled Tree
+# -------------------------------------------------------------
+Assert-DeepTest "PID Reuse Guard: Refuses to kill a tree whose root no longer matches the sampled StartTime" {
+    $victim = Start-Process -FilePath "notepad.exe" -PassThru
+    Start-Sleep -Milliseconds 800
+
+    # A StartTime that cannot belong to this process stands in for a recycled PID:
+    # the number is live, but it is no longer the process that was sampled.
+    $staleStartTime = (Get-Date).AddHours(-3)
+
+    $killTreeMethod = $procMgr.GetMethod("TerminateProcessTree")
+    $msg = ""
+    $params = [object[]]@([int]$victim.Id, [bool]$true, [string]$msg, $staleStartTime)
+    $ok = $killTreeMethod.Invoke($null, $params)
+    $msgResult = $params[2]
+
+    Start-Sleep -Milliseconds 300
+    $victim.Refresh()
+    $survived = -not $victim.HasExited
+
+    if ($survived) {
+        $victim.Kill()
+        $victim.WaitForExit(1000)
+    }
+
+    Write-Host "         -> Refused: $(-not $ok), Victim survived: $survived, Reason: '$msgResult'" -ForegroundColor Gray
+    return ($ok -eq $false -and $survived -eq $true)
 }
 
 # -------------------------------------------------------------

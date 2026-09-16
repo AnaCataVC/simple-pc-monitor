@@ -16,6 +16,9 @@ namespace SimplePCMonitor.Models
         public string CpuDisplay { get; set; }
         public DateTime StartTime { get; set; }
         public bool IsMcpServer { get; set; }
+        public int ParentPid { get; set; }
+        public string OrphanReason { get; set; }
+        public string AgeDisplay { get; set; }
 
         public AiAgentMcpServer()
         {
@@ -25,6 +28,8 @@ namespace SimplePCMonitor.Models
             TooltipText = string.Empty;
             MemoryDisplay = "0.0 MB";
             CpuDisplay = "0.0%";
+            OrphanReason = string.Empty;
+            AgeDisplay = string.Empty;
         }
     }
 
@@ -83,10 +88,21 @@ namespace SimplePCMonitor.Models
         public string TotalAggregatedRamDisplay { get; set; }
         public List<AiAgentSession> Sessions { get; set; }
 
+        /// <summary>
+        /// Runtime processes an agent session normally owns that no live session claims and
+        /// whose parent is gone. Reported for the user to judge, never acted on automatically.
+        /// </summary>
+        public List<AiAgentMcpServer> OrphanProcesses { get; set; }
+        public int OrphanCount { get; set; }
+        public double OrphanRamMB { get; set; }
+        public string OrphanRamDisplay { get; set; }
+
         public AiAgentMetric()
         {
             Sessions = new List<AiAgentSession>();
+            OrphanProcesses = new List<AiAgentMcpServer>();
             TotalAggregatedRamDisplay = "0.0 MB";
+            OrphanRamDisplay = "0.0 MB";
         }
     }
 }

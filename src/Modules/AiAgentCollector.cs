@@ -231,6 +231,7 @@ namespace SimplePCMonitor.Modules
             // Sessions promoted to their own root must not also be counted inside the tree of
             // the application that launched them, or their RAM and CPU would be added twice.
             var rootPidSet = new HashSet<int>(rootAgentPids);
+            var claimedPids = new HashSet<int>(rootAgentPids);
 
             DateTime now = DateTime.UtcNow;
             double grandTotalRamMB = 0.0;
@@ -278,6 +279,7 @@ namespace SimplePCMonitor.Modules
                     double childrenRamMB = 0.0;
                     double childrenCpuPct = 0.0;
                     CollectDescendantsWithMetrics(rootPid, parentToChildren, rootStartTime, descendants, rootPidSet, now, session, ref childrenRamMB, ref childrenCpuPct);
+                    claimedPids.UnionWith(descendants);
 
                     session.ChildrenWorkingSetMB = Math.Round(childrenRamMB, 1);
                     session.ChildrenCpuPercent = Math.Round(childrenCpuPct, 1);
@@ -309,6 +311,11 @@ namespace SimplePCMonitor.Modules
                     totalMcpCount += session.McpServersCount;
                 }
             }
+
+            metric.OrphanProcesses = CollectOrphans(pidToExeName, childToParent, allRunningPids, claimedPids);
+            metric.OrphanCount = metric.OrphanProcesses.Count;
+            metric.OrphanRamMB = Math.Round(metric.OrphanProcesses.Sum(o => o.WorkingSetMB), 1);
+            metric.OrphanRamDisplay = string.Format("{0:N1} MB", metric.OrphanRamMB);
 
             metric.ActiveSessionsCount = metric.Sessions.Count;
             metric.TotalMcpServersCount = totalMcpCount;
@@ -369,6 +376,121 @@ namespace SimplePCMonitor.Modules
 
             return metric;
         }
+        }
+
+        // A launcher that exits immediately after spawning its child (npx, uvx, a shell) leaves a
+        // legitimately parentless process behind for a moment. Below this age, absence of a parent
+        // is normal startup, not an abandoned leftover.
+        private static readonly TimeSpan OrphanMinimumAge = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        /// Runtime processes that no live agent session claims and whose parent is gone: what an
+        /// interrupted agent session leaves behind (killed worker pools, detached MCP servers).
+        /// A dead parent is normal for many legitimate processes, so these are reported with their
+        /// command line as evidence and never terminated automatically.
+        /// </summary>
+        private List<AiAgentMcpServer> CollectOrphans(
+            Dictionary<int, string> pidToExeName,
+            Dictionary<int, int> childToParent,
+            HashSet<int> allRunningPids,
+            HashSet<int> claimedPids)
+        {
+            var orphans = new List<AiAgentMcpServer>();
+            if (allRunningPids.Count == 0)
+            {
+                return orphans; // Snapshot failed: absence of a parent proves nothing
+            }
+
+            DateTime nowLocal = DateTime.Now;
+
+            foreach (var kvp in pidToExeName)
+            {
+                int pid = kvp.Key;
+                if (claimedPids.Contains(pid)) continue;
+
+                string exeName = Path.GetFileNameWithoutExtension(kvp.Value);
+                if (!KnownMcpRuntimes.Contains(exeName)) continue;
+
+                int ppid;
+                if (!childToParent.TryGetValue(pid, out ppid)) continue;
+
+                try
+                {
+                    using (var proc = Process.GetProcessById(pid))
+                    {
+                        DateTime startTime = TryGetStartTime(proc);
+                        if (startTime == DateTime.MinValue) continue; // Age unknown: cannot judge
+
+                        TimeSpan age = nowLocal - startTime;
+                        if (age < OrphanMinimumAge) continue;
+
+                        string reason = ResolveOrphanReason(ppid, startTime, allRunningPids);
+                        if (reason == null) continue; // Parent alive and genuinely its parent
+
+                        if (!ProcessManager.IsSafeToControl(pid, proc.ProcessName)) continue;
+
+                        double ramMB = Math.Round((double)TryGetWorkingSet(proc) / (1024.0 * 1024.0), 1);
+                        var meta = ResolveChildMetadata(pid, proc.ProcessName, startTime);
+
+                        orphans.Add(new AiAgentMcpServer
+                        {
+                            Pid = pid,
+                            ParentPid = ppid,
+                            ProcessName = meta.ProcessDisplayName,
+                            SemanticRole = meta.SemanticRole,
+                            RoleBadgeColor = "#F59E0B", // Amber: needs a decision, not an error
+                            TooltipText = meta.TooltipText,
+                            WorkingSetMB = ramMB,
+                            MemoryDisplay = string.Format("{0:N1} MB", ramMB),
+                            StartTime = startTime,
+                            IsMcpServer = meta.IsMcpServer,
+                            OrphanReason = reason,
+                            AgeDisplay = FormatAge(age)
+                        });
+                    }
+                }
+                catch { }
+            }
+
+            return orphans.OrderByDescending(o => o.WorkingSetMB).ToList();
+        }
+
+        /// <summary>
+        /// Why a process counts as orphaned, or null when its parent is alive and really is its
+        /// parent. Windows reuses PIDs, so a live parent that started after its child is a
+        /// different process that merely inherited the number.
+        /// </summary>
+        private static string ResolveOrphanReason(int ppid, DateTime childStartTime, HashSet<int> allRunningPids)
+        {
+            if (ppid <= 4 || !allRunningPids.Contains(ppid))
+            {
+                return string.Format("Proceso padre (PID {0}) ya no existe", ppid);
+            }
+
+            try
+            {
+                using (var parent = Process.GetProcessById(ppid))
+                {
+                    DateTime parentStart = TryGetStartTime(parent);
+                    if (parentStart != DateTime.MinValue && parentStart > childStartTime)
+                    {
+                        return string.Format("PID {0} fue reasignado a otro proceso", ppid);
+                    }
+                }
+            }
+            catch
+            {
+                return string.Format("Proceso padre (PID {0}) ya no existe", ppid);
+            }
+
+            return null;
+        }
+
+        private static string FormatAge(TimeSpan age)
+        {
+            if (age.TotalDays >= 1) return string.Format("{0}d {1}h", (int)age.TotalDays, age.Hours);
+            if (age.TotalHours >= 1) return string.Format("{0}h {1}m", (int)age.TotalHours, age.Minutes);
+            return string.Format("{0}m", (int)age.TotalMinutes);
         }
 
         private void CollectDescendantsWithMetrics(
