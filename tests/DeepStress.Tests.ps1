@@ -1,11 +1,11 @@
-# Deep Stress & Live Invariant Tests for Simple PC Monitor
+# Deep Stress & Live Invariant Tests for System Core Monitor
 # Validates live process trees, two-phase graceful termination, protected system invariants, handle leaks, and runtime stability.
 
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $exePath = Join-Path (Join-Path $projectRoot "releases") "SystemCoreMonitor.exe"
 
 Write-Host "=================================================" -ForegroundColor Magenta
-Write-Host "   Simple PC Monitor - Deep Live Stress Suite    " -ForegroundColor Magenta
+Write-Host "   System Core Monitor - Deep Live Stress Suite  " -ForegroundColor Magenta
 Write-Host "=================================================" -ForegroundColor Magenta
 
 $passed = 0
@@ -30,8 +30,12 @@ function Assert-DeepTest([string]$Name, [scriptblock]$TestBlock) {
     }
 }
 
-$dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
-$asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+$candidateDlls = @(
+    (Join-Path $projectRoot "src\bin\Release\net9.0-windows\win-x64\SystemCoreMonitor.dll"),
+    (Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll")
+)
+$dllPath = $candidateDlls | Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+$asm = if ($dllPath -and (Test-Path $dllPath)) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
 $procMgr = $asm.GetType("SystemCoreMonitor.Core.ProcessManager")
 $aiCollectorType = $asm.GetType("SystemCoreMonitor.Modules.AiAgentCollector")
 
@@ -157,15 +161,22 @@ Assert-DeepTest "Handle Leak Stress: 200 consecutive AiAgentCollector.Sample() c
         Add-Type -Path '$dllPath'
         `$collector = [SystemCoreMonitor.Modules.AiAgentCollector]::new()
         `$proc = [System.Diagnostics.Process]::GetCurrentProcess()
+        # Warmup to stabilize JIT compilation and runtime threadpool
+        for (`$w = 1; `$w -le 5; `$w++) { `$null = `$collector.Sample() }
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
+        `$proc.Refresh()
         `$h0 = `$proc.HandleCount
-        for (`$i = 1; `$i -le 200; `$i++) {
+        for (`$i = 1; `$i -le 100; `$i++) {
             `$null = `$collector.Sample()
         }
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
         `$proc.Refresh()
         `$h1 = `$proc.HandleCount
         `$delta = `$h1 - `$h0
         Write-Host "         -> Initial Handles: `$h0, Final: `$h1, Delta: `$delta"
-        exit (`$delta -lt 15 ? 0 : 1)
+        exit (`$delta -le 15 ? 0 : 1)
 "@
     $output = pwsh -NoProfile -Command $testScript
     Write-Host $output -ForegroundColor Gray

@@ -1,9 +1,9 @@
-# Technical Reference: Process Metadata Extraction & Zero-Latency Caching in .NET/WPF
+﻿# Technical Reference: Process Metadata Extraction & Zero-Latency Caching in .NET/WPF
 
 ## Overview
 In Windows operating systems, raw process executable names (e.g. `mc-fw-host.exe`, `svchost.exe`, `msedgewebview2.exe`, `dwm.exe`) are cryptic identifiers. End users and system administrators require friendly product descriptions, publisher names, and deep diagnostic insights to monitor resources effectively.
 
-This document details the architectural approach, Win32 API boundaries, high-performance concurrency caching patterns, and UI design considerations for Simple PC Monitor.
+This document details the architectural approach, Win32 API boundaries, high-performance concurrency caching patterns, and UI design considerations for System Core Monitor.
 
 ---
 

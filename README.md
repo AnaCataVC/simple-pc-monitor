@@ -1,18 +1,22 @@
-# Simple PC Monitor 🖥️⚡
+# System Core Monitor 🖥️⚡
 
 <div align="center">
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
-[![C# .NET](https://img.shields.io/badge/C%23-WPF%20%2F%20XAML-512BD4?style=flat-square&logo=csharp)](https://dotnet.microsoft.com/)
-[![Version](https://img.shields.io/badge/Release-v2.7.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v2.7.0)
-[![Binary Size](https://img.shields.io/badge/Binary%20Size-389%20KB-success?style=flat-square)]()
-[![Tests](https://img.shields.io/badge/Tests-25%20Passed-brightgreen?style=flat-square)]()
+[![C# .NET](https://img.shields.io/badge/C%23%2013-WPF%20%2F%20.NET%209-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
+[![Version](https://img.shields.io/badge/Release-v3.0.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v3.0.0)
+[![Binary Size](https://img.shields.io/badge/Binary%20Size-617%20KB-success?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/Tests-30%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-*A high-performance, lightweight, and interactive Windows desktop command center engineered in compiled Native C# (.NET WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, orphaned-process detection with PID-reuse-safe tree termination, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 382 KB binary.*
+*A high-performance, lightweight, and interactive Windows desktop command center and AI observability dashboard engineered in compiled Native C# 13 (.NET 9 WPF/XAML). Features zero external dependencies, sub-millisecond Win32 P/Invoke telemetry, AI Agent & MCP Session Monitor, AI Transcript Retention & Cleanup Engine, orphaned-process detection with PID-reuse-safe tree termination, Two-Phase Graceful Process Termination, kernel-level process control (NtSuspend/NtResume), 1-click power plans, multizone hardened storage cleaning, interactive Bento metric cards, responsive multi-drive analytics, enterprise crash logging, seamless multi-monitor DPI maximization, and zero-heuristic footprint in a standalone 617 KB binary.*
 
 [English](#english) • [Español](#español)
+
+<br/>
+
+<img src="mockup-preview.png" alt="System Core Monitor v3.0 Interface Mockup" width="900" style="border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);" />
 
 </div>
 
@@ -22,13 +26,13 @@
 ## English
 
 ### 1. Project Description
-**Simple PC Monitor v2.7.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# and Windows Presentation Foundation (WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` without third-party runtimes or background services.
+**System Core Monitor v3.0.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# 13 and Windows Presentation Foundation (.NET 9 WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, AI Transcript Retention & Storage Maintenance, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` (617 KB) without third-party runtimes or background services.
 
 ---
 
 ### 2. ⚡ Command Center & Action Buttons Reference
 
-Simple PC Monitor transitions from a passive observer to an **Active Command Center**. Below is the exact behavior and Win32/Kernel API mechanism behind every interactive control in the HUD:
+System Core Monitor transitions from a passive observer to an **Active Command Center**. Below is the exact behavior and Win32/Kernel API mechanism behind every interactive control in the HUD:
 
 | Action / Button | UI Location | Mechanism & Native Win32 / Kernel API | Exact Behavior & Purpose |
 | :--- | :--- | :--- | :--- |
@@ -80,9 +84,9 @@ Simple PC Monitor transitions from a passive observer to an **Active Command Cen
 ### 4. Architecture & Modular Structure
 
 ```text
-simple-pc-monitor/
+system-core-monitor/
 ├── src/
-│   ├── SimplePCMonitor.csproj      # C# WPF project file (.NET Framework 4.8)
+│   ├── SystemCoreMonitor.csproj    # C# WPF project file (.NET 9 SDK-style)
 │   ├── App.xaml & App.xaml.cs      # Entrypoint, CrashLogger bootstrap & 4-theme switcher
 │   ├── Core/
 │   │   ├── NativeMethods.cs        # Win32 & NT kernel P/Invoke (ntdll, user32, dnsapi, powrprof, toolhelp32)
@@ -130,22 +134,25 @@ simple-pc-monitor/
 #### Direct Launch:
 Run the compiled standalone executable inside `releases/`:
 ```powershell
-.\releases\SimplePCMonitor.exe
+.\releases\SystemCoreMonitor.exe
 ```
 
 #### Build from Source:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.7.0"
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v3.0.0"
 ```
 
-#### Run Automated Health & Stress Tests (25 Tests):
-Both suites load the binary from `releases/`, so build the package first on a fresh clone.
+#### Run Automated Health & Stress Tests (30 Tests):
+All suites load the binary from `releases/` using the .NET 9 runtime, so build the package first on a fresh clone.
 ```powershell
 # 1. Health and Type Tests (19 tests)
-powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
+pwsh -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
 
-# 2. Deep Stress, PID Reuse Guard, Handle Leaks & Smoke Tests (6 tests)
-powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
+# 2. AI Transcript Retention & Cleanup Tests (5 tests)
+pwsh -ExecutionPolicy Bypass -File .\tests\AiTranscript.Tests.ps1
+
+# 3. Deep Stress, PID Reuse Guard, Handle Leaks & Smoke Tests (6 tests)
+pwsh -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ```
 
 ---
@@ -158,7 +165,7 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 5. **Kernel-Level Thread Suspension (`ntdll.dll`):** Invoking `NtSuspendProcess` and `NtResumeProcess` directly allows freezing resource-hogging background tasks without corrupting their state or losing application sessions.
 6. **Seamless Multi-Monitor Window Maximization (`WM_GETMINMAXINFO`):** Handling Win32 `0x0024` and extracting per-monitor work area dimensions via `MonitorFromWindow` eliminates window clipping across high-DPI and multi-monitor setups.
 7. **Resilient Crash Trapping Architecture (`CrashLogger.cs`):** Multi-tier exception hooking across `AppDomain`, `TaskScheduler`, and `Dispatcher` with 1MB size caps and 5-log/10s rate limiting prevents diagnostic spam and application crashes from unobserved background threads.
-8. **Resilient Session Context & Cache Eviction Safeguards:** Headless or resumed autonomous CLI agents frequently lack window titles; Simple PC Monitor resolves these via regex CLI inspection (`--resume=`) into compact session hashes (`🔗 Sesión <8-char-hash>`) and extracts active AI models (`--model`) displayed as `🧬 <ModelName>`. In WPF XAML, dual null-and-empty `DataTriggers` (`Value=""` and `Value="{x:Null}"`) guarantee seamless visual collapse when no model flag exists. Crucially, cache eviction passes across CPU delta histories, resolved session metadata, and UI collapse states (`CollapsedSessionPids`) are protected behind an `allRunningPids.Count > 0` boundary check, preventing catastrophic cache purges if a transient OS snapshot call fails under high resource contention.
+8. **Resilient Session Context & Cache Eviction Safeguards:** Headless or resumed autonomous CLI agents frequently lack window titles; System Core Monitor resolves these via regex CLI inspection (`--resume=`) into compact session hashes (`🔗 Sesión <8-char-hash>`) and extracts active AI models (`--model`) displayed as `🧬 <ModelName>`. In WPF XAML, dual null-and-empty `DataTriggers` (`Value=""` and `Value="{x:Null}"`) guarantee seamless visual collapse when no model flag exists. Crucially, cache eviction passes across CPU delta histories, resolved session metadata, and UI collapse states (`CollapsedSessionPids`) are protected behind an `allRunningPids.Count > 0` boundary check, preventing catastrophic cache purges if a transient OS snapshot call fails under high resource contention.
 9. **Recursive Enumeration Cannot Use `SearchOption.AllDirectories`:** `EnumerateFiles`/`EnumerateFileSystemInfos` with `AllDirectories` raises `UnauthorizedAccessException` from *inside* the deferred iterator, aborting the entire walk with no way to skip the offending branch and resume — a single protected folder silently truncates a whole-drive scan. The same applies to `PathTooLongException` on deeply nested dependency trees. Correct traversal is manual recursion over `TopDirectoryOnly` with per-directory exception handling, guarding `MoveNext()` itself, so one unreadable directory costs that directory and nothing more.
 10. **Reparse Points Invent Storage That Does Not Exist:** Junctions, symlinks and cloud placeholders project data that lives elsewhere — another volume, a remote service, or a paired mobile device. Any size aggregation that follows them reports space the physical volume does not contain, and the error is large enough to dominate a report. Every traversal must test `FileAttributes.ReparsePoint`, exclude those entries from all totals, and surface them as explicitly *skipped* so the discrepancy between a scan total and the volume's used space is visible rather than mysterious. The attribute check must fail closed: if attributes cannot be read, assume a reparse point and refuse to descend.
 11. **A Fixed FAT32 Volume Above 32 GB Is Impossible:** Windows refuses to format FAT32 beyond 32 GB, so a drive simultaneously reporting `DriveType.Fixed`, FAT32 and a capacity above that cap is a cloud or virtual mount surfacing through a filesystem filter, not physical storage. Such mounts typically mirror the host volume's capacity, so counting them double-reports the machine's real storage. Checking whether the drive root is a reparse point does *not* detect them — the mount presents a normal root directory.
@@ -171,18 +178,19 @@ powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ## Español
 
 ### 1. Descripción del Proyecto
-**Simple PC Monitor v2.7.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# compilado y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **389 KB** sin dependencias externas.
+**System Core Monitor v3.0.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# (.NET 9) y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Mantenimiento de Transcripciones y Logs de IA, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **617 KB** sin dependencias NuGet externas.
 
 ---
 
 ### 2. ⚡ Guía de Botones de Acción y Centro de Mando
 
-Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo**. A continuación se detalla el comportamiento exacto y la API nativa detrás de cada control interactivo:
+System Core Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo**. A continuación se detalla el comportamiento exacto y la API nativa detrás de cada control interactivo:
 
 | Botón / Acción | Ubicación en UI | API Win32 / Kernel Utilizada | Comportamiento y Propósito Exacto |
 | :--- | :--- | :--- | :--- |
 | **🚀 Modo Turbo** | Ribbon Superior / Bandeja | Win32 `PowrProf.dll` (`PowerSetActiveScheme`) + `EmptyWorkingSet` | Activa al instante el plan de energía de **Alto Rendimiento** de Windows (desestaciona núcleos de CPU) y ejecuta simultáneamente una purga agresiva del *working set* de memoria RAM en procesos de usuario. |
 | **🤖 Monitor de Agentes IA & MCP** | Pestaña Agentes IA | Win32 `CreateToolhelp32Snapshot` + `SafeProcessHandle` + `_sampleGate` + Guarda PID Reuse + Resiliencia Snapshot | Detecta herramientas CLI de IA (`claude.exe`, `gemini.exe`, `codex.exe`, `aider.exe`, `ollama.exe`, `cursor.exe`, `antigravity.exe`), identifica sesiones CLI reanudadas por hash/UUID (`--resume=`, `🔗 Sesión <8-char-hash>`), visualiza badges dinámicos del Modelo de IA (`--model`, `🧬 <ModelName>`), desacopla subprocesos totales (`ChildProcessCount`) de servidores MCP verificados (`McpServersCount`), aísla lanzadores efímeros (`npx`, `uvx`), detecta servidores MCP compilados en Go/Rust por flags CLI, promueve sesiones CLI independientes con corte de fronteras en el árbol, blinda el vaciado de cachés ante fallos de snapshot (`allRunningPids.Count > 0`), y refleja dinámicamente estados Activo (Esmeralda `#10B981`) vs Inactivo (Pizarra `#64748B`). |
+| **🗄️ Transcripts IA** | Ribbon Superior / Pestaña IA | `AiTranscriptMaintenance` + Filtro de Retención (>7 días) | Escaneo seguro y auditoría de almacenamiento para transcripciones y logs de sesiones de CLI de IA (Claude Code, Gemini CLI). Purga selectiva con umbral configurable y exclusión de subagentes activos sin inspección de contenido. |
 | **🛑 Cierre Ordenado en Dos Fases** | Pestañas Procesos e IA | `CloseMainWindow` / `WM_CLOSE` + Detección Tray | **Fase 1**: Envío no bloqueante de solicitud de cierre ordenado y detección inteligente de minimizado a la Bandeja del Sistema (`MainWindowHandle == IntPtr.Zero`). **Fase 2**: Confirmación para forzar cierre solo si continúa activo o colgado. |
 | **⚡ Terminar Árbol (Tree Kill)** | Pestaña Agentes IA | Terminación Topológica Inversa + Compuerta de Identidad `(PID, StartTime)` | Finaliza árboles de procesos completos en orden topológico inverso (subprocesos MCP primero $\rightarrow$ proceso raíz al final), evitando procesos huérfanos zombis. El recorrido se niega a descender hacia un proceso que arrancó *antes* que su padre registrado, de modo que un proceso vivo que solo heredó un PID de padre reciclado nunca se arrastra dentro del árbol ajeno. |
 | **🧟 Detección y Limpieza de Huérfanos** | Pestaña Agentes IA | Diferencia de Reclamo Toolhelp32 + Prueba de Padre Muerto/Reasignado + Edad Mínima | Lista los procesos de runtime (`python`, `node`, `docker`, shells…) que **ninguna sesión de agente viva reclama** y cuyo padre ya no existe o fue reasignado a otro proceso — lo que deja atrás una sesión interrumpida, por ejemplo un `multiprocessing.Pool` cuyos workers sobrevivieron a la corrida. Windows no tiene un recolector de huérfanos, así que se acumulan en silencio entre reintentos. Cada fila muestra el motivo de detección, la antigüedad y la RAM, con la línea de comandos saneada en el tooltip; nada se termina automáticamente, y tanto la acción por fila como "Terminar Todos" revalidan el `StartTime` de cada PID antes de matar. |
@@ -211,6 +219,7 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 
 ### 3. Características Nativas Destacadas:
 - **🤖 Monitor de Agentes IA & Servidores MCP:** Detección en tiempo real de sesiones de herramientas de IA CLI y subprocesos MCP hijos con métricas desacopladas, identificación de sesiones reanudadas por hash (`--resume=`, `🔗 Sesión <8-char-hash>`), badge condicional de modelo (`--model`, `🧬 <ModelName>`) con DataTriggers resistentes a null/cadenas vacías, blindaje de vaciado de caché Toolhelp32 (`allRunningPids.Count > 0`), tolerancia a cold-start de PEB y badges dinámicos de estado Activo/Idle.
+- **🗄️ Mantenimiento de Transcripciones y Logs de IA:** Auditoría y purga no invasiva de historiales JSONL acumulados por herramientas de IA CLI (Claude Code, Gemini CLI) con protección de sesiones recientes (>7 días), exclusión de subagentes activos y preservación de privacidad.
 - **⚡ Arquitectura Cero Fugas de Handles y Cerrojo Anti-Reentrada:** Disposición determinista de handles Win32 (`SafeProcessHandle` mediante `using`/`Dispose()`) y cerrojo anti-reentrada `_sampleGate` para cálculo estable de deltas de CPU bajo alta frecuencia de muestreo.
 - **🛡️ Protocolo de Cierre en Dos Fases:** Cierre seguro y no bloqueante con detección de aplicaciones minimizadas a la Bandeja del Sistema (*System Tray*) y terminación topológica inversa.
 - **🧟 Detección de Huérfanos sin Matar Solo:** Expone los procesos de runtime que dejó atrás una sesión de agente interrumpida — sin reclamar por ninguna sesión viva, con el padre muerto o reasignado, y más antiguos que la ventana de gracia de arranque — y deja la decisión en tus manos, mostrando el motivo, la antigüedad, la RAM y la línea de comandos saneada detrás de una confirmación explícita.
@@ -221,7 +230,7 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 - **☁️ Desambiguación de Unidades en la Nube:** Las unidades virtuales que Windows reporta como discos fijos (Google Drive y similares) se marcan con un badge y se excluyen de todo cálculo de almacenamiento, evitando que un montaje que refleja el volumen anfitrión duplique la capacidad real del equipo.
 - **🔍 Inspector 360° de Procesos:** Identificación amigable de nombres comerciales, publicadores certificados, arquitectura y memoria con 0ms de retardo.
 - **Lista Negra de Protección del Sistema:** Protección estricta que previene la suspensión o cierre de procesos vitales del sistema (`csrss`, `dwm`, `svchost`, `explorer`, `services`, `lsass`).
-- **Pipeline de CI/CD Automatizado:** Compilación y ejecución de 20 tests automatizados de salud, estrés en vivo y arquitectura en cada release.
+- **Pipeline de CI/CD Automatizado:** Compilación y ejecución de 30 tests automatizados de salud, transcripciones de IA, estrés en vivo y arquitectura en cada release.
 
 ---
 
@@ -229,22 +238,25 @@ Simple PC Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activo*
 
 #### Ejecutar Directamente:
 ```powershell
-.\releases\SimplePCMonitor.exe
+.\releases\SystemCoreMonitor.exe
 ```
 
 #### Compilar desde el Código Fuente:
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v2.7.0"
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Package.ps1 -Version "v3.0.0"
 ```
 
-#### Ejecutar Pruebas Automatizadas (25 Tests):
-Ambas suites cargan el binario desde `releases/`, así que en un clon nuevo hay que compilar el paquete primero.
+#### Ejecutar Pruebas Automatizadas (30 Tests):
+Todas las suites cargan el binario desde `releases/` mediante el runtime de .NET 9, por lo que en un clon nuevo hay que compilar el paquete primero.
 ```powershell
 # 1. Pruebas de Salud y Arquitectura (19 tests)
-powershell -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
+pwsh -ExecutionPolicy Bypass -File .\tests\Metrics.Tests.ps1
 
-# 2. Pruebas de Estrés en Vivo, Guarda de Reuso de PID, Fugas de Handles y Smoke (6 tests)
-powershell -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
+# 2. Pruebas de Mantenimiento de Transcripciones de IA (5 tests)
+pwsh -ExecutionPolicy Bypass -File .\tests\AiTranscript.Tests.ps1
+
+# 3. Pruebas de Estrés en Vivo, Guarda de Reuso de PID, Fugas de Handles y Smoke (6 tests)
+pwsh -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ```
 
 ---

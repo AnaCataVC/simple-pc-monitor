@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -136,14 +136,14 @@ namespace SystemCoreMonitor.Installer
                     if (createDesktop)
                     {
                         string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                        CreateShortcut(Path.Combine(desktopPath, "Simple PC Monitor.lnk"), targetExe, targetIco);
+                        CreateShortcut(Path.Combine(desktopPath, "System Core Monitor.lnk"), targetExe, targetIco);
                     }
 
                     if (createStartMenu)
                     {
                         string startMenu = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
                         string programsDir = Path.Combine(startMenu, "Programs");
-                        CreateShortcut(Path.Combine(programsDir, "Simple PC Monitor.lnk"), targetExe, targetIco);
+                        CreateShortcut(Path.Combine(programsDir, "System Core Monitor.lnk"), targetExe, targetIco);
                     }
 
                     if (launchOnStartup)
@@ -242,7 +242,7 @@ namespace SystemCoreMonitor.Installer
                     dynamic shortcut = shell.CreateShortcut(shortcutPath);
                     shortcut.TargetPath = targetExe;
                     shortcut.WorkingDirectory = Path.GetDirectoryName(targetExe);
-                    shortcut.Description = "Simple PC Monitor - Real-Time Performance Dashboard";
+                    shortcut.Description = "System Core Monitor - Real-Time Performance Dashboard";
                     if (File.Exists(iconPath))
                     {
                         shortcut.IconLocation = iconPath;
@@ -261,11 +261,11 @@ namespace SystemCoreMonitor.Installer
                 string scriptContent = string.Format(
                     "@echo off\r\n" +
                     "taskkill /f /im SystemCoreMonitor.exe >nul 2>&1\r\n" +
-                    "del /q \"{0}\\Simple PC Monitor.lnk\" >nul 2>&1\r\n" +
-                    "del /q \"{1}\\Programs\\Simple PC Monitor.lnk\" >nul 2>&1\r\n" +
+                    "del /q \"{0}\\System Core Monitor.lnk\" >nul 2>&1\r\n" +
+                    "del /q \"{1}\\Programs\\System Core Monitor.lnk\" >nul 2>&1\r\n" +
                     "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SystemCoreMonitor\" /f >nul 2>&1\r\n" +
                     "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"SystemCoreMonitor\" /f >nul 2>&1\r\n" +
-                    "echo Simple PC Monitor has been uninstalled successfully.\r\n" +
+                    "echo System Core Monitor has been uninstalled successfully.\r\n" +
                     "timeout /t 2 >nul\r\n" +
                     "rmdir /s /q \"{2}\" >nul 2>&1\r\n",
                     Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
@@ -279,8 +279,8 @@ namespace SystemCoreMonitor.Installer
                 {
                     if (key != null)
                     {
-                        key.SetValue("DisplayName", "Simple PC Monitor");
-                        key.SetValue("DisplayVersion", "2.7.0");
+                        key.SetValue("DisplayName", "System Core Monitor");
+                        key.SetValue("DisplayVersion", "3.0.0");
                         key.SetValue("Publisher", "AnaCata");
                         key.SetValue("DisplayIcon", exePath);
                         key.SetValue("UninstallString", string.Format("cmd.exe /c \"{0}\"", uninstallScript));

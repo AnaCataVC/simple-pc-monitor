@@ -1,7 +1,7 @@
-> **Created:** 2026-09-20
+﻿> **Created:** 2026-09-20
 > **Last Updated:** 2026-09-20
 > **Author:** ami-tech-lead & ami-research-context
-> **Target:** Simple PC Monitor → System Core Monitor
+> **Target:** System Core Monitor → System Core Monitor
 > **Status:** Research / Architectural Blueprint
 
 # Technical Architecture: WPF .NET 9 & MVVM Modernization Migration Guide
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary & Migration Context
 
-Simple PC Monitor is currently architected as a high-performance, single-executable Windows desktop telemetry HUD built on **C# (.NET Framework 4.8 / WPF)** with an old-style MSBuild project (`ToolsVersion="4.0"`), zero NuGet dependencies, and monolithic code-behind UI logic (`MainWindow.xaml.cs` ~2600 lines).
+System Core Monitor is currently architected as a high-performance, single-executable Windows desktop telemetry HUD built on **C# (.NET Framework 4.8 / WPF)** with an old-style MSBuild project (`ToolsVersion="4.0"`), zero NuGet dependencies, and monolithic code-behind UI logic (`MainWindow.xaml.cs` ~2600 lines).
 
 Migrating to **.NET 9 (`net9.0-windows`)** unlocks:
 - Modern SDK-style project format with concise XML and automatic file globbing.

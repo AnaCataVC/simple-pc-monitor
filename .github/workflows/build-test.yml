@@ -47,5 +47,4 @@ jobs:
           path: |
             releases/SystemCoreMonitor.exe
             releases/SystemCoreMonitor-Setup.exe
-            releases/SimplePCMonitor.exe
             releases/*.zip

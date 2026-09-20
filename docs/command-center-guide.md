@@ -1,6 +1,6 @@
-# ⚡ Simple PC Monitor — Command Center & Action Buttons Technical Manual
+# ⚡ System Core Monitor — Command Center & Action Buttons Technical Manual
 
-This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **Simple PC Monitor v2.7.0**.
+This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **System Core Monitor v2.7.0**.
 
 ---
 
@@ -43,7 +43,7 @@ This document provides a comprehensive technical breakdown of the interactive co
 
 ## 1. Overview & Execution Philosophy
 
-Simple PC Monitor v2.0.0 is engineered with an **Active Command Center** philosophy:
+System Core Monitor v2.0.0 is engineered with an **Active Command Center** philosophy:
 - **Zero Heavy Runtimes:** Executes as a single compiled C# WPF binary (<600 KB) with zero third-party dependencies.
 - **Sub-Millisecond Direct OS Integration:** Interacts directly with native Windows dynamic-link libraries (`ntdll.dll`, `kernel32.dll`, `user32.dll`, `powrprof.dll`, `dnsapi.dll`, `psapi.dll`).
 - **Zero-Elevation Where Possible:** Critical actions like Power Plan switching, DNS flushing, memory trimming, and process suspension operate cleanly in standard user context without triggering aggressive UAC prompts.
@@ -194,18 +194,18 @@ sequenceDiagram
 
 ## 5. AI Agent & MCP Session Telemetry Engine
 
-Simple PC Monitor v2.7.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
+System Core Monitor v2.7.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
 
 ### 5.1 Toolhelp32 Snapshot Traversal, PID Reuse Mitigation & Cache Eviction Safeguard
 - **Atomic Traversal:** Captures the full Windows process hierarchy in $<0.8\text{ ms}$ via `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)`.
-- **Triple PID Reuse Gate:** Because Windows recycles PIDs rapidly upon process exit, Simple PC Monitor verifies `child.StartTime >= parent.StartTime.AddSeconds(-2)` to prevent associating recycled PIDs with older parent orchestrators.
+- **Triple PID Reuse Gate:** Because Windows recycles PIDs rapidly upon process exit, System Core Monitor verifies `child.StartTime >= parent.StartTime.AddSeconds(-2)` to prevent associating recycled PIDs with older parent orchestrators.
 - **Snapshot Resilience & Cache Eviction Safeguard (`allRunningPids.Count > 0`):** Under severe OS memory pressure or transient kernel handle exhaustion, `CreateToolhelp32Snapshot` can fail or return an empty process list. Without defensive gating, a dead PID cleanup pass (`!allRunningPids.Contains(k)`) would incorrectly interpret the empty set as all processes having terminated, immediately wiping:
   1. The shared `CpuUsageTracker` samples: Erasing baseline CPU kernel and user time-series measurements, resulting in 0.0% spikes on recovery.
   2. `_sessionContextCache` and `_childProcessCache`: Dropping resolved workspace names, session labels, and MCP roles.
   3. `_independentSessionCache`: Forcing expensive CLI session re-evaluation.
   4. `CollapsedSessionPids`: Abruptly resetting the user's UI tree expansion/collapse states.
 
-  By wrapping all cache cleanup passes behind `if (allRunningPids.Count > 0)`, Simple PC Monitor treats transient snapshot failures as non-destructive skips, preserving telemetry baselines and UI states until the subsequent successful polling cycle.
+  By wrapping all cache cleanup passes behind `if (allRunningPids.Count > 0)`, System Core Monitor treats transient snapshot failures as non-destructive skips, preserving telemetry baselines and UI states until the subsequent successful polling cycle.
 
 ### 5.2 Decoupled Process Metrics (Total Children vs Verified MCP Servers)
 Autonomous agents spawn a complex mixture of child processes: UI webviews, language servers, background cron utilities, diagnostic handlers, and actual MCP tool servers.
@@ -218,7 +218,7 @@ Relying on runtime executable names (`node.exe`, `python.exe`) produces severe i
 - **False Positives:** Plain Node/Python processes executing build scripts, linters, or language servers would be falsely classified as MCP servers.
 - **False Negatives:** High-performance MCP servers compiled as native binaries in **Go** or **Rust** (e.g., SQLite MCP, Git MCP, filesystem servers) do not run under Node or Python and would be omitted.
 
-Simple PC Monitor inspects sanitized command-line arguments extracted via `NtQueryInformationProcess` (Class 60) for verified MCP markers:
+System Core Monitor inspects sanitized command-line arguments extracted via `NtQueryInformationProcess` (Class 60) for verified MCP markers:
 - `mcp-remote`, `modelcontextprotocol`, `mcp-server`, `mcp_server`, `--stdio`, `/mcp`, `\mcp`.
 Processes matching these markers are classified as `"Servidor MCP (<processName>)"` with `IsMcpServer = true` and badge color `#10B981`. Plain Node/Python processes without markers fall back to `"Node.js Process"` or `"Python Process"` (`IsMcpServer = false`).
 
@@ -231,7 +231,7 @@ Package runners like `npx` (`npx-cli.js`, `\npx\`) and `uvx` (`uvx.exe`) remain 
 ### 5.5 Independent CLI Session Promotion, Resumed Session Hash Detection & Session Boundary Tree Pruning
 Autonomous coding CLIs (such as `claude`, `gemini`, `agy`) are frequently launched as subprocesses of parent IDEs (e.g., Google Antigravity, Cursor, Windsurf, VS Code).
 - **Session Identification:** If a child process carries CLI session flags (`--output-format stream-json`, `--resume=`, `--session-id`), `IsIndependentAgentSession(pid)` detects it as an independent session and promotes it to `rootAgentPids`.
-- **Resumed Session Hash Resolution:** When agents run in headless or terminal CLI mode without an active GUI window title (`MainWindowTitle` is empty), Simple PC Monitor parses the command line for resumed session identifiers using `@"\-\-resume[=\s]+([a-fA-F0-9\-]{8,})"`. It truncates the identifier to its final 8 characters:
+- **Resumed Session Hash Resolution:** When agents run in headless or terminal CLI mode without an active GUI window title (`MainWindowTitle` is empty), System Core Monitor parses the command line for resumed session identifiers using `@"\-\-resume[=\s]+([a-fA-F0-9\-]{8,})"`. It truncates the identifier to its final 8 characters:
   ```csharp
   else if (!string.IsNullOrWhiteSpace(resumeId))
   {
@@ -355,7 +355,7 @@ graph TD
 Maintains a rolling 10-second window (`_recentCrashCount`). If more than 5 exceptions occur within 10 seconds, logging is throttled to prevent disk saturation and I/O thrashing.
 
 ### 7.3 1MB Size Cap & Log Rotation
-Before appending to `%LOCALAPPDATA%\SimplePCMonitor\Logs\crash.log`, `CrashLogger` inspects file size. If size exceeds 1,048,576 bytes, the existing log is moved to `crash.log.old`, maintaining an evergreen, zero-maintenance footprint.
+Before appending to `%LOCALAPPDATA%\SystemCoreMonitor\Logs\crash.log`, `CrashLogger` inspects file size. If size exceeds 1,048,576 bytes, the existing log is moved to `crash.log.old`, maintaining an evergreen, zero-maintenance footprint.
 
 ---
 

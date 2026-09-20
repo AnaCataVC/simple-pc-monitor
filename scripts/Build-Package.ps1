@@ -1,4 +1,4 @@
-﻿# Build & Packaging Pipeline for System Core Monitor (Native C# Standalone & Setup Wizard Edition)
+# Build & Packaging Pipeline for System Core Monitor (Native C# Standalone & Setup Wizard Edition)
 # Compiles a genuine C# WPF standalone executable for .NET 9 with zero third-party dependencies.
 
 [CmdletBinding()]
@@ -116,9 +116,6 @@ if (-not (Test-Path $compiledExe)) {
 $targetReleaseExe = Join-Path $ReleasesDir "SystemCoreMonitor.exe"
 Copy-Item -Path $compiledExe -Destination $targetReleaseExe -Force
 Copy-Item -Path $compiledExe -Destination (Join-Path $StageDir "SystemCoreMonitor.exe") -Force
-
-# For backward compatibility with legacy tests or tools
-Copy-Item -Path $compiledExe -Destination (Join-Path $ReleasesDir "SimplePCMonitor.exe") -Force
 
 if (Test-Path $pngPath) { Copy-Item -Path $pngPath -Destination $StageDir -Force }
 if (Test-Path $icoPath) { Copy-Item -Path $icoPath -Destination $StageDir -Force }

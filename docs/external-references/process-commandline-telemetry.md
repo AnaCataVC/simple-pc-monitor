@@ -1,4 +1,4 @@
-> **Created:** 2026-09-02
+﻿> **Created:** 2026-09-02
 > **Last Updated:** 2026-09-04
 
 # Process Command Line Extraction & Subprocess Semantic Classification on Windows (.NET Framework / Win32)
@@ -63,7 +63,7 @@ When a new process is spawned in Windows, its entry appears in the Toolhelp32 sn
 
 ## 4. Semantic Subprocess Classification Catalog
 
-Once the raw command line is extracted, Simple PC Monitor maps flags to clear, human-readable roles:
+Once the raw command line is extracted, System Core Monitor maps flags to clear, human-readable roles:
 
 ### 4.1 Chromium & Electron Framework Subprocesses
 Modern AI coding apps (Antigravity, Claude Desktop, Cursor, Windsurf) run on Chromium/Electron. Subprocesses follow strict command-line conventions:

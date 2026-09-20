@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -874,7 +874,7 @@ namespace SystemCoreMonitor.Core
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("=== SIMPLE PC MONITOR PROCESS DIAGNOSTIC ===");
+                sb.AppendLine("=== SYSTEM CORE MONITOR PROCESS DIAGNOSTIC ===");
                 sb.AppendLine(string.Format("Process Name   : {0}", info.Name));
                 sb.AppendLine(string.Format("Friendly Name  : {0}", info.FriendlyName));
                 sb.AppendLine(string.Format("PID            : {0}", info.Id));

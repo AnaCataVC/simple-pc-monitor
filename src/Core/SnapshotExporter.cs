@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows;
@@ -20,7 +20,7 @@ namespace SystemCoreMonitor.Core
             ServiceMetric svc)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("# Simple PC Monitor - System Diagnostic Snapshot");
+            sb.AppendLine("# System Core Monitor - System Diagnostic Snapshot");
             sb.AppendLine();
             sb.AppendLine(string.Format("**Timestamp:** `{0}`", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
             sb.AppendLine(string.Format("**Machine:** `{0}` | **OS:** {1} ({2})", hw.ComputerName, hw.OsName, hw.OsBuild));

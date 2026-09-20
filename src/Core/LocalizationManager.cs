@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SystemCoreMonitor.Core
@@ -15,7 +15,7 @@ namespace SystemCoreMonitor.Core
         private static readonly Dictionary<string, string> StringsEs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             // App Title & Header
-            { "AppTitle", "Simple PC Monitor" },
+            { "AppTitle", "System Core Monitor" },
             { "UptimeTooltip", "Tiempo continuo que la computadora lleva encendida desde el último reinicio" },
             { "UptimeLabel", "Activo" },
             { "CoresBadge", "{0} Núcleos" },
@@ -251,7 +251,7 @@ namespace SystemCoreMonitor.Core
         private static readonly Dictionary<string, string> StringsEn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             // App Title & Header
-            { "AppTitle", "Simple PC Monitor" },
+            { "AppTitle", "System Core Monitor" },
             { "UptimeTooltip", "Continuous time the computer has been running since the last reboot" },
             { "UptimeLabel", "Uptime" },
             { "CoresBadge", "{0} Cores" },

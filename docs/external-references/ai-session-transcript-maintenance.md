@@ -1,4 +1,4 @@
-> **Created:** 2026-09-20
+﻿> **Created:** 2026-09-20
 > **Last Updated:** 2026-09-20
 
 # AI Session Transcript Maintenance, Storage Footprint & Safe Pruning Architecture
@@ -9,7 +9,7 @@ Modern AI development workflows with CLI agents (Anthropic Claude Code, Google G
 
 Because individual sessions capture complete tool call payloads (including large file diffs, command-line outputs, HTML/SVG artifacts, and subagent thinking trees), individual transcript files rapidly scale between **1 MB and 25 MB each**. Over months of active development across hundreds of repositories and feature branches, AI session folders accumulate **gigabytes of unpruned disk bloat** that standard operating system cleanup tools (such as Windows Disk Cleanup) deliberately skip.
 
-This document formalizes the internal filesystem layout, privacy constraints, age-guard invariants, and safe maintenance patterns for **Simple PC Monitor**'s storage optimization engine.
+This document formalizes the internal filesystem layout, privacy constraints, age-guard invariants, and safe maintenance patterns for **System Core Monitor**'s storage optimization engine.
 
 ---
 
@@ -183,7 +183,7 @@ catch (UnauthorizedAccessException)
 
 ---
 
-## 9. Implementation Blueprint for Simple PC Monitor
+## 9. Implementation Blueprint for System Core Monitor
 
 ### New File: `Core/AiTranscriptCleaner.cs`
 - `Scan(int retentionDays = 7, CancellationToken ct)` → returns `AiTranscriptAnalysisResult` (bytes, file count, eligible, workspace breakdown).

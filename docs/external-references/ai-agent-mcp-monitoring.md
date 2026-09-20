@@ -1,4 +1,4 @@
-> **Created:** 2026-08-31
+﻿> **Created:** 2026-08-31
 > **Last Updated:** 2026-09-04
 
 # AI Agent Process Hierarchies, MCP Subprocess Architecture & Two-Phase Process Termination on Windows
@@ -28,7 +28,7 @@ Traditional Windows task managers fail in three critical ways:
   - Requires opening a handle to every individual process (`OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`), yielding higher cumulative latency (~10 ms) and security descriptor friction.
 
 ### B. Selected Architecture
-**Win32 Toolhelp32 Snapshot** is selected for Simple PC Monitor. It enables $O(N)$ parent-child tree reconstruction in a single synchronous pass without external dependencies or UAC elevation prompts for basic process trees.
+**Win32 Toolhelp32 Snapshot** is selected for System Core Monitor. It enables $O(N)$ parent-child tree reconstruction in a single synchronous pass without external dependencies or UAC elevation prompts for basic process trees.
 
 ---
 
@@ -84,7 +84,7 @@ Command line arguments pass through shell launchers (`cmd`, `pwsh`, `powershell`
 | `rg.exe` / `git.exe` | Ripgrep Search / Git Subprocess | `false` | `#E11D48` / `#F97316` |
 
 ### C. Independent CLI Agent Sessions & Boundary-Pruned Resource Aggregation
-When an AI IDE (such as Google Antigravity, Cursor, or Windsurf) spawns an autonomous CLI agent (`claude`, `gemini`, `agy`), the CLI process is technically a child of the IDE. Simple PC Monitor resolves this via **Two-Tier Session Boundary Pruning**:
+When an AI IDE (such as Google Antigravity, Cursor, or Windsurf) spawns an autonomous CLI agent (`claude`, `gemini`, `agy`), the CLI process is technically a child of the IDE. System Core Monitor resolves this via **Two-Tier Session Boundary Pruning**:
 1. **Root Promotion Gate (`IsIndependentAgentSession`):**
    Subprocesses matching `KnownAgentSignatures` are evaluated for session markers (`--output-format stream-json`, `--resume=`, `--session-id`). If present, the process is promoted to `rootAgentPids`.
 2. **Boundary-Cut Descendant Traversal (`CollectDescendantsWithMetrics`):**
@@ -126,7 +126,7 @@ $$\text{RAM}_{\text{session}}(R) = \text{WS}(R) + \sum_{i \in \text{Descendants}
 ## 5. Quality, Concurrency & Lifecycle Invariants
 
 ### A. Deterministic Win32 Handle Disposal (`SafeProcessHandle`)
-Every instantiation of `Process.GetProcessById()` acquires an underlying Win32 `SafeProcessHandle`. In telemetry collectors executing every 1–2 seconds, unmanaged handle table growth degrades OS responsiveness. Simple PC Monitor guarantees:
+Every instantiation of `Process.GetProcessById()` acquires an underlying Win32 `SafeProcessHandle`. In telemetry collectors executing every 1–2 seconds, unmanaged handle table growth degrades OS responsiveness. System Core Monitor guarantees:
 - Every `Process` instance in `AiAgentCollector.cs` is wrapped in scoped `using (...)` blocks or disposed in `finally`.
 - Zero handle leaks validated over 200 consecutive sampling passes.
 

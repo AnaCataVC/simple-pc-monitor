@@ -1,12 +1,12 @@
 # AGENTS.md — AI Agent Guidelines & Architecture Manual
 
-This document serves as the operational manual, architecture reference, and workflow guide for AI coding agents operating within the **Simple PC Monitor** repository.
+This document serves as the operational manual, architecture reference, and workflow guide for AI coding agents operating within the **System Core Monitor** repository.
 
 ---
 
 ## 1. Project Overview & Architecture
 
-**Simple PC Monitor** is a high-performance, lightweight Windows desktop telemetry dashboard and power management tool built exclusively with **C# (.NET WPF/XAML)**. It provides real-time monitoring of CPU, RAM, Disk, Network Latency, Top Processes, and Windows Services in a single standalone executable (<600 KB) with zero third-party dependencies.
+**System Core Monitor** is a high-performance, lightweight Windows desktop telemetry dashboard and power management tool built exclusively with **C# (.NET 9 WPF/XAML)**. It provides real-time monitoring of CPU, RAM, Disk, Network Latency, Top Processes, and Windows Services in a single standalone executable (<650 KB) with zero third-party dependencies.
 
 ### Core Architecture & Modules (`src/`):
 - **`Core/`**:
@@ -45,18 +45,19 @@ This document serves as the operational manual, architecture reference, and work
 ## 2. Directory Structure
 
 ```text
-simple-pc-monitor/
+system-core-monitor/
 ├── src/
-│   ├── SimplePCMonitor.csproj     # C# WPF project file (.NET Framework 4.8)
+│   ├── SystemCoreMonitor.csproj   # C# WPF project file (.NET 9 SDK-style)
 │   ├── App.xaml / App.xaml.cs     # App entrypoint, CrashLogger traps, and 4-theme manager
 │   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process & storage guards (23 modules)
 │   ├── Models/                    # Telemetry data models and AI Agent / MCP structures
 │   ├── Modules/                   # Metric collectors (12 collectors: CPU, RAM, AI Agents, GPU, NPU, Disks...)
 │   └── UI/                        # XAML vector gauges, custom Bento controls, themes, dialogs
 ├── scripts/
-│   └── Build-Package.ps1          # Dynamic MSBuild discovery and packaging pipeline
+│   └── Build-Package.ps1          # Single-file .NET 9 publish and packaging pipeline
 ├── tests/
 │   ├── Metrics.Tests.ps1          # 19-Test Health & Reflection validation suite
+│   ├── AiTranscript.Tests.ps1     # 5-Test AI Transcript Retention & Cleanup suite
 │   └── DeepStress.Tests.ps1       # 6-Test Live Process Tree, PID Reuse Guard, Handle Leak & 5s Smoke suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
 ├── docs/                          # Architecture guides, command center manual, benchmarks
@@ -87,21 +88,24 @@ simple-pc-monitor/
 
 ### Build in Development Mode
 ```powershell
-# Restore & build project with MSBuild
-& "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe" src\SimplePCMonitor.csproj /p:Configuration=Release
+# Restore & build project with .NET 9 CLI
+dotnet build src\SystemCoreMonitor.csproj -c Release
 ```
 
-### Run Tests (25 Automated Tests)
+### Run Tests (30 Automated Tests)
 ```powershell
 # 1. Run Health & Architecture Tests (19 tests)
-powershell -ExecutionPolicy Bypass -File tests\Metrics.Tests.ps1
+pwsh -ExecutionPolicy Bypass -File tests\Metrics.Tests.ps1
 
-# 2. Run Deep Stress, PID Reuse Guard, Handle Leaks & Smoke Tests (6 tests)
-powershell -ExecutionPolicy Bypass -File tests\DeepStress.Tests.ps1
+# 2. Run AI Transcript Retention & Cleanup Tests (5 tests)
+pwsh -ExecutionPolicy Bypass -File tests\AiTranscript.Tests.ps1
+
+# 3. Run Deep Stress, PID Reuse Guard, Handle Leaks & Smoke Tests (6 tests)
+pwsh -ExecutionPolicy Bypass -File tests\DeepStress.Tests.ps1
 ```
 
-> Both suites load `releases/SimplePCMonitor.exe` by reflection, and that folder is gitignored. On a
-> fresh clone run `scripts/Build-Package.ps1` first, or 18 of the 19 health tests fail on a missing
+> All suites load `releases/SystemCoreMonitor.exe` by reflection under .NET 9 runtime, and that folder is gitignored. On a
+> fresh clone run `scripts/Build-Package.ps1` first, or the health tests fail on a missing
 > file rather than on anything you changed.
 
 ### Automated Release Build & Packaging

@@ -1,4 +1,4 @@
-﻿# Automated Binary & Health Tests for Simple PC Monitor (C# Standalone & Setup Edition)
+# Automated Binary & Health Tests for System Core Monitor (C# Standalone & Setup Edition)
 # Validates binary integrity, memory working set, responsiveness, and interactive core modules.
 
 $testsRoot = $PSScriptRoot
@@ -7,7 +7,7 @@ $exePath = Join-Path (Join-Path $projectRoot "releases") "SystemCoreMonitor.exe"
 $setupPath = Join-Path (Join-Path $projectRoot "releases") "SystemCoreMonitor-Setup.exe"
 
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "  Running Simple PC Monitor Native Health Tests  " -ForegroundColor Cyan
+Write-Host "  Running System Core Monitor Native Health Tests  " -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 
 $passed = 0
