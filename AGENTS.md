@@ -49,10 +49,13 @@ system-core-monitor/
 ├── src/
 │   ├── SystemCoreMonitor.csproj   # C# WPF project file (.NET 9 SDK-style)
 │   ├── App.xaml / App.xaml.cs     # App entrypoint, CrashLogger traps, and 4-theme manager
-│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process & storage guards (23 modules)
+│   ├── app.manifest               # Per-Monitor DPI V2 & Windows 10/11 compatibility
+│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process & storage guards (24 modules)
 │   ├── Models/                    # Telemetry data models and AI Agent / MCP structures
 │   ├── Modules/                   # Metric collectors (12 collectors: CPU, RAM, AI Agents, GPU, NPU, Disks...)
-│   └── UI/                        # XAML vector gauges, custom Bento controls, themes, dialogs
+│   ├── ViewModels/                # MVVM presentation layer (ViewModelBase, Main, Dashboard, AiAgents...)
+│   ├── Views/                     # Modular XAML views (DashboardView, AiAgentsView, StorageView...)
+│   └── UI/                        # Windows, legacy dialogs, vector icons, themes, value converters
 ├── scripts/
 │   └── Build-Package.ps1          # Single-file .NET 9 publish and packaging pipeline
 ├── tests/

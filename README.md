@@ -88,43 +88,83 @@ system-core-monitor/
 ├── src/
 │   ├── SystemCoreMonitor.csproj    # C# WPF project file (.NET 9 SDK-style)
 │   ├── App.xaml & App.xaml.cs      # Entrypoint, CrashLogger bootstrap & 4-theme switcher
-│   ├── Core/
+│   ├── app.manifest                # Per-Monitor DPI V2 & Windows 10/11 compatibility
+│   ├── Core/                       # Core engine, Win32 P/Invoke & storage guards (24 modules)
 │   │   ├── NativeMethods.cs        # Win32 & NT kernel P/Invoke (ntdll, user32, dnsapi, powrprof, toolhelp32)
 │   │   ├── CrashLogger.cs          # Resilient crash logging (1MB cap, rotation, rate limiting)
-│   │   ├── PowerPlanManager.cs     # Native Win32 power scheme switcher
+│   │   ├── PowerPlanManager.cs     # Native Win32 power scheme switcher (Balanced, High Perf, Power Saver)
 │   │   ├── ProcessManager.cs       # Two-phase graceful close, PID-reuse-safe tree kill & blacklist guards
 │   │   ├── ProcessMetadataCache.cs # High-performance 0ms metadata caching
 │   │   ├── SafeTempCleaner.cs      # Hardened multizone storage cleaner (Anti-TOCTOU & Junction safe)
 │   │   ├── FileSystemSafety.cs     # Shared reparse-point guard & cloud/virtual volume classifier
 │   │   ├── FolderSizeScanner.cs    # Cancellable folder-size breakdown with throttled progress
 │   │   ├── BloatDetector.cs        # Hidden space consumers + whitelist-gated cache cleanup
+│   │   ├── AiTranscriptCleaner.cs  # Safe AI CLI transcript auditor & configurable retention pruner
 │   │   ├── MemoryOptimizer.cs      # Working set trim & CLR GC collector
 │   │   ├── SnapshotExporter.cs     # System diagnostic report generator
 │   │   ├── ConfigManager.cs        # Persistent settings in %APPDATA%
-│   │   └── ToolLauncher.cs         # Safe Windows diagnostic launchers
-│   ├── Models/
+│   │   ├── ToolLauncher.cs         # Safe Windows diagnostic launchers
+│   │   ├── WindowsAcceleratorEngine.cs # System responsiveness optimizer & telemetry cleaner
+│   │   ├── CpuUsageTracker.cs      # Shared PID-keyed CPU delta tracker
+│   │   ├── TimedCache.cs           # Generic time-decay cache wrapper
+│   │   ├── MetricFormatting.cs     # Shared byte/percentage threshold formatter
+│   │   ├── DxgiHelper.cs           # DirectX DXGI GPU telemetry
+│   │   ├── SetupApiHelper.cs       # SetupAPI NPU hardware discovery
+│   │   ├── LocalizationManager.cs  # Real-time bilingual localization provider (ES/EN)
+│   │   ├── TrayManager.cs          # System tray icon controller
+│   │   ├── StartupHelper.cs        # Windows startup registry helper
+│   │   └── WindowPlacementHelper.cs # Window position & state persistence
+│   ├── Models/                     # Strongly typed telemetry & session models
 │   │   ├── SystemMetrics.cs        # Strongly typed telemetry DTOs & process models
-│   │   └── AiAgentSession.cs       # AI Agent & MCP session and subprocess hierarchy models
-│   ├── Modules/
+│   │   ├── AiAgentSession.cs       # AI Agent & MCP session and subprocess hierarchy models
+│   │   └── AiTranscriptModels.cs   # AI CLI transcript scanning & retention models
+│   ├── Modules/                    # Autonomous telemetry collectors (12 collectors)
 │   │   ├── CpuCollector.cs         # GetSystemTimes P/Invoke delta math
 │   │   ├── MemoryCollector.cs      # GlobalMemoryStatusEx RAM & PageFile
 │   │   ├── DiskCollector.cs        # DriveInfo multi-volume evaluator
 │   │   ├── NetworkCollector.cs     # NetworkInterface live Rx/Tx & ICMP Ping
 │   │   ├── ProcessCollector.cs     # Thread-safe debounced process sampler (_syncLock + fast sorting)
 │   │   ├── AiAgentCollector.cs     # Toolhelp32 process tree scanner, MCP session aggregator & orphan detector
+│   │   ├── GpuCollector.cs         # DXGI GPU engine load & dedicated VRAM collector
+│   │   ├── NpuCollector.cs         # Neural Processing Unit hardware discovery collector
 │   │   ├── ServiceCollector.cs     # Windows ServiceController census
-│   │   ├── HardwareCollector.cs    # Battery status, uptime, OS/CPU/GPU specs
-│   │   └── StartupCollector.cs     # Registry & Startup folder enumerator
-│   └── UI/
-│       ├── MainWindow.xaml & .cs   # Interactive HUD, Bento grid, AI Agents Tab, WM_GETMINMAXINFO hook
+│   │   ├── TaskCollector.cs        # Windows scheduled tasks enumerator
+│   │   ├── StartupCollector.cs     # Registry & Startup folder enumerator
+│   │   └── HardwareCollector.cs    # Battery status, uptime, OS/CPU specs
+│   ├── ViewModels/                 # MVVM presentation layer
+│   │   ├── ViewModelBase.cs        # ObservableObject base with INotifyPropertyChanged
+│   │   ├── MainViewModel.cs        # Primary dashboard orchestrator
+│   │   ├── DashboardViewModel.cs   # Bento HUD telemetry card bindings
+│   │   ├── AiAgentsViewModel.cs    # AI Agent session & MCP tree bindings
+│   │   ├── ProcessesViewModel.cs   # Real-time process list & sorting bindings
+│   │   ├── StorageViewModel.cs     # Drive storage & bloat detector bindings
+│   │   ├── ServicesViewModel.cs    # Windows services & tasks bindings
+│   │   ├── StartupViewModel.cs     # Startup apps inspector bindings
+│   │   ├── AcceleratorsViewModel.cs # System acceleration & telemetry cleaner bindings
+│   │   └── SettingsViewModel.cs    # Configuration, theme & language bindings
+│   ├── Views/                      # Modular XAML views
+│   │   ├── DashboardView.xaml      # Interactive Bento HUD view
+│   │   ├── AiAgentsView.xaml       # AI Developer session & MCP subprocess inspector view
+│   │   ├── ProcessesView.xaml      # Process table with live filter & fast sort
+│   │   ├── StorageView.xaml        # Drive visualizer & bloat cleaning view
+│   │   ├── ServicesView.xaml       # Windows services & tasks manager view
+│   │   ├── StartupView.xaml        # Startup applications manager view
+│   │   ├── AcceleratorsView.xaml   # System accelerators & Windows optimizer view
+│   │   └── SettingsView.xaml       # Application configuration & theme view
+│   └── UI/                         # Legacy dialogs, vectors & themes
+│       ├── MainWindow.xaml & .cs   # Shell window, ribbon actions & WM_GETMINMAXINFO hook
 │       ├── ProcessDetailsWindow.xaml & .cs # 360° modal process inspector dialog
+│       ├── Converters/             # XAML value converters (Brushes, Widths, Units)
+│       ├── Icons/VectorIcons.xaml  # High-definition vector icons
 │       └── Themes/                 # Dynamic Pastel Dark, Light, Neon & Rose palettes + CommonStyles
 ├── scripts/
-│   └── Build-Package.ps1           # MSBuild dynamic resolver & packaging pipeline
+│   └── Build-Package.ps1           # Single-file .NET 9 publish and Setup installer packaging
 ├── tests/
 │   ├── Metrics.Tests.ps1           # 19-Test Health & Reflection validation suite
+│   ├── AiTranscript.Tests.ps1      # 5-Test AI Transcript Retention & Cleanup suite
 │   └── DeepStress.Tests.ps1        # 6-Test Live Process Tree, PID Reuse Guard, Handle Leak & Smoke suite
-└── releases/                       # Standalone .exe, Setup installer & Portable ZIP
+├── docs/                           # Architecture guides, command center manual, benchmarks
+└── releases/                       # Standalone .exe, Setup installer & Portable ZIP (gitignored)
 ```
 
 ---
@@ -234,7 +274,95 @@ System Core Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activ
 
 ---
 
-### 4. Instrucciones de Compilación y Ejecución
+### 4. Arquitectura y Estructura Modular
+
+```text
+system-core-monitor/
+├── src/
+│   ├── SystemCoreMonitor.csproj    # Archivo de proyecto C# WPF (.NET 9 SDK-style)
+│   ├── App.xaml & App.xaml.cs      # Punto de entrada, bootstrap de CrashLogger y selector de 4 temas
+│   ├── app.manifest                # Manifiesto de DPI V2 por monitor y compatibilidad Windows 10/11
+│   ├── Core/                       # Motor del núcleo, llamadas Win32 P/Invoke y guardas de seguridad (24 módulos)
+│   │   ├── NativeMethods.cs        # Win32 & NT kernel P/Invoke (ntdll, user32, dnsapi, powrprof, toolhelp32)
+│   │   ├── CrashLogger.cs          # Logging resiliente de fallos (tope de 1MB, rotación y límite de tasa)
+│   │   ├── PowerPlanManager.cs     # Conmutador nativo de planes de energía (Equilibrado, Alto Rendimiento, Ahorro)
+│   │   ├── ProcessManager.cs       # Cierre ordenado en dos fases, árbol de terminación seguro contra reuso de PID
+│   │   ├── ProcessMetadataCache.cs # Caché de metadatos de alto rendimiento con 0ms de latencia
+│   │   ├── SafeTempCleaner.cs      # Limpiador multizona blindado (anti-TOCTOU y a prueba de Junctions)
+│   │   ├── FileSystemSafety.cs     # Guarda compartida de reparse points y clasificador de unidades virtuales
+│   │   ├── FolderSizeScanner.cs    # Desglose cancelable de carpetas con reporte de progreso estrangulado
+│   │   ├── BloatDetector.cs        # Detector de grandes consumidores ocultos y limpieza con whitelist exacta
+│   │   ├── AiTranscriptCleaner.cs  # Auditor seguro de transcripciones CLI de IA con retención configurable
+│   │   ├── MemoryOptimizer.cs      # Compactador de working set de RAM y recolector de basura CLR
+│   │   ├── SnapshotExporter.cs     # Generador de diagnósticos e informes del sistema en Markdown
+│   │   ├── ConfigManager.cs        # Persistencia de configuraciones de usuario en %APPDATA%
+│   │   ├── ToolLauncher.cs         # Lanzadores seguros de herramientas de diagnóstico de Windows
+│   │   ├── WindowsAcceleratorEngine.cs # Optimizador de respuesta del sistema y telemetría
+│   │   ├── CpuUsageTracker.cs      # Rastreador compartido de deltas de CPU indexado por PID
+│   │   ├── TimedCache.cs           # Envoltorio genérico de caché con caducidad temporal
+│   │   ├── MetricFormatting.cs     # Formateador reutilizable de bytes y umbrales porcentuales
+│   │   ├── DxgiHelper.cs           # Telemetría gráfica DirectX DXGI y VRAM dedicada
+│   │   ├── SetupApiHelper.cs       # Descubrimiento de hardware de unidades de procesamiento neuronal (NPU)
+│   │   ├── LocalizationManager.cs  # Proveedor de localización dinámica en tiempo real (ES/EN)
+│   │   ├── TrayManager.cs          # Controlador del icono y menú de la bandeja del sistema
+│   │   ├── StartupHelper.cs        # Gestor de registro de aplicaciones de inicio de Windows
+│   │   └── WindowPlacementHelper.cs # Persistencia geométrica de estado y coordenadas de ventana
+│   ├── Models/                     # Modelos fuertemente tipados de telemetría y sesiones
+│   │   ├── SystemMetrics.cs        # DTOs de telemetría de hardware y modelos de procesos
+│   │   ├── AiAgentSession.cs       # Modelos de sesión de Agentes IA y jerarquía de subprocesos MCP
+│   │   └── AiTranscriptModels.cs   # Modelos de escaneo y retención de transcripciones de IA
+│   ├── Modules/                    # Recolectores autónomos de telemetría (12 recolectores)
+│   │   ├── CpuCollector.cs         # Cálculo delta de CPU vía GetSystemTimes P/Invoke
+│   │   ├── MemoryCollector.cs      # Métricas de memoria física y archivo de paginación con GlobalMemoryStatusEx
+│   │   ├── DiskCollector.cs        # Evaluador de volúmenes de disco y unidades físicas
+│   │   ├── NetworkCollector.cs     # Tráfico de red en vivo Rx/Tx y latencia ping ICMP
+│   │   ├── ProcessCollector.cs     # Muestreo seguro de procesos con bloqueo de sincronía y ordenación rápida
+│   │   ├── AiAgentCollector.cs     # Escáner Toolhelp32, agregador de sesiones MCP y detector de huérfanos
+│   │   ├── GpuCollector.cs         # Carga de motor gráfico y telemetría de GPU vía DXGI
+│   │   ├── NpuCollector.cs         # Descubrimiento y monitoreo de aceleradores NPU
+│   │   ├── ServiceCollector.cs     # Censo y control de servicios del sistema Windows
+│   │   ├── TaskCollector.cs        # Enumerador de tareas programadas de Windows
+│   │   ├── StartupCollector.cs     # Enumerador de aplicaciones de inicio y claves de registro
+│   │   └── HardwareCollector.cs    # Estado de batería, tiempo de actividad y especificaciones
+│   ├── ViewModels/                 # Capa de presentación desacoplada MVVM
+│   │   ├── ViewModelBase.cs        # Clase base ObservableObject con INotifyPropertyChanged
+│   │   ├── MainViewModel.cs        # Orquestador principal del panel
+│   │   ├── DashboardViewModel.cs   # Enlace de datos de las tarjetas Bento del HUD
+│   │   ├── AiAgentsViewModel.cs    # Enlace de sesiones de IA y árbol de servidores MCP
+│   │   ├── ProcessesViewModel.cs   # Tabla de procesos con filtrado y ordenación rápida
+│   │   ├── StorageViewModel.cs     # Enlace de visualización de almacenamiento y limpieza de bloat
+│   │   ├── ServicesViewModel.cs    # Gestión de servicios de Windows y tareas programadas
+│   │   ├── StartupViewModel.cs     # Inspección de aplicaciones de inicio
+│   │   ├── AcceleratorsViewModel.cs # Aceleradores del sistema y descarte de telemetría
+│   │   └── SettingsViewModel.cs    # Configuración, temas y selección de idioma
+│   ├── Views/                      # Vistas XAML modulares
+│   │   ├── DashboardView.xaml      # Vista interactiva del HUD Bento
+│   │   ├── AiAgentsView.xaml       # Vista de sesiones de agentes y subprocesos MCP
+│   │   ├── ProcessesView.xaml      # Tabla de procesos con búsqueda y ordenación en memoria
+│   │   ├── StorageView.xaml        # Visualizador de discos y limpieza de bloat
+│   │   ├── ServicesView.xaml       # Vista de servicios y tareas programadas
+│   │   ├── StartupView.xaml        # Administrador de aplicaciones de inicio
+│   │   ├── AcceleratorsView.xaml   # Aceleradores del sistema y optimizaciones de Windows
+│   │   └── SettingsView.xaml       # Vista de configuración y selección de paleta
+│   └── UI/                         # Diálogos modales, vectores y recursos gráficos
+│       ├── MainWindow.xaml & .cs   # Ventana contenedor, barra de acciones y hook WM_GETMINMAXINFO
+│       ├── ProcessDetailsWindow.xaml & .cs # Inspector modal 360° de procesos
+│       ├── Converters/             # Conversores de valores XAML (Brushes, anchos, unidades)
+│       ├── Icons/VectorIcons.xaml  # Iconografía vectorial en alta resolución
+│       └── Themes/                 # Paletas Pastel Dark, Light, Neon, Rose y CommonStyles
+├── scripts/
+│   └── Build-Package.ps1           # Compilación single-file .NET 9 y generación de instalador
+├── tests/
+│   ├── Metrics.Tests.ps1           # Suite de validación de tipos y salud (19 pruebas)
+│   ├── AiTranscript.Tests.ps1      # Suite de retención y limpieza de transcripciones de IA (5 pruebas)
+│   └── DeepStress.Tests.ps1        # Pruebas de estrés, guarda de PID, fugas de handles y smoke (6 pruebas)
+├── docs/                           # Guías de arquitectura, centro de mando y benchmarks
+└── releases/                       # Binario autónomo, instalador Setup y archivo ZIP portátil (gitignored)
+```
+
+---
+
+### 5. Instrucciones de Compilación y Ejecución
 
 #### Ejecutar Directamente:
 ```powershell
