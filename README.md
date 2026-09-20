@@ -4,8 +4,8 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![C# .NET](https://img.shields.io/badge/C%23%2013-WPF%20%2F%20.NET%209-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Version](https://img.shields.io/badge/Release-v3.0.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/simple-pc-monitor/releases/tag/v3.0.0)
-[![Binary Size](https://img.shields.io/badge/Binary%20Size-617%20KB-success?style=flat-square)]()
+[![Version](https://img.shields.io/badge/Release-v3.0.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/system-core-monitor/releases/tag/v3.0.0)
+[![Binary Size](https://img.shields.io/badge/Binary%20Size-612%20KB-success?style=flat-square)]()
 [![Tests](https://img.shields.io/badge/Tests-30%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)

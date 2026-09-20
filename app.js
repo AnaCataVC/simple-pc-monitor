@@ -8,7 +8,7 @@
 
   let latestVersionTag = 'v3.0.0';
   const repoOwner = 'AnaCataVC';
-  const repoName = 'simple-pc-monitor';
+  const repoName = 'system-core-monitor';
 
   // Strings bilingües de la interfaz web
   const translations = {
@@ -254,7 +254,7 @@
   // --- 2. Dynamic GitHub Release Fetcher ---
   async function fetchLatestRelease() {
     try {
-      const response = await fetch('https://api.github.com/repos/AnaCataVC/simple-pc-monitor/releases/latest');
+      const response = await fetch('https://api.github.com/repos/AnaCataVC/system-core-monitor/releases/latest');
       if (!response.ok) return;
       const release = await response.json();
       if (!release || !release.tag_name) return;
