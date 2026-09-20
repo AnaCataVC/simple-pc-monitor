@@ -1,4 +1,4 @@
-﻿name: Build & Test CI
+name: Build & Test CI
 
 on:
   push:
@@ -14,26 +14,35 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Compile Simple PC Monitor
-        run: msbuild src/SimplePCMonitor.csproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
+      - name: Compile System Core Monitor (.NET 9)
+        run: dotnet build src/SystemCoreMonitor.csproj -c Release
+
+      - name: Run Packaging Script
+        run: pwsh -ExecutionPolicy Bypass -File scripts/Build-Package.ps1
 
       - name: Compile Setup Wizard Installer
         run: msbuild src/Installer/Installer.csproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
 
-      - name: Run Packaging Script
-        run: powershell -ExecutionPolicy Bypass -File scripts/Build-Package.ps1
+      - name: Run Native Health Tests
+        run: pwsh -ExecutionPolicy Bypass -File tests/Metrics.Tests.ps1
 
-      - name: Run Pester Health Tests
-        run: powershell -ExecutionPolicy Bypass -File tests/Metrics.Tests.ps1
+      - name: Run Deep Stress Tests
+        run: pwsh -ExecutionPolicy Bypass -File tests/DeepStress.Tests.ps1
 
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: SimplePCMonitor-Binaries
+          name: SystemCoreMonitor-Binaries
           path: |
+            releases/SystemCoreMonitor.exe
+            releases/SystemCoreMonitor-Setup.exe
             releases/SimplePCMonitor.exe
-            releases/SimplePCMonitor-Setup.exe
             releases/*.zip
