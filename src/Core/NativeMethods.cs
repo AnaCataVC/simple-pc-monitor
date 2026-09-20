@@ -1,13 +1,19 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using ComTypes = System.Runtime.InteropServices.ComTypes;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
-    public static class NativeMethods
+    public static partial class NativeMethods
     {
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        public class MEMORYSTATUSEX
+        // -------------------------------------------------------------------------
+        // MEMORYSTATUSEX — converted to struct to eliminate GC allocation on
+        // every telemetry tick. Callers must use GlobalMemoryStatusEx(ref status)
+        // after calling MEMORYSTATUSEX.Create().
+        // -------------------------------------------------------------------------
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct MEMORYSTATUSEX
         {
             public uint dwLength;
             public uint dwMemoryLoad;
@@ -19,10 +25,9 @@ namespace SimplePCMonitor.Core
             public ulong ullAvailVirtual;
             public ulong ullAvailExtendedVirtual;
 
-            public MEMORYSTATUSEX()
-            {
-                dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
-            }
+            /// <summary>Creates a correctly sized instance ready for GlobalMemoryStatusEx.</summary>
+            public static MEMORYSTATUSEX Create() =>
+                new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -58,9 +63,10 @@ namespace SimplePCMonitor.Core
             out ComTypes.FILETIME lpUserTime
         );
 
+        // MEMORYSTATUSEX is now a struct — callers use 'ref' instead of passing a class instance.
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
+        public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -137,7 +143,7 @@ namespace SimplePCMonitor.Core
             public int Height { get { return Bottom - Top; } }
         }
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        [StructLayout(LayoutKind.Sequential)]
         public struct MONITORINFO
         {
             public int cbSize;
@@ -159,7 +165,7 @@ namespace SimplePCMonitor.Core
         [DllImport("user32.dll")]
         public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
 
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
@@ -201,6 +207,8 @@ namespace SimplePCMonitor.Core
             public int Y;
         }
 
+        // NOTIFYICONDATA keeps [DllImport] because ByValTStr fixed-length string fields
+        // are not supported by LibraryImport source generation without verbose marshallers.
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct NOTIFYICONDATA
         {
@@ -239,6 +247,27 @@ namespace SimplePCMonitor.Core
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+        public const uint IMAGE_ICON = 1;
+        public const uint LR_LOADFROMFILE = 0x00000010;
+        public const uint LR_DEFAULTSIZE = 0x00000040;
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr LoadImageW(
+            IntPtr hInst,
+            string lpszName,
+            uint uType,
+            int cxDesired,
+            int cyDesired,
+            uint fuLoad);
+
+        [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern uint ExtractIconExW(
+            string lpszFile,
+            int nIconIndex,
+            out IntPtr phiconLarge,
+            out IntPtr phiconSmall,
+            uint nIcons);
+
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool DestroyIcon(IntPtr hIcon);
@@ -249,11 +278,15 @@ namespace SimplePCMonitor.Core
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetProcessWorkingSetSize(IntPtr hProcess, IntPtr dwMinimumWorkingSetSize, IntPtr dwMaximumWorkingSetSize);
+        public static extern bool SetProcessWorkingSetSize(
+            IntPtr hProcess,
+            IntPtr dwMinimumWorkingSetSize,
+            IntPtr dwMaximumWorkingSetSize);
 
         #endregion
 
         #region Process Control & NTDLL P/Invoke
+        // These blittable-primitive signatures are safe for LibraryImport source generation.
 
         public const uint PROCESS_TERMINATE = 0x0001;
         public const uint PROCESS_SUSPEND_RESUME = 0x0800;
@@ -273,19 +306,24 @@ namespace SimplePCMonitor.Core
             public IntPtr Buffer;
         }
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr OpenProcess(uint processAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, int processId);
+        [LibraryImport("kernel32.dll", SetLastError = true)]
+        public static partial IntPtr OpenProcess(
+            uint processAccess,
+            [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle,
+            int processId);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [LibraryImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool CloseHandle(IntPtr hObject);
+        public static partial bool CloseHandle(IntPtr hObject);
 
-        [DllImport("ntdll.dll", SetLastError = true)]
-        public static extern int NtSuspendProcess(IntPtr processHandle);
+        [LibraryImport("ntdll.dll", SetLastError = true)]
+        public static partial int NtSuspendProcess(IntPtr processHandle);
 
-        [DllImport("ntdll.dll", SetLastError = true)]
-        public static extern int NtResumeProcess(IntPtr processHandle);
+        [LibraryImport("ntdll.dll", SetLastError = true)]
+        public static partial int NtResumeProcess(IntPtr processHandle);
 
+        // NtQueryInformationProcess keeps [DllImport] — the variable-length output buffer
+        // and out parameter combination is complex for LibraryImport source generation.
         [DllImport("ntdll.dll", SetLastError = true)]
         public static extern int NtQueryInformationProcess(
             IntPtr processHandle,
@@ -308,7 +346,9 @@ namespace SimplePCMonitor.Core
         public const uint CTRL_C_EVENT = 0;
         public const uint CTRL_BREAK_EVENT = 1;
 
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        // PROCESSENTRY32 keeps [DllImport] — ByValTStr szExeFile[260] is not supported
+        // by LibraryImport without a verbose custom marshaller.
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct PROCESSENTRY32
         {
             public uint dwSize;
@@ -327,25 +367,28 @@ namespace SimplePCMonitor.Core
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
 
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+        public static extern bool Process32FirstW(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
 
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+        public static extern bool Process32NextW(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool AttachConsole(uint dwProcessId);
+        public static bool Process32First(IntPtr hSnapshot, ref PROCESSENTRY32 lppe) => Process32FirstW(hSnapshot, ref lppe);
+        public static bool Process32Next(IntPtr hSnapshot, ref PROCESSENTRY32 lppe) => Process32NextW(hSnapshot, ref lppe);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [LibraryImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool FreeConsole();
+        public static partial bool AttachConsole(uint dwProcessId);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [LibraryImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
+        public static partial bool FreeConsole();
+
+        [LibraryImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static partial bool GenerateConsoleCtrlEvent(uint dwCtrlEvent, uint dwProcessGroupId);
 
         #endregion
 
@@ -369,6 +412,115 @@ namespace SimplePCMonitor.Core
 
         [DllImport("shell32.dll", CharSet = CharSet.Auto)]
         public static extern int SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
+
+        #endregion
+
+        #region Windows Services — advapi32.dll (replaces System.ServiceProcess NuGet)
+
+        public const uint SC_MANAGER_ENUMERATE_SERVICE = 0x0004;
+        public const uint SC_MANAGER_CONNECT = 0x0001;
+        public const uint SERVICE_WIN32 = 0x00000030;
+        public const uint SERVICE_STATE_ALL = 0x00000003;
+        public const uint SC_ENUM_PROCESS_INFO = 0;
+        public const uint SERVICE_QUERY_STATUS = 0x0004;
+        public const uint SERVICE_START = 0x0010;
+        public const uint SERVICE_STOP = 0x0020;
+        public const uint SERVICE_PAUSE_CONTINUE = 0x0040;
+        public const uint SERVICE_NO_CHANGE = 0xFFFFFFFF;
+
+        public const int SERVICE_CONTROL_STOP = 0x00000001;
+        public const int SERVICE_CONTROL_PAUSE = 0x00000002;
+        public const int SERVICE_CONTROL_CONTINUE = 0x00000003;
+        public const int SERVICE_CONTROL_INTERROGATE = 0x00000004;
+
+        // Service current states
+        public const int SERVICE_STOPPED = 0x00000001;
+        public const int SERVICE_START_PENDING = 0x00000002;
+        public const int SERVICE_STOP_PENDING = 0x00000003;
+        public const int SERVICE_RUNNING = 0x00000004;
+        public const int SERVICE_CONTINUE_PENDING = 0x00000005;
+        public const int SERVICE_PAUSE_PENDING = 0x00000006;
+        public const int SERVICE_PAUSED = 0x00000007;
+
+        public const uint ERROR_MORE_DATA = 234;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct ENUM_SERVICE_STATUS_PROCESS
+        {
+            public IntPtr lpServiceName;
+            public IntPtr lpDisplayName;
+            public SERVICE_STATUS_PROCESS ServiceStatusProcess;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SERVICE_STATUS_PROCESS
+        {
+            public uint dwServiceType;
+            public uint dwCurrentState;
+            public uint dwControlsAccepted;
+            public uint dwWin32ExitCode;
+            public uint dwServiceSpecificExitCode;
+            public uint dwCheckPoint;
+            public uint dwWaitHint;
+            public uint dwProcessId;
+            public uint dwServiceFlags;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SERVICE_STATUS
+        {
+            public uint dwServiceType;
+            public uint dwCurrentState;
+            public uint dwControlsAccepted;
+            public uint dwWin32ExitCode;
+            public uint dwServiceSpecificExitCode;
+            public uint dwCheckPoint;
+            public uint dwWaitHint;
+        }
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr OpenSCManagerW(
+            string? lpMachineName,
+            string? lpDatabaseName,
+            uint dwDesiredAccess);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool EnumServicesStatusExW(
+            IntPtr hSCManager,
+            uint InfoLevel,
+            uint dwServiceType,
+            uint dwServiceState,
+            IntPtr lpServices,
+            uint cbBufSize,
+            out uint pcbBytesNeeded,
+            out uint lpServicesReturned,
+            IntPtr lpResumeHandle,
+            string? pszGroupName);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        public static extern IntPtr OpenServiceW(
+            IntPtr hSCManager,
+            string lpServiceName,
+            uint dwDesiredAccess);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool ControlService(
+            IntPtr hService,
+            uint dwControl,
+            out SERVICE_STATUS lpServiceStatus);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool StartServiceW(
+            IntPtr hService,
+            uint dwNumServiceArgs,
+            IntPtr lpServiceArgVectors);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseServiceHandle(IntPtr hSCObject);
 
         #endregion
     }

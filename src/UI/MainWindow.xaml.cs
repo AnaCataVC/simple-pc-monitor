@@ -1,10 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -15,11 +14,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
-using SimplePCMonitor.Modules;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
+using SystemCoreMonitor.Modules;
 
-namespace SimplePCMonitor.UI
+namespace SystemCoreMonitor.UI
 {
     public partial class MainWindow : Window
     {
@@ -2319,13 +2318,9 @@ namespace SimplePCMonitor.UI
             if (svcItem == null) return;
             try
             {
-                using (var sc = new ServiceController(svcItem.ServiceName))
+                if (ServiceCollector.StartService(svcItem.ServiceName))
                 {
-                    if (sc.Status != ServiceControllerStatus.Running && sc.Status != ServiceControllerStatus.StartPending)
-                    {
-                        sc.Start();
-                        ShowToast(string.Format(LocalizationManager.Get("ToastServiceStarted"), svcItem.DisplayName));
-                    }
+                    ShowToast(string.Format(LocalizationManager.Get("ToastServiceStarted"), svcItem.DisplayName));
                 }
             }
             catch (Exception ex)
@@ -2353,13 +2348,9 @@ namespace SimplePCMonitor.UI
             if (svcItem == null) return;
             try
             {
-                using (var sc = new ServiceController(svcItem.ServiceName))
+                if (ServiceCollector.StopService(svcItem.ServiceName))
                 {
-                    if (sc.Status != ServiceControllerStatus.Stopped && sc.Status != ServiceControllerStatus.StopPending)
-                    {
-                        sc.Stop();
-                        ShowToast(string.Format(LocalizationManager.Get("ToastServiceStopped"), svcItem.DisplayName));
-                    }
+                    ShowToast(string.Format(LocalizationManager.Get("ToastServiceStopped"), svcItem.DisplayName));
                 }
             }
             catch (Exception ex)
@@ -2387,14 +2378,8 @@ namespace SimplePCMonitor.UI
             if (svcItem == null) return;
             try
             {
-                using (var sc = new ServiceController(svcItem.ServiceName))
+                if (ServiceCollector.RestartService(svcItem.ServiceName))
                 {
-                    if (sc.Status == ServiceControllerStatus.Running)
-                    {
-                        sc.Stop();
-                        sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(5));
-                    }
-                    sc.Start();
                     ShowToast(string.Format(LocalizationManager.Get("ToastServiceStarted"), svcItem.DisplayName));
                 }
             }

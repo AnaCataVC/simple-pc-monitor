@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class ToolLauncher
     {

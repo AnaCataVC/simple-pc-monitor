@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -7,7 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 
-namespace SimplePCMonitor.Installer
+namespace SystemCoreMonitor.Installer
 {
     public partial class SetupWindow : Window
     {
@@ -19,7 +19,7 @@ namespace SimplePCMonitor.Installer
             InitializeComponent();
 
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            _targetDirectory = Path.Combine(localApp, "Programs", "SimplePCMonitor");
+            _targetDirectory = Path.Combine(localApp, "Programs", "SystemCoreMonitor");
             TxtInstallDir.Text = _targetDirectory;
         }
 
@@ -58,7 +58,7 @@ namespace SimplePCMonitor.Installer
             {
                 if (ChkLaunchAfter.IsChecked == true)
                 {
-                    string targetExe = Path.Combine(_targetDirectory, "SimplePCMonitor.exe");
+                    string targetExe = Path.Combine(_targetDirectory, "SystemCoreMonitor.exe");
                     if (File.Exists(targetExe))
                     {
                         Process.Start(new ProcessStartInfo(targetExe) { UseShellExecute = true });
@@ -123,11 +123,11 @@ namespace SimplePCMonitor.Installer
 
                     // 2. Extract payload files
                     UpdateStatus("Installing program files...", 50);
-                    string targetExe = Path.Combine(_targetDirectory, "SimplePCMonitor.exe");
+                    string targetExe = Path.Combine(_targetDirectory, "SystemCoreMonitor.exe");
                     string targetIco = Path.Combine(_targetDirectory, "icon.ico");
                     string targetPng = Path.Combine(_targetDirectory, "icon.png");
 
-                    ExtractResourceOrCopy("SimplePCMonitor.exe", targetExe);
+                    ExtractResourceOrCopy("SystemCoreMonitor.exe", targetExe);
                     ExtractResourceOrCopy("icon.ico", targetIco);
                     ExtractResourceOrCopy("icon.png", targetPng);
 
@@ -152,7 +152,7 @@ namespace SimplePCMonitor.Installer
                         {
                             if (key != null)
                             {
-                                key.SetValue("SimplePCMonitor", string.Format("\"{0}\"", targetExe));
+                                key.SetValue("SystemCoreMonitor", string.Format("\"{0}\"", targetExe));
                             }
                         }
                     }
@@ -260,11 +260,11 @@ namespace SimplePCMonitor.Installer
                 string uninstallScript = Path.Combine(_targetDirectory, "Uninstall.cmd");
                 string scriptContent = string.Format(
                     "@echo off\r\n" +
-                    "taskkill /f /im SimplePCMonitor.exe >nul 2>&1\r\n" +
+                    "taskkill /f /im SystemCoreMonitor.exe >nul 2>&1\r\n" +
                     "del /q \"{0}\\Simple PC Monitor.lnk\" >nul 2>&1\r\n" +
                     "del /q \"{1}\\Programs\\Simple PC Monitor.lnk\" >nul 2>&1\r\n" +
-                    "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SimplePCMonitor\" /f >nul 2>&1\r\n" +
-                    "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"SimplePCMonitor\" /f >nul 2>&1\r\n" +
+                    "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SystemCoreMonitor\" /f >nul 2>&1\r\n" +
+                    "reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v \"SystemCoreMonitor\" /f >nul 2>&1\r\n" +
                     "echo Simple PC Monitor has been uninstalled successfully.\r\n" +
                     "timeout /t 2 >nul\r\n" +
                     "rmdir /s /q \"{2}\" >nul 2>&1\r\n",
@@ -274,7 +274,7 @@ namespace SimplePCMonitor.Installer
                 );
                 File.WriteAllText(uninstallScript, scriptContent);
 
-                string uninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\SimplePCMonitor";
+                string uninstallKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\SystemCoreMonitor";
                 using (var key = Registry.CurrentUser.CreateSubKey(uninstallKey))
                 {
                     if (key != null)

@@ -1,4 +1,4 @@
-<Window x:Class="SimplePCMonitor.Installer.SetupWindow"
+﻿<Window x:Class="SystemCoreMonitor.Installer.SetupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Simple PC Monitor Setup Wizard"

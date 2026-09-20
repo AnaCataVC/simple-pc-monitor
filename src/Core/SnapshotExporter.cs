@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class SnapshotExporter
     {

@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Input;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.UI
+namespace SystemCoreMonitor.UI
 {
     public partial class ProcessDetailsWindow : Window
     {

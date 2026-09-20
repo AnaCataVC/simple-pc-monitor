@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Modules
+namespace SystemCoreMonitor.Modules
 {
     public class DiskCollector
     {

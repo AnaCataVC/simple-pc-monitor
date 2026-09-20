@@ -1,14 +1,14 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
 using Microsoft.Win32;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class StartupHelper
     {
         private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string AppName = "SimplePCMonitor";
+        private const string AppName = "SystemCoreMonitor";
 
         public static bool IsRunAtStartupEnabled()
         {

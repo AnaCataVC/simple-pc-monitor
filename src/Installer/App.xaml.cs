@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Windows;
 
-namespace SimplePCMonitor.Installer
+namespace SystemCoreMonitor.Installer
 {
     public partial class App : Application
     {

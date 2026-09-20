@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public class ProcessMetadataInfo
     {

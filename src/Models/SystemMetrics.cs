@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace SimplePCMonitor.Models
+namespace SystemCoreMonitor.Models
 {
     public class CpuMetric
     {

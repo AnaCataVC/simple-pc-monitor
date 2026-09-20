@@ -1,4 +1,4 @@
-<Window x:Class="SimplePCMonitor.UI.ProcessDetailsWindow"
+﻿<Window x:Class="SystemCoreMonitor.UI.ProcessDetailsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Process Diagnostics &amp; Properties"

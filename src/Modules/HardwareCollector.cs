@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using Microsoft.Win32;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Modules
+namespace SystemCoreMonitor.Modules
 {
     public class HardwareCollector
     {

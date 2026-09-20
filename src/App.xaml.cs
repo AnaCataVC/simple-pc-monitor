@@ -1,8 +1,8 @@
 using System;
 using System.Windows;
-using SimplePCMonitor.Core;
+using SystemCoreMonitor.Core;
 
-namespace SimplePCMonitor
+namespace SystemCoreMonitor
 {
     public partial class App : Application
     {

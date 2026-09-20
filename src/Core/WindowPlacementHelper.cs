@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class WindowPlacementHelper
     {

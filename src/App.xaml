@@ -1,7 +1,8 @@
-<Application x:Class="SimplePCMonitor.App"
+<Application x:Class="SystemCoreMonitor.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             StartupUri="UI/MainWindow.xaml">
+             StartupUri="UI/MainWindow.xaml"
+             ThemeMode="System">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

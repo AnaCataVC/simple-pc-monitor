@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     /// <summary>
     /// Finds large storage consumers that a per-volume usage bar structurally cannot show:

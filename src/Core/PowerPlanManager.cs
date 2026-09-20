@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public enum PowerSchemeMode
     {

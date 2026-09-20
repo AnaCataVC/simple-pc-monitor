@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.IO;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     /// <summary>
     /// Shared guards for storage traversal and volume classification.

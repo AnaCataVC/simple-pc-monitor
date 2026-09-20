@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public class DxgiAdapterInfo
     {

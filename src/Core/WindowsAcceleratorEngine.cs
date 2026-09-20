@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public class EngineLoadData
     {

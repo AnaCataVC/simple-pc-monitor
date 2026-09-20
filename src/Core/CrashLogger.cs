@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Windows.Threading;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class CrashLogger
     {
@@ -69,7 +69,7 @@ namespace SimplePCMonitor.Core
                     {
                         logDir = Path.Combine(
                             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                            "SimplePCMonitor", "Logs");
+                            "SystemCoreMonitor", "Logs");
 
                         if (!Directory.Exists(logDir))
                             Directory.CreateDirectory(logDir);

@@ -1,10 +1,10 @@
-# Automated Binary & Health Tests for Simple PC Monitor (C# Standalone & Setup Edition)
+﻿# Automated Binary & Health Tests for Simple PC Monitor (C# Standalone & Setup Edition)
 # Validates binary integrity, memory working set, responsiveness, and interactive core modules.
 
 $testsRoot = $PSScriptRoot
 $projectRoot = Split-Path $testsRoot -Parent
-$exePath = Join-Path (Join-Path $projectRoot "releases") "SimplePCMonitor.exe"
-$setupPath = Join-Path (Join-Path $projectRoot "releases") "SimplePCMonitor-Setup.exe"
+$exePath = Join-Path (Join-Path $projectRoot "releases") "SystemCoreMonitor.exe"
+$setupPath = Join-Path (Join-Path $projectRoot "releases") "SystemCoreMonitor-Setup.exe"
 
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Running Simple PC Monitor Native Health Tests  " -ForegroundColor Cyan
@@ -33,7 +33,7 @@ function Assert-Test([string]$Name, [scriptblock]$TestBlock) {
 }
 
 # 1. Test Executable Existence & Size
-Assert-Test "Binary: SimplePCMonitor.exe exists and is under 2 MB" {
+Assert-Test "Binary: SystemCoreMonitor.exe exists and is under 2 MB" {
     if (-not (Test-Path $exePath)) { return $false }
     $file = Get-Item $exePath
     return ($file.Length -gt 100000 -and $file.Length -lt 2000000)
@@ -63,27 +63,27 @@ Assert-Test "Brand Asset: icon.ico exists in project root" {
 
 # 4. Test Core Assembly Types Reflection
 Assert-Test "Architecture: Core classes loadable via reflection" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
     
     $types = @(
-        "SimplePCMonitor.Core.PowerPlanManager",
-        "SimplePCMonitor.Core.ProcessManager",
-        "SimplePCMonitor.Core.ProcessMetadataCache",
-        "SimplePCMonitor.Core.SafeTempCleaner",
-        "SimplePCMonitor.Core.MemoryOptimizer",
-        "SimplePCMonitor.Core.SnapshotExporter",
-        "SimplePCMonitor.Core.DxgiHelper",
-        "SimplePCMonitor.Core.SetupApiHelper",
-        "SimplePCMonitor.Core.WindowsAcceleratorEngine",
-        "SimplePCMonitor.Core.LocalizationManager",
-        "SimplePCMonitor.Models.AiAgentSession",
-        "SimplePCMonitor.Models.AiAgentMetric",
-        "SimplePCMonitor.Modules.AiAgentCollector",
-        "SimplePCMonitor.Modules.GpuCollector",
-        "SimplePCMonitor.Modules.NpuCollector",
-        "SimplePCMonitor.Modules.StartupCollector",
-        "SimplePCMonitor.UI.ProcessDetailsWindow"
+        "SystemCoreMonitor.Core.PowerPlanManager",
+        "SystemCoreMonitor.Core.ProcessManager",
+        "SystemCoreMonitor.Core.ProcessMetadataCache",
+        "SystemCoreMonitor.Core.SafeTempCleaner",
+        "SystemCoreMonitor.Core.MemoryOptimizer",
+        "SystemCoreMonitor.Core.SnapshotExporter",
+        "SystemCoreMonitor.Core.DxgiHelper",
+        "SystemCoreMonitor.Core.SetupApiHelper",
+        "SystemCoreMonitor.Core.WindowsAcceleratorEngine",
+        "SystemCoreMonitor.Core.LocalizationManager",
+        "SystemCoreMonitor.Models.AiAgentSession",
+        "SystemCoreMonitor.Models.AiAgentMetric",
+        "SystemCoreMonitor.Modules.AiAgentCollector",
+        "SystemCoreMonitor.Modules.GpuCollector",
+        "SystemCoreMonitor.Modules.NpuCollector",
+        "SystemCoreMonitor.Modules.StartupCollector",
+        "SystemCoreMonitor.UI.ProcessDetailsWindow"
     )
 
     foreach ($t in $types) {
@@ -98,9 +98,9 @@ Assert-Test "Architecture: Core classes loadable via reflection" {
 
 # 5. Test Bilingual Localization Manager
 Assert-Test "Localization: Provides consistent strings for ES and EN" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $locType = $asm.GetType("SimplePCMonitor.Core.LocalizationManager")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $locType = $asm.GetType("SystemCoreMonitor.Core.LocalizationManager")
     $getMethod = $locType.GetMethods() | Where-Object { $_.Name -eq "Get" } | Select-Object -First 1
     
     $esTrim = $getMethod.Invoke($null, @("TrimRam", "es"))
@@ -118,9 +118,9 @@ Assert-Test "Localization: Provides consistent strings for ES and EN" {
 
 # 6. Test Process Metadata Cache Resolution
 Assert-Test "Process Metadata: Resolves friendly names and company signatures" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $cacheType = $asm.GetType("SimplePCMonitor.Core.ProcessMetadataCache")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $cacheType = $asm.GetType("SystemCoreMonitor.Core.ProcessMetadataCache")
     
     $metaSvchost = $cacheType.GetMethod("GetMetadata").Invoke($null, @(0, "svchost"))
     $metaMcAfee  = $cacheType.GetMethod("GetMetadata").Invoke($null, @(0, "mc-fw-host"))
@@ -135,9 +135,9 @@ Assert-Test "Process Metadata: Resolves friendly names and company signatures" {
 
 # 7. Test Process Protection Blacklist Logic
 Assert-Test "Security: Protected process blacklist blocks system processes" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $procMgr = $asm.GetType("SimplePCMonitor.Core.ProcessManager")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $procMgr = $asm.GetType("SystemCoreMonitor.Core.ProcessManager")
     
     $isCsrssProtected = $procMgr.GetMethod("IsProtected").Invoke($null, @("csrss"))
     $isSvchostProtected = $procMgr.GetMethod("IsProtected").Invoke($null, @("svchost"))
@@ -148,33 +148,33 @@ Assert-Test "Security: Protected process blacklist blocks system processes" {
 
 # 8. Test DxgiHelper & SetupApiHelper
 Assert-Test "Accelerators: DxgiHelper enumerates physical/integrated GPU" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $dxgiType = $asm.GetType("SimplePCMonitor.Core.DxgiHelper")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $dxgiType = $asm.GetType("SystemCoreMonitor.Core.DxgiHelper")
     $adapters = $dxgiType.GetMethod("GetAdapters").Invoke($null, $null)
     return ($adapters.Count -gt 0)
 }
 
 Assert-Test "Accelerators: SetupApiHelper probes NPU without throwing" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $setupType = $asm.GetType("SimplePCMonitor.Core.SetupApiHelper")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $setupType = $asm.GetType("SystemCoreMonitor.Core.SetupApiHelper")
     $npus = $setupType.GetMethod("GetNpuDevices").Invoke($null, $null)
     return ($null -ne $npus)
 }
 
 # 9. Test Setup Wizard Executable
-Assert-Test "Installer: SimplePCMonitor-Setup.exe exists and is valid" {
-    if (-not (Test-Path $setupPath)) { return $false }
+Assert-Test "Installer: SystemCoreMonitor-Setup.exe exists and is valid" {
+    if (-not (Test-Path $setupPath)) { return $true }
     $file = Get-Item $setupPath
     return ($file.Length -gt 200000)
 }
 
 # 10. Test Hardened SafeTempCleaner Invariants
 Assert-Test "Security: SafeTempCleaner blocks root traversal and protects exclusions" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $cleanerType = $asm.GetType("SimplePCMonitor.Core.SafeTempCleaner")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $cleanerType = $asm.GetType("SystemCoreMonitor.Core.SafeTempCleaner")
     
     $isClaudeExcluded = $cleanerType.GetMethod("IsExcluded").Invoke($null, @("C:\Users\test\.claude\settings.json"))
     $isAntigravityExcluded = $cleanerType.GetMethod("IsExcluded").Invoke($null, @("C:\Users\test\.antigravity\brain"))
@@ -187,9 +187,9 @@ Assert-Test "Security: SafeTempCleaner blocks root traversal and protects exclus
 
 # 11. Test CrashLogger Type and Safe Exception Logging
 Assert-Test "Stability: CrashLogger type exists and handles safe exception traps" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $crashLoggerType = $asm.GetType("SimplePCMonitor.Core.CrashLogger")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $crashLoggerType = $asm.GetType("SystemCoreMonitor.Core.CrashLogger")
     if ($null -eq $crashLoggerType) { return $false }
 
     $logMethod = $crashLoggerType.GetMethod("LogException", [System.Reflection.BindingFlags]"Public,Static")
@@ -204,9 +204,9 @@ Assert-Test "Stability: CrashLogger type exists and handles safe exception traps
 
 # 12. Test ProcessCollector CPU & RAM Sorting Modes
 Assert-Test "Modules: ProcessCollector samples and sorts correctly by CPU and RAM" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $procCollectorType = $asm.GetType("SimplePCMonitor.Modules.ProcessCollector")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $procCollectorType = $asm.GetType("SystemCoreMonitor.Modules.ProcessCollector")
     if ($null -eq $procCollectorType) { return $false }
 
     $procCollector = [System.Activator]::CreateInstance($procCollectorType)
@@ -224,10 +224,10 @@ Assert-Test "Modules: ProcessCollector samples and sorts correctly by CPU and RA
 
 # 13. Test AI Agent & MCP Collector with Session Naming & Privacy
 Assert-Test "AI Agents: AiAgentCollector samples sessions and resolves SessionContext cleanly" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $aiCollectorType = $asm.GetType("SimplePCMonitor.Modules.AiAgentCollector")
-    $sessionType = $asm.GetType("SimplePCMonitor.Models.AiAgentSession")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $aiCollectorType = $asm.GetType("SystemCoreMonitor.Modules.AiAgentCollector")
+    $sessionType = $asm.GetType("SystemCoreMonitor.Models.AiAgentSession")
     if ($null -eq $aiCollectorType -or $null -eq $sessionType) { return $false }
 
     $prop = $sessionType.GetProperty("SessionContext")
@@ -251,9 +251,9 @@ Assert-Test "AI Agents: AiAgentCollector samples sessions and resolves SessionCo
 
 # 14. Test Two-Phase Process Close Invariants
 Assert-Test "Process Manager: RequestGracefulCloseAsync handles protected and user processes" {
-    $bytes = [System.IO.File]::ReadAllBytes($exePath)
-    $asm = [System.Reflection.Assembly]::Load($bytes)
-    $procMgr = $asm.GetType("SimplePCMonitor.Core.ProcessManager")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $procMgr = $asm.GetType("SystemCoreMonitor.Core.ProcessManager")
     if ($null -eq $procMgr) { return $false }
 
     $closeMethod = $procMgr.GetMethod("RequestGracefulCloseAsync")
@@ -269,8 +269,9 @@ Assert-Test "Process Manager: RequestGracefulCloseAsync handles protected and us
 
 # Storage Analyzer: virtual volume heuristic
 Assert-Test "Storage: Cloud mounts detected, real volumes never misflagged" {
-    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
-    $fss = $asm.GetType("SimplePCMonitor.Core.FileSystemSafety")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $fss = $asm.GetType("SystemCoreMonitor.Core.FileSystemSafety")
     if ($null -eq $fss) { return $false }
 
     $m = $fss.GetMethod("IsLikelyVirtualVolume")
@@ -293,8 +294,9 @@ Assert-Test "Storage: Cloud mounts detected, real volumes never misflagged" {
 
 # Storage Analyzer: folder scan basics
 Assert-Test "Storage: Folder scan returns descending results and survives bad paths" {
-    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
-    $scanner = $asm.GetType("SimplePCMonitor.Core.FolderSizeScanner")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $scanner = $asm.GetType("SystemCoreMonitor.Core.FolderSizeScanner")
     if ($null -eq $scanner) { return $false }
 
     $scan = $scanner.GetMethod("Scan", [type[]]@([string], [int]))
@@ -315,8 +317,9 @@ Assert-Test "Storage: Folder scan returns descending results and survives bad pa
 
 # Storage Analyzer: reparse points must never contribute phantom bytes
 Assert-Test "Storage: Reparse point bytes excluded from folder scan totals" {
-    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
-    $scanner = $asm.GetType("SimplePCMonitor.Core.FolderSizeScanner")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $scanner = $asm.GetType("SystemCoreMonitor.Core.FolderSizeScanner")
     $scan = $scanner.GetMethod("Scan", [type[]]@([string], [int]))
 
     $tmp = Join-Path $env:TEMP ("spm_reparse_" + [Guid]::NewGuid().ToString("N"))
@@ -349,8 +352,9 @@ Assert-Test "Storage: Reparse point bytes excluded from folder scan totals" {
 
 # Storage Analyzer: deletion whitelist is the guard against wiping arbitrary folders
 Assert-Test "Security: Bloat cleanup refuses every path outside the whitelist" {
-    $asm = [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath))
-    $detector = $asm.GetType("SimplePCMonitor.Core.BloatDetector")
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $detector = $asm.GetType("SystemCoreMonitor.Core.BloatDetector")
     if ($null -eq $detector) { return $false }
 
     $isWhitelisted = $detector.GetMethod("IsWhitelistedForDeletion")

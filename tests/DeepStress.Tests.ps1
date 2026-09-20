@@ -1,8 +1,8 @@
-# Deep Stress & Live Invariant Tests for Simple PC Monitor
+﻿# Deep Stress & Live Invariant Tests for Simple PC Monitor
 # Validates live process trees, two-phase graceful termination, protected system invariants, handle leaks, and runtime stability.
 
 $projectRoot = Split-Path $PSScriptRoot -Parent
-$exePath = Join-Path (Join-Path $projectRoot "releases") "SimplePCMonitor.exe"
+$exePath = Join-Path (Join-Path $projectRoot "releases") "SystemCoreMonitor.exe"
 
 Write-Host "=================================================" -ForegroundColor Magenta
 Write-Host "   Simple PC Monitor - Deep Live Stress Suite    " -ForegroundColor Magenta
@@ -30,10 +30,10 @@ function Assert-DeepTest([string]$Name, [scriptblock]$TestBlock) {
     }
 }
 
-$bytes = [System.IO.File]::ReadAllBytes($exePath)
-$asm = [System.Reflection.Assembly]::Load($bytes)
-$procMgr = $asm.GetType("SimplePCMonitor.Core.ProcessManager")
-$aiCollectorType = $asm.GetType("SimplePCMonitor.Modules.AiAgentCollector")
+$dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+$asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+$procMgr = $asm.GetType("SystemCoreMonitor.Core.ProcessManager")
+$aiCollectorType = $asm.GetType("SystemCoreMonitor.Modules.AiAgentCollector")
 
 # -------------------------------------------------------------
 # 1. Live Graceful Close (GUI Process: Notepad)
@@ -198,13 +198,13 @@ Assert-DeepTest "Live Smoke Test: App runs 5s with Responding=True and 0 crash l
     }
 
     # Check for crash log
-    $crashLogPath = Join-Path "$env:LOCALAPPDATA\SimplePCMonitor\Logs" "crash.log"
+    $crashLogPath = Join-Path "$env:LOCALAPPDATA\SystemCoreMonitor\Logs" "crash.log"
     $hasCrashLog = Test-Path $crashLogPath
 
     # Check Windows Event Log in the last 1 minute
     $recentErrors = @()
     try {
-        $recentErrors = Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=$startTime; Level=1,2} -ErrorAction SilentlyContinue | Where-Object { $_.Message -like "*SimplePCMonitor*" }
+        $recentErrors = Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=$startTime; Level=1,2} -ErrorAction SilentlyContinue | Where-Object { $_.Message -like "*SystemCoreMonitor*" }
     } catch { }
 
     Write-Host "         -> Alive: $isAlive, Responding: $isResponding, WorkingSet: $wsMB MB, EventErrors: $($recentErrors.Count)" -ForegroundColor Gray

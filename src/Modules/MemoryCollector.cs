@@ -1,16 +1,16 @@
-using System;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
+﻿using System;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Modules
+namespace SystemCoreMonitor.Modules
 {
     public class MemoryCollector
     {
-        private readonly NativeMethods.MEMORYSTATUSEX _buffer = new NativeMethods.MEMORYSTATUSEX();
+        private NativeMethods.MEMORYSTATUSEX _buffer = NativeMethods.MEMORYSTATUSEX.Create();
 
         public MemoryMetric Sample()
         {
-            if (!NativeMethods.GlobalMemoryStatusEx(_buffer))
+            if (!NativeMethods.GlobalMemoryStatusEx(ref _buffer))
             {
                 return new MemoryMetric();
             }

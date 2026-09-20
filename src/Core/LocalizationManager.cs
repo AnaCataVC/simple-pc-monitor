@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class LocalizationManager
     {
@@ -484,7 +484,7 @@ namespace SimplePCMonitor.Core
             { "BloatComponentStoreHint", "Never delete by hand: only DISM knows which components are still in use. Use 'Dism /Online /Cleanup-Image /StartComponentCleanup'." }
         };
 
-        public static string Get(string key, string langOrFallback = null)
+        public static string Get(string key, string? langOrFallback = null)
         {
             string targetLang = CurrentLanguage;
             string fallback = key;

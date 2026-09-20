@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public static class MetricFormatting
     {

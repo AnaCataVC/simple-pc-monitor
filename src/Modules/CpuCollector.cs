@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using ComTypes = System.Runtime.InteropServices.ComTypes;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Modules
+namespace SystemCoreMonitor.Modules
 {
     public class CpuCollector
     {

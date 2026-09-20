@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public class CpuUsageTracker
     {

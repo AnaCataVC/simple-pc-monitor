@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>..\icon.ico</ApplicationIcon>
+    <RootNamespace>SystemCoreMonitor</RootNamespace>
+    <AssemblyName>SystemCoreMonitor</AssemblyName>
+    <LangVersion>13.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Deterministic>true</Deterministic>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Intel CET guard: prevents STATUS_SECURITY_CHECK_FAILURE with legacy native hooks -->
+    <CETCompat>false</CETCompat>
+    <!-- Suppress experimental WPF Fluent ThemeMode runtime-switch warning -->
+    <NoWarn>$(NoWarn);WPF0001;CA1416</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="..\icon.png">
+      <Link>icon.png</Link>
+    </Resource>
+  </ItemGroup>
+
+</Project>

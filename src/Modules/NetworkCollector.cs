@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using SimplePCMonitor.Core;
-using SimplePCMonitor.Models;
+using SystemCoreMonitor.Core;
+using SystemCoreMonitor.Models;
 
-namespace SimplePCMonitor.Modules
+namespace SystemCoreMonitor.Modules
 {
     public class NetworkCollector
     {

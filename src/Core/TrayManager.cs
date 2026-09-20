@@ -1,16 +1,14 @@
-using System;
+﻿using System;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace SimplePCMonitor.Core
+namespace SystemCoreMonitor.Core
 {
     public class TrayManager : IDisposable
     {
         private NativeMethods.NOTIFYICONDATA _nid;
         private IntPtr _hwnd;
-        private Icon _iconRef;
         private IntPtr _hIcon = IntPtr.Zero;
         private bool _isAdded = false;
         private readonly object _lock = new object();
@@ -31,7 +29,7 @@ namespace SimplePCMonitor.Core
                 _nid.uFlags = NativeMethods.NIF_MESSAGE | NativeMethods.NIF_ICON | NativeMethods.NIF_TIP;
                 _nid.uCallbackMessage = (uint)NativeMethods.WM_TRAYICON;
                 _nid.hIcon = _hIcon;
-                _nid.szTip = TruncateTip(initialTip ?? "SimplePCMonitor");
+                _nid.szTip = TruncateTip(initialTip ?? "SystemCoreMonitor");
 
                 _isAdded = NativeMethods.Shell_NotifyIcon(NativeMethods.NIM_ADD, ref _nid);
             }
@@ -89,32 +87,47 @@ namespace SimplePCMonitor.Core
         {
             try
             {
-                if (_iconRef != null)
+                if (_hIcon != IntPtr.Zero)
                 {
-                    return _iconRef.Handle;
+                    return _hIcon;
                 }
 
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string icoPath = Path.Combine(baseDir, "icon.ico");
                 if (File.Exists(icoPath))
                 {
-                    _iconRef = new Icon(icoPath);
-                    return _iconRef.Handle;
+                    IntPtr h = NativeMethods.LoadImageW(
+                        IntPtr.Zero,
+                        icoPath,
+                        NativeMethods.IMAGE_ICON,
+                        0,
+                        0,
+                        NativeMethods.LR_LOADFROMFILE | NativeMethods.LR_DEFAULTSIZE);
+                    if (h != IntPtr.Zero) return h;
                 }
 
                 string parentIco = Path.Combine(baseDir, "..", "icon.ico");
                 if (File.Exists(parentIco))
                 {
-                    _iconRef = new Icon(parentIco);
-                    return _iconRef.Handle;
+                    IntPtr h = NativeMethods.LoadImageW(
+                        IntPtr.Zero,
+                        parentIco,
+                        NativeMethods.IMAGE_ICON,
+                        0,
+                        0,
+                        NativeMethods.LR_LOADFROMFILE | NativeMethods.LR_DEFAULTSIZE);
+                    if (h != IntPtr.Zero) return h;
                 }
 
-                // Fallback to executable's embedded icon
-                string exePath = Process.GetCurrentProcess().MainModule.FileName;
-                _iconRef = Icon.ExtractAssociatedIcon(exePath);
-                if (_iconRef != null)
+                // Fallback to executable's embedded icon via shell32
+                string? exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
                 {
-                    return _iconRef.Handle;
+                    uint count = NativeMethods.ExtractIconExW(exePath, 0, out _, out IntPtr hSmall, 1);
+                    if (count > 0 && hSmall != IntPtr.Zero)
+                    {
+                        return hSmall;
+                    }
                 }
             }
             catch { }
@@ -144,10 +157,9 @@ namespace SimplePCMonitor.Core
                     _isAdded = false;
                 }
 
-                if (_iconRef != null)
+                if (_hIcon != IntPtr.Zero)
                 {
-                    try { _iconRef.Dispose(); } catch { }
-                    _iconRef = null;
+                    try { NativeMethods.DestroyIcon(_hIcon); } catch { }
                     _hIcon = IntPtr.Zero;
                 }
             }
