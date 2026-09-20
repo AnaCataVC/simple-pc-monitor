@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 
 namespace SystemCoreMonitor.Core
@@ -27,6 +27,27 @@ namespace SystemCoreMonitor.Core
             try
             {
                 return (info.Attributes & FileAttributes.ReparsePoint) != 0;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Path-based overload: checks whether the specified path is a junction, symlink, or cloud mount.
+        /// </summary>
+        public static bool IsReparsePoint(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return true;
+
+            try
+            {
+                if (Directory.Exists(path))
+                    return IsReparsePoint(new DirectoryInfo(path));
+                if (File.Exists(path))
+                    return IsReparsePoint(new FileInfo(path));
+                return false;
             }
             catch
             {

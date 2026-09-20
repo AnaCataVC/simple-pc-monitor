@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -43,6 +43,8 @@ namespace SystemCoreMonitor.Core
 
         private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
 
+        public static AppConfig Current { get; set; } = Load();
+
         public static AppConfig Load()
         {
             try
@@ -74,6 +76,7 @@ namespace SystemCoreMonitor.Core
 
                 string json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
                 File.WriteAllText(ConfigPath, json);
+                Current = config;
             }
             catch (Exception ex)
             {

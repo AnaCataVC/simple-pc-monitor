@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -21,6 +21,13 @@
     <NoWarn>$(NoWarn);WPF0001;CA1416</NoWarn>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Installer\**" />
+    <Page Remove="Installer\**" />
+    <None Remove="Installer\**" />
+    <ApplicationDefinition Remove="Installer\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="..\icon.png">

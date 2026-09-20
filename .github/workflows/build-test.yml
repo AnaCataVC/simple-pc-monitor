@@ -37,6 +37,9 @@ jobs:
       - name: Run Deep Stress Tests
         run: pwsh -ExecutionPolicy Bypass -File tests/DeepStress.Tests.ps1
 
+      - name: Run AI Transcript Unit Tests
+        run: pwsh -ExecutionPolicy Bypass -File tests/AiTranscript.Tests.ps1
+
       - name: Upload Release Artifacts
         uses: actions/upload-artifact@v4
         with:

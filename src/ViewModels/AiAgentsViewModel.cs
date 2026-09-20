@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using SystemCoreMonitor.Core;
@@ -12,6 +12,12 @@ namespace SystemCoreMonitor.ViewModels
         private AiAgentMetric _metric = new();
         private ObservableCollection<AiAgentSession> _sessions = new();
         private ObservableCollection<AiAgentMcpServer> _orphanProcesses = new();
+        private AiTranscriptReport? _transcriptReport;
+        private bool _isScanningTranscripts;
+        private bool _isPruningTranscripts;
+        private string _transcriptSummaryDisplay = "Almacenamiento IA no escaneado aún";
+
+        private readonly AiTranscriptCleaner _cleaner = new();
 
         public AiAgentMetric Metric
         {
@@ -31,9 +37,35 @@ namespace SystemCoreMonitor.ViewModels
             set => SetProperty(ref _orphanProcesses, value);
         }
 
+        public AiTranscriptReport? TranscriptReport
+        {
+            get => _transcriptReport;
+            set => SetProperty(ref _transcriptReport, value);
+        }
+
+        public bool IsScanningTranscripts
+        {
+            get => _isScanningTranscripts;
+            set => SetProperty(ref _isScanningTranscripts, value);
+        }
+
+        public bool IsPruningTranscripts
+        {
+            get => _isPruningTranscripts;
+            set => SetProperty(ref _isPruningTranscripts, value);
+        }
+
+        public string TranscriptSummaryDisplay
+        {
+            get => _transcriptSummaryDisplay;
+            set => SetProperty(ref _transcriptSummaryDisplay, value);
+        }
+
         public AsyncRelayCommand<AiAgentSession> CloseSessionCommand { get; }
         public AsyncRelayCommand<AiAgentMcpServer> KillOrphanCommand { get; }
         public AsyncRelayCommand KillAllOrphansCommand { get; }
+        public AsyncRelayCommand ScanTranscriptsCommand { get; }
+        public AsyncRelayCommand CleanStaleTranscriptsCommand { get; }
 
         public event Action<string>? ShowToastRequested;
 
@@ -65,6 +97,55 @@ namespace SystemCoreMonitor.ViewModels
                     }
                 });
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastOrphansKilled"), killed));
+            });
+
+            ScanTranscriptsCommand = new AsyncRelayCommand(async () =>
+            {
+                if (IsScanningTranscripts) return;
+                IsScanningTranscripts = true;
+                try
+                {
+                    int retention = ConfigManager.Current.TranscriptRetentionDays;
+                    var report = await Task.Run(() => _cleaner.ScanReport(retention));
+                    TranscriptReport = report;
+                    TranscriptSummaryDisplay = string.Format(
+                        "Total: {0} ({1} archivos) • Liberable (> {2}d): {3} ({4} archivos)",
+                        report.TotalSizeDisplay,
+                        report.TotalFilesCount,
+                        retention,
+                        report.StaleSizeDisplay,
+                        report.StaleFilesCount);
+                    ShowToastRequested?.Invoke(string.Format("Escaneo completado: {0} liberables de transcripts IA", report.StaleSizeDisplay));
+                }
+                finally
+                {
+                    IsScanningTranscripts = false;
+                }
+            });
+
+            CleanStaleTranscriptsCommand = new AsyncRelayCommand(async () =>
+            {
+                if (IsPruningTranscripts) return;
+                IsPruningTranscripts = true;
+                try
+                {
+                    int retention = ConfigManager.Current.TranscriptRetentionDays;
+                    var result = await Task.Run(() => _cleaner.CleanStaleTranscripts(retention));
+                    ShowToastRequested?.Invoke(result.Message);
+                    // Re-scan to update telemetry
+                    var report = await Task.Run(() => _cleaner.ScanReport(retention));
+                    TranscriptReport = report;
+                    TranscriptSummaryDisplay = string.Format(
+                        "Total: {0} ({1} archivos) • Liberable (> {2}d): {3}",
+                        report.TotalSizeDisplay,
+                        report.TotalFilesCount,
+                        retention,
+                        report.StaleSizeDisplay);
+                }
+                finally
+                {
+                    IsPruningTranscripts = false;
+                }
             });
         }
 
