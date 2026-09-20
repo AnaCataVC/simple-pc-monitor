@@ -1,4 +1,4 @@
-﻿# Deep Stress & Live Invariant Tests for Simple PC Monitor
+# Deep Stress & Live Invariant Tests for Simple PC Monitor
 # Validates live process trees, two-phase graceful termination, protected system invariants, handle leaks, and runtime stability.
 
 $projectRoot = Split-Path $PSScriptRoot -Parent
@@ -150,31 +150,26 @@ Assert-DeepTest "System Invariants: Strict rejection of protected processes (PID
 }
 
 # -------------------------------------------------------------
-# 4. Handle Leak Stress Test (200 consecutive snapshots)
+# 4. Handle Leak Stress Test (200 consecutive snapshots in isolated process)
 # -------------------------------------------------------------
 Assert-DeepTest "Handle Leak Stress: 200 consecutive AiAgentCollector.Sample() cycles leak zero handles" {
-    $collector = [System.Activator]::CreateInstance($aiCollectorType)
-    $sampleMethod = $aiCollectorType.GetMethod("Sample")
-
-    $currentProc = [System.Diagnostics.Process]::GetCurrentProcess()
-    [System.GC]::Collect()
-    [System.GC]::WaitForPendingFinalizers()
-
-    $initialHandles = $currentProc.HandleCount
-
-    for ($i = 0; $i -lt 200; $i++) {
-        $null = $sampleMethod.Invoke($collector, $null)
-    }
-
-    [System.GC]::Collect()
-    [System.GC]::WaitForPendingFinalizers()
-    $currentProc.Refresh()
-    $finalHandles = $currentProc.HandleCount
-    $handleDelta = $finalHandles - $initialHandles
-
-    Write-Host "         -> Initial Handles: $initialHandles, Final: $finalHandles, Delta: $handleDelta" -ForegroundColor Gray
-    # Delta should be negligible (< 10 due to PowerShell runtime fluctuations, certainly not 200)
-    return ($handleDelta -lt 15)
+    $testScript = @"
+        Add-Type -Path '$dllPath'
+        `$collector = [SystemCoreMonitor.Modules.AiAgentCollector]::new()
+        `$proc = [System.Diagnostics.Process]::GetCurrentProcess()
+        `$h0 = `$proc.HandleCount
+        for (`$i = 1; `$i -le 200; `$i++) {
+            `$null = `$collector.Sample()
+        }
+        `$proc.Refresh()
+        `$h1 = `$proc.HandleCount
+        `$delta = `$h1 - `$h0
+        Write-Host "         -> Initial Handles: `$h0, Final: `$h1, Delta: `$delta"
+        exit (`$delta -lt 15 ? 0 : 1)
+"@
+    $output = pwsh -NoProfile -Command $testScript
+    Write-Host $output -ForegroundColor Gray
+    return ($LASTEXITCODE -eq 0)
 }
 
 # -------------------------------------------------------------

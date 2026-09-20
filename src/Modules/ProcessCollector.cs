@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -11,7 +11,7 @@ namespace SystemCoreMonitor.Modules
     {
         private readonly CpuUsageTracker _cpuTracker = new CpuUsageTracker();
 
-        public List<ProcessMetric> Sample(int topCount, double totalRamGB, bool sortByCpu = false, string searchFilter = "")
+        public List<ProcessMetric> Sample(int topCount = 50, double totalRamGB = 16.0, bool sortByCpu = false, string searchFilter = "")
         {
             var rawList = new List<ProcessMetric>();
             double totalRamBytes = totalRamGB * 1024.0 * 1024.0 * 1024.0;

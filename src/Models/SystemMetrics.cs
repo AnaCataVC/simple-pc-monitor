@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace SystemCoreMonitor.Models
 {
@@ -7,6 +7,8 @@ namespace SystemCoreMonitor.Models
         public double LoadPercent { get; set; }
         public int ProcessorCount { get; set; }
         public string Status { get; set; }
+        public string LoadDisplay => string.Format("{0:N1}%", LoadPercent);
+        public string CoreCountDisplay => string.Format("{0} Cores", ProcessorCount);
 
         public CpuMetric()
         {
@@ -23,6 +25,8 @@ namespace SystemCoreMonitor.Models
         public double PageFileTotalGB { get; set; }
         public double PageFileUsedGB { get; set; }
         public string Status { get; set; }
+        public string MemoryDisplay => string.Format("{0:N1}%", LoadPercent);
+        public string DetailDisplay => string.Format("{0:N1} GB / {1:N1} GB", UsedGB, TotalGB);
 
         public MemoryMetric()
         {

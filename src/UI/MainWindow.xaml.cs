@@ -1,1628 +1,245 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using SystemCoreMonitor.Core;
 using SystemCoreMonitor.Models;
 using SystemCoreMonitor.Modules;
+using SystemCoreMonitor.ViewModels;
 
 namespace SystemCoreMonitor.UI
 {
     public partial class MainWindow : Window
     {
-        private readonly CpuCollector _cpu;
-        private readonly GpuCollector _gpu;
-        private readonly NpuCollector _npu;
-        private readonly WindowsAcceleratorEngine _accelEngine;
-        private readonly MemoryCollector _mem;
-        private readonly DiskCollector _disk;
-        private readonly NetworkCollector _net;
-        private readonly HardwareCollector _hw;
-        private readonly ProcessCollector _proc;
-        private readonly AiAgentCollector _aiAgents;
-        private readonly ServiceCollector _svc;
-        private readonly StartupCollector _startup;
-        private readonly TaskCollector _tasks;
-        private readonly TrayManager _trayManager;
+        private readonly MainViewModel _viewModel;
+        private readonly CpuCollector _cpu = new();
+        private readonly GpuCollector _gpu = new();
+        private readonly NpuCollector _npu = new();
+        private readonly WindowsAcceleratorEngine _accelEngine = new();
+        private readonly MemoryCollector _mem = new();
+        private readonly DiskCollector _disk = new();
+        private readonly NetworkCollector _net = new();
+        private readonly HardwareCollector _hw = new();
+        private readonly ProcessCollector _proc = new();
+        private readonly AiAgentCollector _ai = new();
+        private readonly ServiceCollector _svc = new();
+        private readonly StartupCollector _startup = new();
 
-        private readonly List<double> _cpuHistory;
-        private readonly List<double> _netHistory;
-        private const int MaxHistoryPoints = 30;
+        private readonly DispatcherTimer _timer = new();
+        private readonly TrayManager _trayManager = new();
+        private AppConfig _config = new();
 
-        private readonly PointCollection _cpuLinePoints = new PointCollection();
-        private readonly PointCollection _cpuPolyPoints = new PointCollection();
-        private readonly PointCollection _netLinePoints = new PointCollection();
-        private readonly PointCollection _netPolyPoints = new PointCollection();
-
-        private AppConfig _config;
-        private CancellationTokenSource _cts;
-        private int _cycleCount;
-        private uint _wmTaskbarCreated;
-        private HwndSource _hwndSource;
-        private bool _isTrayMode;
-        private bool _isExiting;
-        private WindowState _lastWindowState = WindowState.Normal;
-        private System.Windows.Media.Effects.Effect _cachedShadowEffect;
-
-        // Cached telemetry for snapshots
-        private CpuMetric _lastCpu;
-        private GpuMetric _lastGpu;
-        private NpuMetric _lastNpu;
-        private MemoryMetric _lastMem;
-        private List<DiskMetric> _lastDisks;
-        private NetworkMetric _lastNet;
-        private HardwareMetric _lastHw;
-        private List<ProcessMetric> _lastProcs;
-        private ServiceMetric _lastSvc;
-
-        private DispatcherTimer _toastTimer;
-        private Rect? _lastFullBounds;
-        private DispatcherTimer _searchDebounceTimer;
-        private bool _sortByCpu = true;
-        private string _procSearchQuery = string.Empty;
+        private bool _isClosing = false;
+        private bool _isSampling = false;
+        private bool _isPinnedTop = false;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            _cpu = new CpuCollector();
-            _gpu = new GpuCollector();
-            _npu = new NpuCollector();
-            _accelEngine = new WindowsAcceleratorEngine();
-            _mem = new MemoryCollector();
-            _disk = new DiskCollector();
-            _net = new NetworkCollector();
-            _hw = new HardwareCollector();
-            _proc = new ProcessCollector();
-            _aiAgents = new AiAgentCollector();
-            _svc = new ServiceCollector();
-            _startup = new StartupCollector();
-            _tasks = new TaskCollector();
-            _trayManager = new TrayManager();
-
-            _cpuHistory = new List<double>();
-            _netHistory = new List<double>();
-
-            _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
-            _searchDebounceTimer.Tick += (s, ev) =>
-            {
-                _searchDebounceTimer.Stop();
-                RefreshProcessListManually();
-            };
+            _viewModel = new MainViewModel();
+            DataContext = _viewModel;
 
             _config = ConfigManager.Load();
+            App.SetTheme(_config.Theme);
+            LocalizationManager.CurrentLanguage = _config.Language;
 
-            ApplyTheme(_config.Theme);
-            ApplyLanguage(_config.Language);
-            LoadAppIcon();
-
-            TxtInterval.Text = string.Format("{0}s", _config.RefreshIntervalSeconds);
-            ApplyViewMode(_config.ViewMode);
-
-            if (_config.AlwaysOnTop)
-            {
-                Topmost = true;
-                PathPin.Fill = (Brush)FindResource("AccentCpu");
-                PathWidgetPin.Fill = (Brush)FindResource("AccentCpu");
-            }
-
-            string activeScheme;
-            PowerPlanManager.GetActiveScheme(out activeScheme);
-            UpdatePowerButtonsHighlight(activeScheme);
-
-            if (OuterBorder != null)
-            {
-                _cachedShadowEffect = OuterBorder.Effect;
-            }
+            WireViewModelEvents();
 
             Loaded += MainWindow_Loaded;
-            Closed += MainWindow_Closed;
-            StateChanged += MainWindow_StateChanged;
+            Closing += MainWindow_Closing;
+
+            _timer.Interval = TimeSpan.FromSeconds(Math.Max(1, _config.RefreshIntervalSeconds));
+            _timer.Tick += async (s, e) => await SampleTelemetryTickAsync();
         }
 
-        protected override void OnSourceInitialized(EventArgs e)
+        private void WireViewModelEvents()
         {
-            base.OnSourceInitialized(e);
-            try
+            _viewModel.Dashboard.ShowToastRequested += ShowToast;
+            _viewModel.Processes.ShowToastRequested += ShowToast;
+            _viewModel.AiAgents.ShowToastRequested += ShowToast;
+            _viewModel.Storage.ShowToastRequested += ShowToast;
+            _viewModel.Services.ShowToastRequested += ShowToast;
+
+            _viewModel.Settings.ThemeChanged += theme => App.SetTheme(theme);
+            _viewModel.Settings.LanguageChanged += lang =>
             {
-                var helper = new WindowInteropHelper(this);
-                var hwnd = helper.Handle;
-
-                _hwndSource = HwndSource.FromHwnd(hwnd);
-                if (_hwndSource != null)
-                {
-                    _hwndSource.AddHook(HwndMessageHook);
-                }
-
-                _wmTaskbarCreated = NativeMethods.RegisterWindowMessage("TaskbarCreated");
-                _trayManager.Initialize(hwnd, "Simple PC Monitor");
-
-                // Check command line arguments for start in tray
-                string[] args = Environment.GetCommandLineArgs();
-                bool startInTray = false;
-                for (int i = 1; i < args.Length; i++)
-                {
-                    if (string.Equals(args[i], "--tray", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(args[i], "--minimized", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(args[i], "-tray", StringComparison.OrdinalIgnoreCase))
-                    {
-                        startInTray = true;
-                        break;
-                    }
-                }
-
-                if (startInTray || _config.StartMinimizedToTray)
-                {
-                    HideToTray();
-                }
-            }
-            catch { }
+                LocalizationManager.CurrentLanguage = lang;
+                ShowToast(lang == "es" ? "Idioma cambiado a Español" : "Language set to English");
+            };
         }
 
-        private IntPtr HwndMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            InitHwndHooks();
+            InitAppBranding();
+            InitTray();
+
+            _timer.Start();
+            _ = SampleTelemetryTickAsync();
+        }
+
+        private void InitHwndHooks()
+        {
+            var helper = new WindowInteropHelper(this);
+            var source = HwndSource.FromHwnd(helper.Handle);
+            source?.AddHook(WndProc);
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             if (msg == NativeMethods.WM_GETMINMAXINFO)
             {
                 WmGetMinMaxInfo(hwnd, lParam);
                 handled = true;
             }
-            else if (msg == NativeMethods.WM_TRAYICON)
-            {
-                int eventId = lParam.ToInt32() & 0xFFFF;
-                switch (eventId)
-                {
-                    case NativeMethods.WM_LBUTTONUP:
-                        if (_isTrayMode || !IsVisible)
-                        {
-                            RestoreFromTray();
-                        }
-                        else
-                        {
-                            HideToTray();
-                        }
-                        handled = true;
-                        break;
-
-                    case NativeMethods.WM_LBUTTONDBLCLK:
-                        RestoreFromTray();
-                        handled = true;
-                        break;
-
-                    case NativeMethods.WM_RBUTTONUP:
-                    case NativeMethods.WM_CONTEXTMENU:
-                        OpenTrayContextMenu(hwnd);
-                        handled = true;
-                        break;
-                }
-            }
-            else if (msg != 0 && (uint)msg == _wmTaskbarCreated)
-            {
-                _trayManager.Recreate();
-                handled = true;
-            }
-
             return IntPtr.Zero;
         }
 
         private static void WmGetMinMaxInfo(IntPtr hwnd, IntPtr lParam)
         {
-            try
+            var mmi = Marshal.PtrToStructure<NativeMethods.MINMAXINFO>(lParam);
+            IntPtr monitor = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
+            if (monitor != IntPtr.Zero)
             {
-                var mmi = (NativeMethods.MINMAXINFO)Marshal.PtrToStructure(lParam, typeof(NativeMethods.MINMAXINFO));
-                IntPtr hMonitor = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
-
-                if (hMonitor != IntPtr.Zero)
+                var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
+                if (NativeMethods.GetMonitorInfo(monitor, ref mi))
                 {
-                    var mi = new NativeMethods.MONITORINFO();
-                    mi.cbSize = Marshal.SizeOf(typeof(NativeMethods.MONITORINFO));
-
-                    if (NativeMethods.GetMonitorInfo(hMonitor, ref mi))
-                    {
-                        var rcWork = mi.rcWork;
-                        var rcMonitor = mi.rcMonitor;
-
-                        mmi.ptMaxPosition.X = Math.Abs(rcWork.Left - rcMonitor.Left);
-                        mmi.ptMaxPosition.Y = Math.Abs(rcWork.Top - rcMonitor.Top);
-                        mmi.ptMaxSize.X = Math.Abs(rcWork.Right - rcWork.Left);
-                        mmi.ptMaxSize.Y = Math.Abs(rcWork.Bottom - rcWork.Top);
-                        mmi.ptMaxTrackSize.X = mmi.ptMaxSize.X;
-                        mmi.ptMaxTrackSize.Y = mmi.ptMaxSize.Y;
-                        mmi.ptMinTrackSize.X = 380;
-                        mmi.ptMinTrackSize.Y = 88;
-                    }
+                    mmi.ptMaxPosition.X = Math.Abs(mi.rcWork.Left - mi.rcMonitor.Left);
+                    mmi.ptMaxPosition.Y = Math.Abs(mi.rcWork.Top - mi.rcMonitor.Top);
+                    mmi.ptMaxSize.X = Math.Abs(mi.rcWork.Right - mi.rcWork.Left);
+                    mmi.ptMaxSize.Y = Math.Abs(mi.rcWork.Bottom - mi.rcWork.Top);
                 }
-
-                Marshal.StructureToPtr(mmi, lParam, true);
             }
-            catch { }
+            Marshal.StructureToPtr(mmi, lParam, true);
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            StartTelemetryLoop();
-        }
-
-        private void MainWindow_Closed(object sender, EventArgs e)
-        {
-            if (_cts != null)
-            {
-                _cts.Cancel();
-                _cts.Dispose();
-            }
-            if (_accelEngine != null)
-            {
-                _accelEngine.Dispose();
-            }
-            if (_hwndSource != null)
-            {
-                try { _hwndSource.RemoveHook(HwndMessageHook); } catch { }
-                _hwndSource = null;
-            }
-            if (_trayManager != null)
-            {
-                _trayManager.Dispose();
-            }
-        }
-
-        private void MainWindow_StateChanged(object sender, EventArgs e)
-        {
-            if (WindowState == WindowState.Minimized && _config.MinimizeToTray)
-            {
-                HideToTray();
-                return;
-            }
-            else if (WindowState != WindowState.Minimized)
-            {
-                _lastWindowState = WindowState;
-            }
-
-            if (WindowState == WindowState.Maximized)
-            {
-                if (PathMaximize != null)
-                {
-                    PathMaximize.Data = TryFindResource("IconRestore") as Geometry ?? (Geometry)FindResource("IconRestore");
-                }
-                if (BtnMaximize != null)
-                {
-                    BtnMaximize.ToolTip = LocalizationManager.Get("BtnRestore", "Restaurar");
-                }
-                if (OuterBorder != null)
-                {
-                    OuterBorder.Margin = new Thickness(0);
-                    OuterBorder.CornerRadius = new CornerRadius(0);
-                    OuterBorder.BorderThickness = new Thickness(0);
-                    OuterBorder.Effect = null;
-                }
-            }
-            else if (WindowState == WindowState.Normal)
-            {
-                if (PathMaximize != null)
-                {
-                    PathMaximize.Data = TryFindResource("IconMaximize") as Geometry ?? (Geometry)FindResource("IconMaximize");
-                }
-                if (BtnMaximize != null)
-                {
-                    BtnMaximize.ToolTip = LocalizationManager.Get("BtnMaximize", "Maximizar");
-                }
-                if (OuterBorder != null)
-                {
-                    OuterBorder.Margin = new Thickness(8);
-                    OuterBorder.CornerRadius = new CornerRadius(14);
-                    OuterBorder.BorderThickness = new Thickness(1);
-                    OuterBorder.Effect = _cachedShadowEffect;
-                }
-            }
-        }
-
-        private void LoadAppIcon()
+        private void InitAppBranding()
         {
             try
             {
-                string iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.png");
-                if (File.Exists(iconPath))
+                string pngPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.png");
+                if (File.Exists(pngPath))
                 {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(iconPath, UriKind.Absolute);
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.EndInit();
-
-                    ImgAppLogo.Source = bitmap;
-                    ImgWidgetLogo.Source = bitmap;
-                    Icon = bitmap;
-                }
-                else
-                {
-                    var uri = new Uri("pack://application:,,,/icon.png", UriKind.Absolute);
-                    var bitmap = new BitmapImage(uri);
-                    ImgAppLogo.Source = bitmap;
-                    ImgWidgetLogo.Source = bitmap;
-                    Icon = bitmap;
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.UriSource = new Uri(pngPath, UriKind.Absolute);
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.EndInit();
+                    ImgAppLogo.Source = bmp;
+                    ImgWidgetLogo.Source = bmp;
                 }
             }
             catch { }
+
+            var hw = _hw.Sample();
+            TxtHwSummaryBadge.Text = $"{hw.CpuModel} • {hw.OsName}";
+            TxtCpuCoresBadge.Text = $"{Environment.ProcessorCount} Cores";
         }
 
-        // =========================================================================
-        // BACKGROUND TELEMETRY LOOP
-        // =========================================================================
-
-        private void StartTelemetryLoop()
+        private void InitTray()
         {
-            _cts = new CancellationTokenSource();
-            var token = _cts.Token;
-
-            Task.Run(async () =>
-            {
-                try
-                {
-                    while (!token.IsCancellationRequested)
-                    {
-                        try
-                        {
-                            if (_isTrayMode)
-                            {
-                                // Lightweight pulse: CPU and RAM only (< 0.01ms CPU time)
-                                var cpuLite = _cpu.Sample();
-                                var memLite = _mem.Sample();
-
-                                string tip = string.Format("Simple PC Monitor\nCPU: {0:F0}% | RAM: {1:F0}%",
-                                    cpuLite.LoadPercent, memLite != null ? memLite.LoadPercent : 0.0);
-                                _trayManager.UpdateTooltip(tip);
-
-                                // Sleep 5 seconds in background mode to save CPU/battery
-                                await Task.Delay(5000, token).ConfigureAwait(false);
-                                continue;
-                            }
-
-                            var cpu = _cpu.Sample();
-                            var engineLoads = _accelEngine.SampleAllEngines();
-                            var gpu = _gpu.Sample(engineLoads);
-                            var npu = _npu.Sample(engineLoads, gpu.LuidString);
-                            var mem = _mem.Sample();
-                            var disks = _disk.Sample();
-                            var net = _net.Sample();
-                            var hw = _hw.Sample();
-
-                            List<ProcessMetric> procs = null;
-                            AiAgentMetric aiAgents = null;
-                            ServiceMetric svc = null;
-                            List<TaskItem> tasks = null;
-                            List<StartupItem> startup = null;
-
-                            // Always sample processes to ensure responsive CPU% & real-time search
-                            procs = _proc.Sample(15, mem != null ? mem.TotalGB : 16.0, _sortByCpu, _procSearchQuery);
-
-                            if (_cycleCount % 2 == 0)
-                            {
-                                aiAgents = _aiAgents.Sample();
-                            }
-
-                            if (_cycleCount % 3 == 0)
-                            {
-                                svc = _svc.Sample();
-                                tasks = _tasks.Sample();
-                                startup = _startup.Sample();
-                            }
-                            _cycleCount++;
-
-                            string activeTip = string.Format("Simple PC Monitor\nCPU: {0:F0}% | RAM: {1:F0}% | GPU: {2:F0}%",
-                                cpu.LoadPercent, mem != null ? mem.LoadPercent : 0.0, gpu.LoadPercent);
-                            _trayManager.UpdateTooltip(activeTip);
-
-                            await Dispatcher.InvokeAsync(() =>
-                            {
-                                UpdateUI(cpu, gpu, npu, mem, disks, net, hw, procs, aiAgents, svc, tasks, startup);
-                            }, DispatcherPriority.Background);
-                        }
-                        catch { }
-
-                        int intervalMs = Math.Max(1000, _config.RefreshIntervalSeconds * 1000);
-                        await Task.Delay(intervalMs, token).ConfigureAwait(false);
-                    }
-                }
-                catch (OperationCanceledException) { }
-            }, token);
+            var helper = new WindowInteropHelper(this);
+            _trayManager.Initialize(helper.Handle, "System Core Monitor");
         }
 
-        // =========================================================================
-        // UI BINDING & UPDATE
-        // =========================================================================
-
-        private void UpdateUI(
-            CpuMetric cpu,
-            GpuMetric gpu,
-            NpuMetric npu,
-            MemoryMetric mem,
-            List<DiskMetric> disks,
-            NetworkMetric net,
-            HardwareMetric hw,
-            List<ProcessMetric> procs,
-            AiAgentMetric aiAgents,
-            ServiceMetric svc,
-            List<TaskItem> tasks,
-            List<StartupItem> startup)
+        private async Task SampleTelemetryTickAsync()
         {
-            _lastCpu = cpu;
-            _lastGpu = gpu;
-            _lastNpu = npu;
-            _lastMem = mem;
-            _lastDisks = disks;
-            _lastNet = net;
-            _lastHw = hw;
-            if (procs != null) _lastProcs = procs;
-            if (svc != null) _lastSvc = svc;
+            if (_isSampling) return;
+            _isSampling = true;
 
-            // Update AI Agent Tab & Metrics if available
-            if (aiAgents != null)
+            try
             {
-                UpdateAiAgentsPanel(aiAgents);
-            }
+                var cpu = await Task.Run(() => _cpu.Sample());
+                var mem = await Task.Run(() => _mem.Sample());
+                var disk = await Task.Run(() => _disk.Sample());
+                var net = await Task.Run(() => _net.Sample());
+                var engineLoads = await Task.Run(() => _accelEngine.SampleAllEngines());
+                var gpu = await Task.Run(() => _gpu.Sample(engineLoads));
+                var npu = await Task.Run(() => _npu.Sample(engineLoads, gpu?.LuidString ?? ""));
+                var procs = await Task.Run(() => _proc.Sample(50, mem?.TotalGB ?? 16.0));
+                var ai = await Task.Run(() => _ai.Sample());
+                var svc = await Task.Run(() => _svc.Sample());
+                var startup = await Task.Run(() => _startup.Sample());
+                var bloat = await Task.Run(() => BloatDetector.Scan());
 
-            // 1. CPU
-            if (cpu != null)
-            {
-                TxtCpuVal.Text = string.Format("{0:N1}%", cpu.LoadPercent);
-                ProgressCpu.Value = Math.Max(0, Math.Min(100, cpu.LoadPercent));
-                TxtCpuCores.Text = string.Format("{0} Cores", cpu.ProcessorCount);
-                TxtCpuCoresBadge.Text = string.Format("{0} Cores", cpu.ProcessorCount);
-                TxtCpuSub.Text = hw != null && !string.IsNullOrEmpty(hw.CpuModel) ? hw.CpuModel : "Direct Win32 Kernel";
+                // Dispatch to ViewModels
+                _viewModel.Dashboard.Update(cpu, mem, disk, net, gpu, npu);
+                _viewModel.Processes.Update(procs);
+                _viewModel.AiAgents.Update(ai);
+                _viewModel.Accelerators.Update(gpu, npu);
+                _viewModel.Storage.Update(disk, bloat);
+                _viewModel.Services.Update(svc);
+                _viewModel.Startup.Update(startup);
 
-                // Widget CPU
-                TxtWidgetCpu.Text = string.Format("{0:N0}%", cpu.LoadPercent);
-                ProgressWidgetCpu.Value = Math.Max(0, Math.Min(100, cpu.LoadPercent));
-
-                // Sparkline
-                _cpuHistory.Add(cpu.LoadPercent);
-                if (_cpuHistory.Count > MaxHistoryPoints) _cpuHistory.RemoveAt(0);
-                double cpuPeak = _cpuHistory.Count > 0 ? _cpuHistory.Max() : 0.0;
-                TxtCpuLivePeak.Text = string.Format("{0}: {1:N0}%", LocalizationManager.Get("PeakLabel"), cpuPeak);
-                RenderSparkline(LineCpuStroke, PolyCpuArea, _cpuHistory, CanvasCpuGraph, 100.0, _cpuLinePoints, _cpuPolyPoints);
-            }
-
-            // 2. GPU
-            if (gpu != null && gpu.IsPresent)
-            {
-                TxtGpuVal.Text = string.Format("{0:N1}%", gpu.LoadPercent);
-                ProgressGpu.Value = Math.Max(0, Math.Min(100, gpu.LoadPercent));
-                TxtGpuSub.Text = !string.IsNullOrEmpty(gpu.Name) ? gpu.Name : "Graphics Adapter";
-                TxtGpuTypeBadge.Text = gpu.IsDiscrete ? LocalizationManager.Get("GpuDiscreteBadge") : LocalizationManager.Get("GpuDirect3DBadge");
-
-                // Accelerators Tab GPU
-                TxtGpuTabLoad.Text = string.Format("{0:N1}%", gpu.LoadPercent);
-                TxtGpuTabName.Text = gpu.Name;
-                TxtGpu3D.Text = string.Format("{0:N1}%", gpu.Engines.Engine3DPercent);
-                TxtGpuCompute.Text = string.Format("{0:N1}%", gpu.Engines.ComputePercent);
-                TxtGpuVideo.Text = string.Format("{0:N1}%", gpu.Engines.VideoDecodePercent);
-                TxtGpuCopy.Text = string.Format("{0:N1}%", gpu.Engines.CopyPercent);
-                TxtGpuVram.Text = string.Format("{0:N0} MB / {1:N0} MB", gpu.DedicatedVramUsedMB, gpu.DedicatedVramTotalMB);
-                ProgressGpuVram.Value = gpu.DedicatedVramTotalMB > 0 ? Math.Min(100, (gpu.DedicatedVramUsedMB / gpu.DedicatedVramTotalMB) * 100.0) : 0;
-
-                // Widget GPU
-                TxtWidgetGpu.Text = string.Format("{0:N0}%", gpu.LoadPercent);
-                ProgressWidgetGpu.Value = Math.Max(0, Math.Min(100, gpu.LoadPercent));
-            }
-
-            // 3. NPU (AI)
-            if (npu != null && npu.IsPresent)
-            {
-                CardNpu.Visibility = Visibility.Visible;
-                TxtNpuVal.Text = string.Format("{0:N1}%", npu.LoadPercent);
-                ProgressNpu.Value = Math.Max(0, Math.Min(100, npu.LoadPercent));
-                TxtNpuStatusBadge.Text = npu.LoadPercent > 0.5 ? LocalizationManager.Get("NpuActiveBadge") : LocalizationManager.Get("NpuIdleBadge");
-                TxtNpuSub.Text = !string.IsNullOrEmpty(npu.Name) ? npu.Name : "Intel AI Boost";
-
-                // Accelerators Tab NPU
-                TxtNpuTabStatus.Text = string.Format("{0} ({1:N1}%)", npu.LoadPercent > 0.5 ? LocalizationManager.Get("NpuActiveBadge") : LocalizationManager.Get("NpuIdleBadge"), npu.LoadPercent);
-                TxtNpuTabName.Text = npu.Name;
-                TxtNpuTabLoad.Text = string.Format("{0:N1}%", npu.LoadPercent);
-                ProgressNpuTab.Value = Math.Max(0, Math.Min(100, npu.LoadPercent));
-            }
-            else
-            {
-                TxtNpuVal.Text = "0.0%";
-                ProgressNpu.Value = 0;
-                TxtNpuStatusBadge.Text = "N/A";
-                TxtNpuSub.Text = LocalizationManager.Get("NpuNotDetected");
-                TxtNpuTabStatus.Text = LocalizationManager.Get("NpuNotDetected");
-                TxtNpuTabLoad.Text = "0.0%";
-                ProgressNpuTab.Value = 0;
-            }
-
-            // 4. RAM
-            if (mem != null)
-            {
-                TxtRamVal.Text = string.Format("{0:N0}%", mem.LoadPercent);
-                ProgressRam.Value = Math.Max(0, Math.Min(100, mem.LoadPercent));
-                TxtRamTotalBadge.Text = string.Format("{0:N0} GB", mem.TotalGB);
-                TxtRamSub.Text = string.Format(LocalizationManager.Get("RamUsedLabel"), mem.UsedGB, mem.TotalGB);
-
-                // Widget RAM
-                TxtWidgetRam.Text = string.Format("{0:N0}%", mem.LoadPercent);
-                ProgressWidgetRam.Value = Math.Max(0, Math.Min(100, mem.LoadPercent));
-            }
-
-            // 5. DISK
-            if (disks != null && disks.Count > 0)
-            {
-                // Headline the drive under most pressure. Virtual mounts are excluded:
-                // their capacity mirrors the host volume, so they carry no real usage.
-                var primaryDisk = disks
-                    .Where(d => !d.IsVirtual)
-                    .OrderByDescending(d => d.PercentUsed)
-                    .FirstOrDefault();
-
-                if (primaryDisk != null)
-                {
-                    TxtDiskVal.Text = string.Format("{0:N0}%", primaryDisk.PercentUsed);
-                    ProgressDisk.Value = Math.Max(0, Math.Min(100, primaryDisk.PercentUsed));
-                    TxtDiskTotalBadge.Text = primaryDisk.Name;
-                    TxtDiskSub.Text = string.Format(LocalizationManager.Get("DiskFreeLabel"), primaryDisk.FreeGB);
-                }
-
-                ListDrivesFull.ItemsSource = disks;
-            }
-
-            // 6. NETWORK
-            if (net != null)
-            {
-                TxtNetVal.Text = net.DownloadDisplay;
-                TxtNetPingBadge.Text = net.PingDisplay;
-                TxtNetSub.Text = string.Format("↓ {0}  ↑ {1}", net.DownloadDisplay, net.UploadDisplay);
-
-                // Widget Net
+                // Update Widget UI
+                TxtWidgetCpu.Text = $"{cpu.LoadPercent:F0}%";
+                ProgressWidgetCpu.Value = cpu.LoadPercent;
+                TxtWidgetRam.Text = $"{mem.LoadPercent:F0}%";
+                ProgressWidgetRam.Value = mem.LoadPercent;
+                TxtWidgetGpu.Text = $"{gpu.LoadPercent:F0}%";
+                ProgressWidgetGpu.Value = gpu.LoadPercent;
                 TxtWidgetNet.Text = net.DownloadDisplay;
-                double netProgress = Math.Min(100, (net.DownloadSpeedKbps / 5000.0) * 100.0);
-                ProgressWidgetNet.Value = Math.Max(0, netProgress);
 
-                // Sparkline
-                _netHistory.Add(net.DownloadSpeedKbps);
-                if (_netHistory.Count > MaxHistoryPoints) _netHistory.RemoveAt(0);
-                double netPeak = _netHistory.Count > 0 ? _netHistory.Max() : 0.0;
-                TxtNetLivePeak.Text = string.Format("{0}: {1:N0} KB/s", LocalizationManager.Get("PeakLabel"), netPeak);
-                RenderSparkline(LineNetStroke, PolyNetArea, _netHistory, CanvasNetGraph, Math.Max(500.0, netPeak * 1.1), _netLinePoints, _netPolyPoints);
-            }
+                // Uptime
+                var hw = _hw.Sample();
+                TxtUptime.Text = $"Uptime: {hw.UptimeDisplay}";
 
-            // 7. HARDWARE OVERVIEW & TITLEBAR BADGE
-            if (hw != null)
-            {
-                TxtUptime.Text = string.Format("{0}: {1}", LocalizationManager.Get("UptimeLabel"), hw.UptimeDisplay);
-
-                if (TxtHwSummaryBadge != null)
-                {
-                    string cpuShort = !string.IsNullOrEmpty(hw.CpuModel) ? hw.CpuModel : "CPU";
-                    if (cpuShort.Length > 20) cpuShort = cpuShort.Substring(0, 18) + "..";
-                    TxtHwSummaryBadge.Text = string.Format("💻 {0} • {1:N0} GB", cpuShort, mem != null ? mem.TotalGB : 16.0);
-                }
-
-                if (BorderHwSummary != null)
-                {
-                    string activeScheme = "Balanced";
-                    PowerPlanManager.GetActiveScheme(out activeScheme);
-
-                    BorderHwSummary.ToolTip = string.Format(
-                        "🔧 Especificaciones del Equipo:\n• CPU: {0}\n• GPU: {1}\n• SO: {2}\n• RAM: {3:N1} GB\n• Alimentación: {4}\n• Plan Activo: {5}",
-                        hw.CpuModel,
-                        !string.IsNullOrEmpty(hw.GpuModel) ? hw.GpuModel : (gpu != null ? gpu.Name : "GPU"),
-                        hw.OsName,
-                        mem != null ? mem.TotalGB : 16.0,
-                        hw.PowerSource,
-                        activeScheme
-                    );
-                }
-            }
-
-            // 8. PROCESSES, SERVICES, TASKS, STARTUP (periodic)
-            if (procs != null)
-            {
-                ListProcesses.ItemsSource = procs;
-
-                // Inspect unresponsive processes for alert banner
-                var hungProcesses = procs.FindAll(p => !p.IsResponding);
-                if (hungProcesses.Count > 0)
-                {
-                    BorderUnresponsiveAlert.Visibility = Visibility.Visible;
-                    TxtUnresponsiveAlert.Text = string.Format(
-                        LocalizationManager.CurrentLanguage == "es" ? "⚠️ {0} Proceso Colgado" : "⚠️ {0} Hung Process",
-                        hungProcesses.Count
-                    );
-                }
-                else
-                {
-                    BorderUnresponsiveAlert.Visibility = Visibility.Collapsed;
-                }
-            }
-            if (svc != null && svc.CriticalServices != null)
-            {
-                ListServices.ItemsSource = svc.CriticalServices;
-            }
-            if (tasks != null)
-            {
-                ListTasks.ItemsSource = tasks;
-            }
-            if (startup != null)
-            {
-                ListStartup.ItemsSource = startup;
-            }
-        }
-
-        // =========================================================================
-        // TABBED NAVIGATION CONTROLLER
-        // =========================================================================
-
-        private void TabBtnProcesses_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewProcesses, TabBtnProcesses);
-        }
-
-        private void TabBtnAiAgents_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewAiAgents, TabBtnAiAgents);
-            RefreshAiAgentsManually();
-        }
-
-        private void TabBtnAccelerators_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewAccelerators, TabBtnAccelerators);
-        }
-
-        private void TabBtnServices_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewServices, TabBtnServices);
-        }
-
-        private void TabBtnTasks_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewTasks, TabBtnTasks);
-        }
-
-        private void TabBtnStartup_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewStartup, TabBtnStartup);
-        }
-
-        private void TabBtnDrives_Click(object sender, RoutedEventArgs e)
-        {
-            ShowTab(ViewDrives, TabBtnDrives);
-        }
-
-        private void ShowTab(Grid tabView, Button activeBtn)
-        {
-            if (ViewProcesses != null) ViewProcesses.Visibility = Visibility.Collapsed;
-            if (ViewAiAgents != null) ViewAiAgents.Visibility = Visibility.Collapsed;
-            if (ViewAccelerators != null) ViewAccelerators.Visibility = Visibility.Collapsed;
-            if (ViewServices != null) ViewServices.Visibility = Visibility.Collapsed;
-            if (ViewTasks != null) ViewTasks.Visibility = Visibility.Collapsed;
-            if (ViewStartup != null) ViewStartup.Visibility = Visibility.Collapsed;
-            if (ViewDrives != null) ViewDrives.Visibility = Visibility.Collapsed;
-
-            if (tabView != null) tabView.Visibility = Visibility.Visible;
-            UpdateActiveTabHighlight(activeBtn);
-        }
-
-        private void UpdateActiveTabHighlight(Button activeBtn)
-        {
-            var defaultStyle = (Style)FindResource("TabHeaderButtonStyle");
-            var activeStyle = (Style)FindResource("ActiveTabHeaderButtonStyle");
-
-            if (TabBtnProcesses != null) TabBtnProcesses.Style = defaultStyle;
-            if (TabBtnAiAgents != null) TabBtnAiAgents.Style = defaultStyle;
-            if (TabBtnAccelerators != null) TabBtnAccelerators.Style = defaultStyle;
-            if (TabBtnServices != null) TabBtnServices.Style = defaultStyle;
-            if (TabBtnTasks != null) TabBtnTasks.Style = defaultStyle;
-            if (TabBtnStartup != null) TabBtnStartup.Style = defaultStyle;
-            if (TabBtnDrives != null) TabBtnDrives.Style = defaultStyle;
-
-            if (activeBtn != null)
-            {
-                activeBtn.Style = activeStyle;
-            }
-        }
-
-        private void BtnRefreshAiAgents_Click(object sender, RoutedEventArgs e)
-        {
-            RefreshAiAgentsManually();
-        }
-
-        private void UpdateAiAgentsPanel(AiAgentMetric metric)
-        {
-            if (TxtAiSessionsCount != null) TxtAiSessionsCount.Text = metric.ActiveSessionsCount.ToString();
-            if (TxtAiMcpCount != null) TxtAiMcpCount.Text = metric.TotalMcpServersCount.ToString();
-            if (TxtAiTotalRam != null) TxtAiTotalRam.Text = metric.TotalAggregatedRamDisplay;
-            if (ListAiSessions != null) ListAiSessions.ItemsSource = metric.Sessions;
-            if (BorderNoAiAgents != null) BorderNoAiAgents.Visibility = metric.Sessions.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-
-            _currentOrphans = metric.OrphanProcesses;
-            bool hasOrphans = metric.OrphanCount > 0;
-            if (TxtAiOrphanCount != null) TxtAiOrphanCount.Text = metric.OrphanCount.ToString();
-            if (TxtAiOrphanRam != null) TxtAiOrphanRam.Text = metric.OrphanRamDisplay;
-            if (ListAiOrphans != null) ListAiOrphans.ItemsSource = metric.OrphanProcesses;
-            if (BorderOrphanBadge != null) BorderOrphanBadge.Visibility = hasOrphans ? Visibility.Visible : Visibility.Collapsed;
-            if (BorderOrphans != null) BorderOrphans.Visibility = hasOrphans ? Visibility.Visible : Visibility.Collapsed;
-
-            if (TabBtnAiAgents != null)
-            {
-                TabBtnAiAgents.Content = metric.ActiveSessionsCount > 0
-                    ? string.Format("\uE99A Agentes IA ({0})", metric.ActiveSessionsCount)
-                    : "\uE99A Agentes IA & MCP";
-            }
-        }
-
-        private async void RefreshAiAgentsManually()
-        {
-            try
-            {
-                var metric = await Task.Run(() => _aiAgents.Sample()).ConfigureAwait(true);
-                if (metric != null)
-                {
-                    UpdateAiAgentsPanel(metric);
-                }
-            }
-            catch { }
-        }
-
-        private void BtnAiAgentSuspendToggle_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var session = btn != null ? btn.Tag as AiAgentSession : null;
-            if (session == null) return;
-
-            bool isSuspended = ProcessManager.IsSuspended(session.ParentPid);
-            if (isSuspended)
-            {
-                ProcessManager.ResumeProcess(session.ParentPid);
-                foreach (var child in session.ChildPids)
-                {
-                    ProcessManager.ResumeProcess(child);
-                }
-                ShowToast("▶ Sesión reanudada: " + session.AgentName);
-            }
-            else
-            {
-                ProcessManager.SuspendProcess(session.ParentPid);
-                foreach (var child in session.ChildPids)
-                {
-                    ProcessManager.SuspendProcess(child);
-                }
-                ShowToast("⏸ Sesión pausada: " + session.AgentName);
-            }
-            RefreshAiAgentsManually();
-        }
-
-        private async void BtnAiAgentCloseGraceful_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var session = btn != null ? btn.Tag as AiAgentSession : null;
-            if (session == null) return;
-
-            await CloseOrKillProcessAsync(session.ParentPid, session.AgentProcessName, isAgentTree: true);
-            RefreshAiAgentsManually();
-        }
-
-        private void BtnAiAgentKillTree_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var session = btn != null ? btn.Tag as AiAgentSession : null;
-            if (session == null) return;
-
-            var result = MessageBox.Show(
-                string.Format("¿Deseas forzar la finalización de toda la sesión '{0}' (PID: {1}) y sus {2} subprocesos asociados ({3} servidores MCP) en orden topológico inverso?",
-                    session.AgentName, session.ParentPid, session.ChildProcessCount, session.McpServersCount),
-                "Terminar Árbol de Procesos",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning
-            );
-
-            if (result == MessageBoxResult.Yes)
-            {
-                string msg;
-                bool success = ProcessManager.TerminateProcessTree(session.ParentPid, true, out msg);
-                ShowToast(success ? "⚡ Árbol finalizado: " + session.AgentName : "Error al terminar árbol: " + msg);
-                RefreshAiAgentsManually();
-                RefreshProcessListManually();
-            }
-        }
-
-        private void BtnToggleAiSessionExpand_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var session = btn != null ? btn.Tag as AiAgentSession : null;
-            if (session == null) return;
-
-            AiAgentCollector.ToggleSessionExpanded(session.ParentPid);
-            RefreshAiAgentsManually();
-        }
-
-        private List<AiAgentMcpServer> _currentOrphans = new List<AiAgentMcpServer>();
-
-        private void BtnAiOrphanKill_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var orphan = btn != null ? btn.Tag as AiAgentMcpServer : null;
-            if (orphan == null) return;
-
-            var confirm = MessageBox.Show(
-                string.Format("¿Terminar '{0}' (PID: {1}) y todo su árbol de subprocesos?\n\nMotivo detectado: {2}\nActivo hace: {3} · RAM: {4}",
-                    orphan.ProcessName, orphan.Pid, orphan.OrphanReason, orphan.AgeDisplay, orphan.MemoryDisplay),
-                "Terminar Proceso Huérfano",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (confirm != MessageBoxResult.Yes) return;
-
-            string msg;
-            bool success = ProcessManager.TerminateProcessTree(orphan.Pid, true, out msg, orphan.StartTime);
-            ShowToast(success ? "🧟 Huérfano terminado: " + orphan.ProcessName : msg);
-            RefreshAiAgentsManually();
-            RefreshProcessListManually();
-        }
-
-        private void BtnCleanAllOrphans_Click(object sender, RoutedEventArgs e)
-        {
-            var orphans = _currentOrphans;
-            if (orphans == null || orphans.Count == 0) return;
-
-            double totalRam = orphans.Sum(o => o.WorkingSetMB);
-            var confirm = MessageBox.Show(
-                string.Format("¿Terminar los {0} procesos huérfanos listados y sus árboles de subprocesos?\n\nRAM a liberar: {1:N1} MB\n\nRevisa la lista antes de confirmar: un padre muerto también es normal en procesos legítimos lanzados desde una terminal ya cerrada.",
-                    orphans.Count, totalRam),
-                "Terminar Todos los Huérfanos",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (confirm != MessageBoxResult.Yes) return;
-
-            int terminated = 0;
-            foreach (var orphan in orphans)
-            {
-                string msg;
-                if (ProcessManager.TerminateProcessTree(orphan.Pid, true, out msg, orphan.StartTime))
-                {
-                    terminated++;
-                }
-            }
-
-            ShowToast(string.Format("🧟 {0} de {1} huérfanos terminados", terminated, orphans.Count));
-            RefreshAiAgentsManually();
-            RefreshProcessListManually();
-        }
-
-        private void BtnAiMcpSubprocessKill_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var mcp = btn != null ? btn.Tag as AiAgentMcpServer : null;
-            if (mcp == null) return;
-
-            string msg;
-            bool success = ProcessManager.TerminateProcess(mcp.Pid, mcp.ProcessName, out msg);
-            ShowToast(success ? "🔴 Subproceso MCP cerrado: " + mcp.ProcessName : msg);
-            RefreshAiAgentsManually();
-        }
-
-        // =========================================================================
-        // ZERO-ALLOCATION SPARKLINE GRAPH RENDERING
-        // =========================================================================
-
-        private void RenderSparkline(
-            Polyline line,
-            Polygon poly,
-            List<double> history,
-            Canvas canvas,
-            double maxVal,
-            PointCollection linePts,
-            PointCollection polyPts)
-        {
-            if (canvas == null || history == null || history.Count < 2) return;
-
-            double width = canvas.ActualWidth > 10 ? canvas.ActualWidth : canvas.Width;
-            double height = canvas.ActualHeight > 10 ? canvas.ActualHeight : canvas.Height;
-            if (double.IsNaN(width) || width <= 0) width = 340.0;
-            if (double.IsNaN(height) || height <= 0) height = 50.0;
-
-            int count = history.Count;
-            double stepX = width / Math.Max(1.0, count - 1);
-            double effectiveMax = Math.Max(1.0, maxVal);
-
-            linePts.Clear();
-            polyPts.Clear();
-
-            polyPts.Add(new Point(0, height));
-            for (int i = 0; i < count; i++)
-            {
-                double normalized = Math.Max(0.0, Math.Min(1.0, history[i] / effectiveMax));
-                double x = i * stepX;
-                double y = height - (normalized * (height - 8.0)) - 4.0;
-                var pt = new Point(Math.Round(x, 1), Math.Round(y, 1));
-                linePts.Add(pt);
-                polyPts.Add(pt);
-            }
-            polyPts.Add(new Point(width, height));
-
-            line.Points = linePts;
-            poly.Points = polyPts;
-        }
-
-        // =========================================================================
-        // VIEW MODE SWITCHER & DYNAMIC WINDOW SIZING
-        // =========================================================================
-
-        private void BtnToggleView_Click(object sender, RoutedEventArgs e)
-        {
-            MenuViewModes.PlacementTarget = BtnToggleView;
-            MenuViewModes.IsOpen = true;
-        }
-
-        private void MenuViewFull_Click(object sender, RoutedEventArgs e)
-        {
-            _config.ViewMode = "Full";
-            ApplyViewMode(_config.ViewMode);
-            ConfigManager.Save(_config);
-            ShowToast(LocalizationManager.Get("MenuFullDesc"));
-        }
-
-        private void MenuViewHero_Click(object sender, RoutedEventArgs e)
-        {
-            _config.ViewMode = "Hero";
-            ApplyViewMode(_config.ViewMode);
-            ConfigManager.Save(_config);
-            ShowToast(LocalizationManager.Get("MenuHeroDesc"));
-        }
-
-        private void MenuViewWidget_Click(object sender, RoutedEventArgs e)
-        {
-            _config.ViewMode = "Widget";
-            ApplyViewMode(_config.ViewMode);
-            ConfigManager.Save(_config);
-            ShowToast(LocalizationManager.Get("MenuWidgetDesc"));
-        }
-
-        private void Widget_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2 && e.ChangedButton == MouseButton.Left)
-            {
-                MenuViewFull_Click(sender, e);
-            }
-        }
-
-        private void MenuWidgetSnap_Click(object sender, RoutedEventArgs e)
-        {
-            WindowPlacementHelper.SnapToBottomRight(this);
-            ShowToast(LocalizationManager.Get("ToastWidgetDocked"));
-        }
-
-        private void ApplyViewMode(string mode)
-        {
-            if (WindowState == WindowState.Maximized && (mode == "Hero" || mode == "Widget"))
-            {
-                WindowState = WindowState.Normal;
-            }
-
-            if (mode == "Widget")
-            {
-                // Remember Full/Hero bounds before shrinking
-                if (ContainerMainView != null && ContainerMainView.Visibility == Visibility.Visible && Width > 460)
-                {
-                    _lastFullBounds = new Rect(Left, Top, Width, Height);
-                }
-
-                TxtViewMode.Text = LocalizationManager.Get("ViewWidget");
-
-                // 1. Relax minimum constraints first
-                MinWidth = 320;
-                MinHeight = 80;
-                MaxWidth = 460;
-                MaxHeight = 120;
-
-                // 2. Adjust visibility
-                ContainerMainView.Visibility = Visibility.Collapsed;
-                ContainerWidgetView.Visibility = Visibility.Visible;
-
-                // 3. Set exact physical dimensions
-                Width = 380;
-                Height = 88;
-                ResizeMode = ResizeMode.NoResize;
-
-                // 4. Snap to bottom-right of current screen
-                WindowPlacementHelper.SnapToBottomRight(this);
-            }
-            else if (mode == "Hero")
-            {
-                TxtViewMode.Text = LocalizationManager.Get("ViewHero");
-
-                // 1. Set constraints
-                MinWidth = 760;
-                MinHeight = 320;
-                MaxWidth = double.PositiveInfinity;
-                MaxHeight = double.PositiveInfinity;
-
-                // 2. Adjust visibility
-                ContainerMainView.Visibility = Visibility.Visible;
-                ContainerWidgetView.Visibility = Visibility.Collapsed;
-                ContainerRibbon.Visibility = Visibility.Visible;
-                ContainerHeroGrid.Visibility = Visibility.Visible;
-                ContainerLiveWaves.Visibility = Visibility.Visible;
-                ContainerDeepDive.Visibility = Visibility.Collapsed;
-                ContainerFooter.Visibility = Visibility.Collapsed;
-
-                // 3. Set exact physical dimensions and safe monitor clamp
-                WindowPlacementHelper.ClampWindowToMonitor(this, 840, 360, _lastFullBounds);
-                Width = 840;
-                Height = 360;
-                ResizeMode = ResizeMode.CanResize;
-            }
-            else
-            {
-                TxtViewMode.Text = LocalizationManager.Get("ViewFull");
-
-                // 1. Set constraints
-                MinWidth = 920;
-                MinHeight = 620;
-                MaxWidth = double.PositiveInfinity;
-                MaxHeight = double.PositiveInfinity;
-
-                // 2. Adjust visibility
-                ContainerMainView.Visibility = Visibility.Visible;
-                ContainerWidgetView.Visibility = Visibility.Collapsed;
-                ContainerRibbon.Visibility = Visibility.Visible;
-                ContainerHeroGrid.Visibility = Visibility.Visible;
-                ContainerLiveWaves.Visibility = Visibility.Visible;
-                ContainerDeepDive.Visibility = Visibility.Visible;
-                ContainerFooter.Visibility = Visibility.Visible;
-// 3. Set exact physical dimensions and safe monitor clamp
-                WindowPlacementHelper.ClampWindowToMonitor(this, 1040, 720, _lastFullBounds);
-                Width = 1040;
-                Height = 720;
-                ResizeMode = ResizeMode.CanResize;
-            }
-        }
-
-        // =========================================================================
-        // LANGUAGE LOCALIZATION CONTROLLER (ES / EN)
-        // =========================================================================
-
-        private void BtnToggleLang_Click(object sender, RoutedEventArgs e)
-        {
-            MenuLanguages.PlacementTarget = BtnToggleLang;
-            MenuLanguages.IsOpen = true;
-        }
-
-        private void MenuLangEs_Click(object sender, RoutedEventArgs e)
-        {
-            SetLanguage("es");
-        }
-
-        private void MenuLangEn_Click(object sender, RoutedEventArgs e)
-        {
-            SetLanguage("en");
-        }
-
-        private void SetLanguage(string lang)
-        {
-            _config.Language = lang;
-            ApplyLanguage(lang);
-            ConfigManager.Save(_config);
-            ShowToast(lang == "es" ? "Idioma: Español" : "Language: English");
-        }
-
-        private void ApplyLanguage(string lang)
-        {
-            if (string.IsNullOrEmpty(lang)) lang = "es";
-            _config.Language = lang;
-            LocalizationManager.CurrentLanguage = lang;
-
-            if (TxtCurrentLang != null) TxtCurrentLang.Text = lang.ToUpper();
-
-            // Ribbon & Actions
-            if (TxtBtnTurboMode != null) TxtBtnTurboMode.Text = LocalizationManager.Get("TurboMode", "Modo Turbo");
-            if (BtnTurboMode != null) BtnTurboMode.ToolTip = LocalizationManager.Get("TurboModeTooltip", "1-Clic: Activa Modo Turbo (Alto Rendimiento + Purga de RAM)");
-            if (TxtBtnOptimize != null) TxtBtnOptimize.Text = LocalizationManager.Get("TrimRam");
-            if (BtnOptimize != null) BtnOptimize.ToolTip = LocalizationManager.Get("TrimRamTooltip");
-            if (TxtBtnCleanTemp != null) TxtBtnCleanTemp.Text = LocalizationManager.Get("CleanDeep", "Limpieza Profunda");
-            if (BtnCleanTemp != null) BtnCleanTemp.ToolTip = LocalizationManager.Get("CleanDeepTooltip", "Limpieza profunda de temporales, Windows Update y caché de navegadores");
-            if (TxtBtnFlushDns != null) TxtBtnFlushDns.Text = LocalizationManager.Get("FlushDns", "Vaciar DNS");
-            if (BtnFlushDns != null) BtnFlushDns.ToolTip = LocalizationManager.Get("FlushDnsTooltip", "Vaciar la caché del servicio de resolución DNS de Windows");
-            if (TxtBtnSnapshot != null) TxtBtnSnapshot.Text = LocalizationManager.Get("Snapshot");
-            if (BtnSnapshotTop != null) BtnSnapshotTop.ToolTip = LocalizationManager.Get("SnapshotTooltip");
-
-            // Power Plans
-            if (BtnPlanSaver != null) { BtnPlanSaver.Content = LocalizationManager.Get("PowerPlanSaver"); BtnPlanSaver.ToolTip = LocalizationManager.Get("PowerPlanSaverTooltip"); }
-            if (BtnPlanBalanced != null) { BtnPlanBalanced.Content = LocalizationManager.Get("PowerPlanBalanced"); BtnPlanBalanced.ToolTip = LocalizationManager.Get("PowerPlanBalancedTooltip"); }
-            if (BtnPlanHighPerf != null) { BtnPlanHighPerf.Content = LocalizationManager.Get("PowerPlanHighPerf"); BtnPlanHighPerf.ToolTip = LocalizationManager.Get("PowerPlanHighPerfTooltip"); }
-
-            // Tools Menu
-            if (TxtBtnTools != null) TxtBtnTools.Text = LocalizationManager.Get("Tools") + " ▾";
-            if (BtnToolsMenu != null) BtnToolsMenu.ToolTip = LocalizationManager.Get("ToolsTooltip");
-            if (MenuToolsTaskMgr != null) MenuToolsTaskMgr.Header = LocalizationManager.Get("ToolTaskMgr");
-            if (MenuToolsResMon != null) MenuToolsResMon.Header = LocalizationManager.Get("ToolResMon");
-            if (MenuToolsStorageSense != null) MenuToolsStorageSense.Header = LocalizationManager.Get("ToolStorageSense");
-            if (MenuToolsServices != null) MenuToolsServices.Header = LocalizationManager.Get("ToolServices");
-
-            // View Modes
-            if (BtnToggleView != null) BtnToggleView.ToolTip = LocalizationManager.Get("ViewModeTooltip");
-            if (MenuViewFullItem != null) MenuViewFullItem.Header = LocalizationManager.Get("MenuFullDesc");
-            if (MenuViewHeroItem != null) MenuViewHeroItem.Header = LocalizationManager.Get("MenuHeroDesc");
-            if (MenuViewWidgetItem != null) MenuViewWidgetItem.Header = LocalizationManager.Get("MenuWidgetDesc");
-            if (TxtViewMode != null)
-            {
-                if (_config.ViewMode == "Widget") TxtViewMode.Text = LocalizationManager.Get("ViewWidget");
-                else if (_config.ViewMode == "Hero") TxtViewMode.Text = LocalizationManager.Get("ViewHero");
-                else TxtViewMode.Text = LocalizationManager.Get("ViewFull");
-            }
-
-            // Themes Menu
-            if (BtnToggleTheme != null) BtnToggleTheme.ToolTip = LocalizationManager.Get("ThemeTooltip");
-            if (MenuThemeDarkItem != null) MenuThemeDarkItem.Header = LocalizationManager.Get("ThemeDark");
-            if (MenuThemeLightItem != null) MenuThemeLightItem.Header = LocalizationManager.Get("ThemeLight");
-            if (MenuThemeNeonItem != null) MenuThemeNeonItem.Header = LocalizationManager.Get("ThemeNeon");
-            if (MenuThemeRoseItem != null) MenuThemeRoseItem.Header = LocalizationManager.Get("ThemeRose");
-
-            // Language, Interval & Pin
-            if (BtnToggleLang != null) BtnToggleLang.ToolTip = LocalizationManager.Get("LangTooltip");
-            if (BtnToggleInterval != null) BtnToggleInterval.ToolTip = LocalizationManager.Get("IntervalTooltip");
-            if (BtnPinTop != null) BtnPinTop.ToolTip = Topmost ? LocalizationManager.Get("Unpin") : LocalizationManager.Get("PinAlwaysOnTop");
-            if (BorderUptime != null) BorderUptime.ToolTip = LocalizationManager.Get("UptimeTooltip");
-
-            // Bento Cards
-            if (TxtCardCpuTitle != null) TxtCardCpuTitle.Text = LocalizationManager.Get("CardCpuTitle");
-            if (TxtCardGpuTitle != null) TxtCardGpuTitle.Text = LocalizationManager.Get("CardGpuTitle");
-            if (TxtCardNpuTitle != null) TxtCardNpuTitle.Text = LocalizationManager.Get("CardNpuTitle");
-            if (TxtCardRamTitle != null) TxtCardRamTitle.Text = LocalizationManager.Get("CardRamTitle");
-            if (TxtCardDiskTitle != null) TxtCardDiskTitle.Text = LocalizationManager.Get("CardDiskTitle");
-            if (TxtCardNetTitle != null) TxtCardNetTitle.Text = LocalizationManager.Get("CardNetTitle");
-
-            // Live Wave Sparklines
-            if (TxtWaveCpuTitle != null) TxtWaveCpuTitle.Text = LocalizationManager.Get("WaveCpuTitle");
-            if (TxtWaveNetTitle != null) TxtWaveNetTitle.Text = LocalizationManager.Get("WaveNetTitle");
-
-            // Deep Dive Tabs
-            if (TabBtnProcesses != null) TabBtnProcesses.Content = LocalizationManager.Get("TabProcesses");
-            if (TabBtnAccelerators != null) TabBtnAccelerators.Content = LocalizationManager.Get("TabAccelerators");
-            if (TabBtnServices != null) TabBtnServices.Content = LocalizationManager.Get("TabServices");
-            if (TabBtnTasks != null) TabBtnTasks.Content = LocalizationManager.Get("TabTasks");
-            if (TabBtnStartup != null) TabBtnStartup.Content = LocalizationManager.Get("TabStartup");
-            if (TabBtnDrives != null) TabBtnDrives.Content = LocalizationManager.Get("TabDrives", "💾 Discos & Almacenamiento");
-
-            // Storage Analyzer
-            if (TxtStorageScanTitle != null) TxtStorageScanTitle.Text = LocalizationManager.Get("StorageScanTitle");
-            if (TxtStorageBloatTitle != null) TxtStorageBloatTitle.Text = LocalizationManager.Get("StorageBloatTitle");
-            if (BtnStorageScan != null && _storageScanCts == null) BtnStorageScan.Content = LocalizationManager.Get("StorageScanButton");
-            if (TxtStorageScanRoot != null && string.IsNullOrEmpty(TxtStorageScanRoot.Text)) TxtStorageScanRoot.Text = GetStorageScanRoot();
-
-            // Table & Column Headers
-            if (TxtColPid != null) TxtColPid.Text = LocalizationManager.Get("ColPid", "PID");
-            if (TxtColApp != null) TxtColApp.Text = LocalizationManager.Get("ColApp", "APLICACIÓN");
-            if (TxtColCpu != null) TxtColCpu.Text = LocalizationManager.Get("ColCpuPercent", "CPU %");
-            if (TxtColWorkingSet != null) TxtColWorkingSet.Text = LocalizationManager.Get("ColWorkingSet", "MEMORIA");
-            if (TxtColRamPercent != null) TxtColRamPercent.Text = LocalizationManager.Get("ColRamPercent", "% RAM");
-            if (TxtColState != null) TxtColState.Text = LocalizationManager.Get("ColStatus", "ESTADO");
-            if (TxtColActions != null) TxtColActions.Text = LocalizationManager.Get("ColActions", "ACCIONES");
-
-            if (BtnSortCpu != null) BtnSortCpu.Content = LocalizationManager.Get("SortByCpu", "⚡ CPU %");
-            if (BtnSortRam != null) BtnSortRam.Content = LocalizationManager.Get("SortByRam", "🧠 RAM MB");
-            if (BtnResumeAll != null) BtnResumeAll.Content = LocalizationManager.Get("ResumeAll", "▶ Reanudar Todos");
-            if (TxtSearchPlaceholder != null) TxtSearchPlaceholder.Text = LocalizationManager.Get("SearchProcesses", "🔍 Buscar proceso por nombre o PID...");
-
-            if (TxtColServiceName != null) TxtColServiceName.Text = LocalizationManager.Get("ColServiceName", "SERVICIO DE WINDOWS");
-            if (TxtColServiceStatus != null) TxtColServiceStatus.Text = LocalizationManager.Get("ColServiceStatus", "ESTADO");
-
-            if (TxtColTaskName != null) TxtColTaskName.Text = LocalizationManager.Get("ColTaskName", "TAREA PROGRAMADA");
-            if (TxtColTaskState != null) TxtColTaskState.Text = LocalizationManager.Get("ColTaskState", "ESTADO");
-
-            if (TxtColStartupApp != null) TxtColStartupApp.Text = LocalizationManager.Get("ColStartupApp", "APLICACIÓN / PROGRAMA");
-            if (TxtColStartupLocation != null) TxtColStartupLocation.Text = LocalizationManager.Get("ColStartupLocation", "ORIGEN");
-            if (TxtColStartupStatus != null) TxtColStartupStatus.Text = LocalizationManager.Get("ColStartupStatus", "ESTADO");
-            if (TxtColStartupActions != null) TxtColStartupActions.Text = LocalizationManager.Get("ColStartupActions", "ACCIONES");
-
-            // Accelerators Tab
-            if (TxtGpuDeckTitle != null) TxtGpuDeckTitle.Text = LocalizationManager.Get("GpuDeckTitle");
-            if (TxtGpu3DTitle != null) TxtGpu3DTitle.Text = LocalizationManager.Get("Gpu3DRendering");
-            if (TxtGpuComputeTitle != null) TxtGpuComputeTitle.Text = LocalizationManager.Get("GpuComputeML");
-            if (TxtGpuVideoTitle != null) TxtGpuVideoTitle.Text = LocalizationManager.Get("GpuVideoDecode");
-            if (TxtGpuCopyTitle != null) TxtGpuCopyTitle.Text = LocalizationManager.Get("GpuCopyEngine");
-            if (TxtGpuVramTitle != null) TxtGpuVramTitle.Text = LocalizationManager.Get("GpuVramTitle");
-            if (TxtNpuDeckTitle != null) TxtNpuDeckTitle.Text = LocalizationManager.Get("NpuDeckTitle");
-            if (TxtNpuDeckDesc != null) TxtNpuDeckDesc.Text = LocalizationManager.Get("NpuDeckDesc");
-            if (TxtNpuComputeTitle != null) TxtNpuComputeTitle.Text = LocalizationManager.Get("NpuComputeUtilization");
-
-            // Widget View
-            if (MenuWidgetRestore != null) MenuWidgetRestore.Header = LocalizationManager.Get("WidgetRestore");
-            if (MenuWidgetHero != null) MenuWidgetHero.Header = LocalizationManager.Get("WidgetSwitchHero");
-            if (MenuWidgetSnap != null) MenuWidgetSnap.Header = LocalizationManager.Get("WidgetSnapBottomRight");
-            if (MenuWidgetPin != null) MenuWidgetPin.Header = LocalizationManager.Get("WidgetPinAlways");
-            if (MenuWidgetClose != null) MenuWidgetClose.Header = LocalizationManager.Get("WidgetClose");
-            if (ContainerWidgetView != null) ContainerWidgetView.ToolTip = LocalizationManager.Get("WidgetTooltip");
-            if (BtnWidgetExpand != null) BtnWidgetExpand.ToolTip = LocalizationManager.Get("WidgetRestore");
-            if (BtnWidgetPin != null) BtnWidgetPin.ToolTip = LocalizationManager.Get("PinAlwaysOnTop");
-            if (BtnWidgetClose != null) BtnWidgetClose.ToolTip = LocalizationManager.Get("Close");
-        }
-
-        // =========================================================================
-        // INTERACTIVE BENTO CARD CLICKS
-        // =========================================================================
-
-        private void ApplySortAndToast(bool sortByCpu, string toastMessage)
-        {
-            _sortByCpu = sortByCpu;
-            UpdateSortButtonsHighlight();
-            ApplyProcessSortingFast();
-            ShowToast(toastMessage);
-        }
-
-        private void CardCpu_Click(object sender, MouseButtonEventArgs e)
-        {
-            ShowTab(ViewProcesses, TabBtnProcesses);
-            ApplySortAndToast(true, "⚡ Filtrando procesos por mayor uso de CPU");
-        }
-
-        private void CardGpu_Click(object sender, MouseButtonEventArgs e)
-        {
-            ShowTab(ViewAccelerators, TabBtnAccelerators);
-            ShowToast("⚡ Panel de Aceleradores Gráficos y Motores 3D");
-        }
-
-        private void CardNpu_Click(object sender, MouseButtonEventArgs e)
-        {
-            ShowTab(ViewAccelerators, TabBtnAccelerators);
-            ShowToast("⚡ Diagnóstico del Motor Neural de IA (NPU)");
-        }
-
-        private void CardRam_Click(object sender, MouseButtonEventArgs e)
-        {
-            ShowTab(ViewProcesses, TabBtnProcesses);
-            ApplySortAndToast(false, "🧠 Filtrando procesos por mayor uso de memoria RAM");
-        }
-
-        private void CardDisk_Click(object sender, MouseButtonEventArgs e)
-        {
-            ShowTab(ViewDrives, TabBtnDrives);
-            ShowToast("💾 Unidades de Almacenamiento y Limpieza");
-        }
-
-        private void CardNet_Click(object sender, MouseButtonEventArgs e)
-        {
-            ShowToast(string.Format("🌐 Red: Ping {0} | Descarga: {1}", _lastNet != null ? _lastNet.PingDisplay : "--", _lastNet != null ? _lastNet.DownloadDisplay : "--"));
-        }
-
-        // =========================================================================
-        // QUICK ACTIONS (TURBO, FLUSH DNS, TRIM RAM, CLEAN TEMP, SNAPSHOT)
-        // =========================================================================
-
-        private void BtnTurboMode_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                // 1. Switch to High Performance power scheme
-                PowerPlanManager.SetScheme(PowerSchemeMode.HighPerformance);
-                UpdatePowerButtonsHighlight("High Performance");
-
-                // 2. Trim memory working sets
-                int trimmedCount;
-                double freedMB = MemoryOptimizer.OptimizeWorkingSet(out trimmedCount);
-
-                ShowToast(string.Format("🚀 Modo Turbo Activado! (Alto Rendimiento + {0:N0} MB RAM liberada en {1} apps)", freedMB, trimmedCount));
+                _trayManager.UpdateTooltip($"System Core Monitor\nCPU: {cpu.LoadPercent:F0}% | RAM: {mem.LoadPercent:F0}% | GPU: {gpu.LoadPercent:F0}%");
             }
             catch (Exception ex)
             {
-                ShowToast("Error en Modo Turbo: " + ex.Message);
+                CrashLogger.LogException("MainWindow.SampleTelemetryTickAsync", ex, false);
             }
-        }
-
-        private void BtnFlushDns_Click(object sender, RoutedEventArgs e)
-        {
-            try
+            finally
             {
-                bool ok = NetworkCollector.FlushDnsCache();
-                if (ok)
-                {
-                    ShowToast(LocalizationManager.Get("ToastDnsFlushed", "🌐 Caché de resolución DNS de Windows vaciada exitosamente!"));
-                }
-                else
-                {
-                    ShowToast("Error al vaciar DNS");
-                }
+                _isSampling = false;
             }
-            catch (Exception ex)
+        }
+
+        public void ShowToast(string message)
+        {
+            Dispatcher.Invoke(() =>
             {
-                ShowToast("Error al vaciar DNS: " + ex.Message);
-            }
+                TxtStatusNotification.Text = $"ℹ️ {message}";
+            });
         }
 
-        private async void BtnRescueUnresponsive_Click(object sender, RoutedEventArgs e)
-        {
-            if (_lastProcs == null) return;
-            var hung = _lastProcs.FindAll(p => !p.IsResponding);
-            if (hung.Count == 0)
-            {
-                BorderUnresponsiveAlert.Visibility = Visibility.Collapsed;
-                ShowToast("Todos los procesos están respondiendo normalmente.");
-                return;
-            }
-
-            var hungProc = hung[0];
-            var result = MessageBox.Show(
-                string.Format("El proceso '{0}' (PID: {1}) no responde a eventos del sistema operativo.\n\n¿Deseas forzar su cierre de forma segura?", hungProc.Name, hungProc.Id),
-                "Rescatar Proceso Colgado",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning
-            );
-
-            if (result == MessageBoxResult.Yes)
-            {
-                await CloseOrKillProcessAsync(hungProc.Id, hungProc.Name);
-            }
-        }
-
-        private void BtnOptimize_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                int trimmedCount;
-                double freedMB = MemoryOptimizer.OptimizeWorkingSet(out trimmedCount);
-                ShowToast(string.Format("⚡ RAM Optimizada! ({0:N0} MB liberados en {1} procesos)", freedMB, trimmedCount));
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error trimming RAM: " + ex.Message);
-            }
-        }
-
-        private async void BtnCleanTemp_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                ShowToast("🧹 Ejecutando limpieza profunda de temporales y cachés...");
-                var res = await Task.Run(() => SafeTempCleaner.CleanDeepStorage());
-
-                string msg = string.Format(
-                    "🧹 Limpieza Completada: {0} ({1} archivos eliminados)",
-                    res.HumanSize,
-                    res.FilesDeleted
-                );
-                if (res.SkippedReasons.Count > 0)
-                {
-                    msg += string.Format(" • {0} bloqueados protegidos", res.SkippedReasons.Count);
-                }
-                ShowToast(msg);
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error en limpieza profunda: " + ex.Message);
-            }
-        }
-
-        private void BtnSnapshot_Click(object sender, RoutedEventArgs e)
-        {
-            bool ok = SnapshotExporter.CopySnapshotToClipboard(
-                _lastCpu,
-                _lastGpu,
-                _lastNpu,
-                _lastMem,
-                _lastDisks,
-                _lastNet,
-                _lastHw,
-                _lastProcs,
-                _lastSvc
-            );
-
-            if (ok)
-            {
-                ShowToast("📸 Snapshot de diagnóstico copiado al portapapeles en Markdown!");
-            }
-            else
-            {
-                ShowToast("Failed to copy snapshot");
-            }
-        }
-
-        private void ShowToast(string message)
-        {
-            if (TxtStatusNotification != null)
-            {
-                TxtStatusNotification.Text = message;
-                TxtStatusNotification.Foreground = (Brush)FindResource("AccentCpu");
-            }
-
-            if (_toastTimer == null)
-            {
-                _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                _toastTimer.Tick += (s, ev) =>
-                {
-                    _toastTimer.Stop();
-                    if (TxtStatusNotification != null)
-                    {
-                        TxtStatusNotification.Text = "⚡ Telemetría Win32 Activa • 0% CPU Overhead";
-                        TxtStatusNotification.Foreground = (Brush)FindResource("TextSecondary");
-                    }
-                };
-            }
-            _toastTimer.Stop();
-            _toastTimer.Start();
-        }
-
-        // =========================================================================
-        // POWER PLAN CONTROLLER
-        // =========================================================================
-
-        private void BtnPlanSaver_Click(object sender, RoutedEventArgs e)
-        {
-            SetPowerPlan(PowerSchemeMode.PowerSaver, "Power Saver");
-        }
-
-        private void BtnPlanBalanced_Click(object sender, RoutedEventArgs e)
-        {
-            SetPowerPlan(PowerSchemeMode.Balanced, "Balanced");
-        }
-
-        private void BtnPlanHighPerf_Click(object sender, RoutedEventArgs e)
-        {
-            SetPowerPlan(PowerSchemeMode.HighPerformance, "High Performance");
-        }
-
-        private void SetPowerPlan(PowerSchemeMode mode, string name)
-        {
-            try
-            {
-                if (PowerPlanManager.SetScheme(mode))
-                {
-                    UpdatePowerButtonsHighlight(name);
-                    ShowToast("⚡ Plan de Energía: " + name);
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error switching plan: " + ex.Message);
-            }
-        }
-
-        private void UpdatePowerButtonsHighlight(string scheme)
-        {
-            var activeBrush = (Brush)FindResource("BgControlActive");
-            var normalBrush = Brushes.Transparent;
-
-            BtnPlanSaver.Background = scheme.IndexOf("Saver", StringComparison.OrdinalIgnoreCase) >= 0 ? activeBrush : normalBrush;
-            BtnPlanBalanced.Background = scheme.IndexOf("Balanced", StringComparison.OrdinalIgnoreCase) >= 0 ? activeBrush : normalBrush;
-            BtnPlanHighPerf.Background = (scheme.IndexOf("High", StringComparison.OrdinalIgnoreCase) >= 0 || scheme.IndexOf("Ultimate", StringComparison.OrdinalIgnoreCase) >= 0) ? activeBrush : normalBrush;
-        }
-
-        // =========================================================================
-        // TOOLS & UTILITY LAUNCHERS
-        // =========================================================================
-
-        private void BtnToolsMenu_Click(object sender, RoutedEventArgs e)
-        {
-            MenuWindowsTools.PlacementTarget = BtnToolsMenu;
-            MenuWindowsTools.IsOpen = true;
-        }
-
-        private void BtnTaskMgr_Click(object sender, RoutedEventArgs e)
-        {
-            ToolLauncher.StartTaskManager();
-        }
-
-        private void BtnResMon_Click(object sender, RoutedEventArgs e)
-        {
-            ToolLauncher.StartResourceMonitor();
-        }
-
-        private void BtnPCMgr_Click(object sender, RoutedEventArgs e)
-        {
-            ToolLauncher.StartPCManager();
-        }
-
-        private void MenuOpenServices_Click(object sender, RoutedEventArgs e)
-        {
-            ToolLauncher.StartServicesConsole();
-        }
-
-        // =========================================================================
-        // THEME CONTROLLER (DARK / LIGHT / NEON / ROSE)
-        // =========================================================================
-
-        private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
-        {
-            MenuThemes.PlacementTarget = BtnToggleTheme;
-            MenuThemes.IsOpen = true;
-        }
-
-        private void MenuThemeDark_Click(object sender, RoutedEventArgs e)
-        {
-            SetTheme("Dark");
-        }
-
-        private void MenuThemeLight_Click(object sender, RoutedEventArgs e)
-        {
-            SetTheme("Light");
-        }
-
-        private void MenuThemeNeon_Click(object sender, RoutedEventArgs e)
-        {
-            SetTheme("Neon");
-        }
-
-        private void MenuThemeRose_Click(object sender, RoutedEventArgs e)
-        {
-            SetTheme("Rose");
-        }
-
-        private void SetTheme(string themeName)
-        {
-            _config.Theme = themeName;
-            ApplyTheme(themeName);
-            ConfigManager.Save(_config);
-            ShowToast("🎨 Tema: " + themeName);
-        }
-
-        private void ApplyTheme(string themeName)
-        {
-            try
-            {
-                App.SetTheme(themeName);
-                if (TxtCurrentTheme != null)
-                {
-                    TxtCurrentTheme.Text = themeName;
-                }
-                UpdateSortButtonsHighlight();
-            }
-            catch { }
-        }
-
-        private void BtnToggleInterval_Click(object sender, RoutedEventArgs e)
-        {
-            _config.RefreshIntervalSeconds = _config.RefreshIntervalSeconds == 3 ? 5 : 3;
-            TxtInterval.Text = string.Format("{0}s", _config.RefreshIntervalSeconds);
-            ConfigManager.Save(_config);
-            ShowToast(string.Format("Interval: {0}s", _config.RefreshIntervalSeconds));
-        }
-
-        // =========================================================================
-        // WINDOW CAPTION CONTROLS & PINNING
-        // =========================================================================
+        #region Window Caption Controls & View Modes
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
             {
-                e.Handled = true;
                 BtnMaximize_Click(sender, e);
-                return;
             }
-
-            if (e.ButtonState == MouseButtonState.Pressed)
+            else
             {
-                try { DragMove(); } catch { }
+                DragMove();
             }
         }
 
-        private void BtnPinTop_Click(object sender, RoutedEventArgs e)
+        private void Widget_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Topmost = !Topmost;
-            _config.AlwaysOnTop = Topmost;
-            ConfigManager.Save(_config);
-
-            var pinBrush = Topmost ? (Brush)FindResource("AccentCpu") : (Brush)FindResource("TextMuted");
-            PathPin.Fill = pinBrush;
-            PathWidgetPin.Fill = pinBrush;
-
-            ShowToast(Topmost ? LocalizationManager.Get("ToastPinned") : LocalizationManager.Get("ToastUnpinned"));
+            if (e.ClickCount == 2)
+            {
+                MenuViewFull_Click(sender, e);
+            }
         }
 
         private void BtnMinimize_Click(object sender, RoutedEventArgs e)
         {
             if (_config.MinimizeToTray)
             {
-                HideToTray();
+                Hide();
             }
             else
             {
@@ -1632,953 +249,107 @@ namespace SystemCoreMonitor.UI
 
         private void BtnMaximize_Click(object sender, RoutedEventArgs e)
         {
-            if (WindowState == WindowState.Maximized)
-            {
-                WindowState = WindowState.Normal;
-            }
-            else
-            {
-                WindowState = WindowState.Maximized;
-            }
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            if (_config.CloseToTray && !_isExiting)
+            if (_config.CloseToTray)
             {
-                HideToTray();
+                Hide();
             }
             else
             {
-                _isExiting = true;
+                _isClosing = true;
                 Close();
             }
         }
 
-        // =========================================================================
-        // TRAY & SETTINGS MANAGEMENT
-        // =========================================================================
-
-        private void HideToTray()
+        private void BtnPinTop_Click(object sender, RoutedEventArgs e)
         {
-            _isTrayMode = true;
-            Hide();
-            _trayManager.ShowBalloon("Simple PC Monitor", "Ejecutándose en segundo plano en la bandeja del sistema.", 2000);
+            _isPinnedTop = !_isPinnedTop;
+            Topmost = _isPinnedTop;
+            ShowToast(_isPinnedTop ? "Ventana fijada al frente" : "Ventana desfijada");
         }
 
-        private void RestoreFromTray()
+        public void MenuViewFull_Click(object sender, RoutedEventArgs e)
         {
-            _isTrayMode = false;
-            Show();
-            WindowState = _lastWindowState == WindowState.Minimized ? WindowState.Normal : _lastWindowState;
-            Activate();
+            ContainerMainView.Visibility = Visibility.Visible;
+            ContainerWidgetView.Visibility = Visibility.Collapsed;
+            Width = 1200;
+            Height = 760;
+            MinWidth = 960;
+            MinHeight = 600;
         }
 
-        private void OpenTrayContextMenu(IntPtr hwnd)
+        public void MenuViewHero_Click(object sender, RoutedEventArgs e)
         {
-            var menu = FindResource("TrayContextMenu") as ContextMenu;
-            if (menu != null)
-            {
-                NativeMethods.SetForegroundWindow(hwnd);
-                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-                menu.IsOpen = true;
-            }
+            MenuViewFull_Click(sender, e);
+            _viewModel.NavigateTo(typeof(DashboardViewModel));
+            Width = 1000;
+            Height = 520;
         }
+
+        public void MenuViewWidget_Click(object sender, RoutedEventArgs e)
+        {
+            ContainerMainView.Visibility = Visibility.Collapsed;
+            ContainerWidgetView.Visibility = Visibility.Visible;
+            Width = 340;
+            Height = 90;
+            MinWidth = 280;
+            MinHeight = 70;
+        }
+
+        private void MenuWidgetSnap_Click(object sender, RoutedEventArgs e)
+        {
+            var workArea = SystemParameters.WorkArea;
+            Left = workArea.Right - Width - 20;
+            Top = workArea.Bottom - Height - 20;
+        }
+
+        #endregion
+
+        #region Tray Context Menu Handlers
 
         private void TrayMenuRestore_Click(object sender, RoutedEventArgs e)
         {
-            RestoreFromTray();
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
         }
+
+        private void BtnPlanSaver_Click(object sender, RoutedEventArgs e) => PowerPlanManager.SetScheme(PowerSchemeMode.PowerSaver);
+        private void BtnPlanBalanced_Click(object sender, RoutedEventArgs e) => PowerPlanManager.SetScheme(PowerSchemeMode.Balanced);
+        private void BtnPlanHighPerf_Click(object sender, RoutedEventArgs e) => PowerPlanManager.SetScheme(PowerSchemeMode.HighPerformance);
+        private void BtnOptimize_Click(object sender, RoutedEventArgs e) => Task.Run(() => MemoryOptimizer.OptimizeWorkingSet(out _));
+        private void BtnCleanTemp_Click(object sender, RoutedEventArgs e) => Task.Run(() => SafeTempCleaner.CleanDeepStorage(false));
+        private void TrayMenuMinToTray_Click(object sender, RoutedEventArgs e) => _config.MinimizeToTray = !_config.MinimizeToTray;
+        private void TrayMenuCloseToTray_Click(object sender, RoutedEventArgs e) => _config.CloseToTray = !_config.CloseToTray;
+        private void TrayMenuRunAtStartup_Click(object sender, RoutedEventArgs e) => _config.RunAtStartup = !_config.RunAtStartup;
+        private void BtnTaskMgr_Click(object sender, RoutedEventArgs e) => ToolLauncher.StartTaskManager();
+        private void BtnResMon_Click(object sender, RoutedEventArgs e) => ToolLauncher.StartResourceMonitor();
+        private void MenuOpenServices_Click(object sender, RoutedEventArgs e) => ToolLauncher.StartServicesConsole();
 
         private void TrayMenuExit_Click(object sender, RoutedEventArgs e)
         {
-            _isExiting = true;
+            _isClosing = true;
             Close();
         }
 
-        private void TrayMenuMinToTray_Click(object sender, RoutedEventArgs e)
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            var mi = sender as MenuItem;
-            if (mi != null)
+            if (!_isClosing && _config.CloseToTray)
             {
-                _config.MinimizeToTray = mi.IsChecked;
-                ConfigManager.Save(_config);
-                UpdateSettingsMenuItemsState();
-                ShowToast(mi.IsChecked ? "Minimizar a la bandeja activado" : "Minimizar a la bandeja desactivado");
-            }
-        }
-
-        private void TrayMenuCloseToTray_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            if (mi != null)
-            {
-                _config.CloseToTray = mi.IsChecked;
-                ConfigManager.Save(_config);
-                UpdateSettingsMenuItemsState();
-                ShowToast(mi.IsChecked ? "Cerrar a la bandeja activado" : "Cerrar a la bandeja desactivado");
-            }
-        }
-
-        private void TrayMenuRunAtStartup_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            if (mi != null)
-            {
-                bool newState = mi.IsChecked;
-                StartupHelper.SetRunAtStartup(newState, true);
-                _config.RunAtStartup = newState;
-                ConfigManager.Save(_config);
-                UpdateSettingsMenuItemsState();
-                ShowToast(newState ? "🚀 Inicio con Windows activado" : "Inicio automático desactivado");
-            }
-        }
-
-        private void BtnSettingsMenu_Click(object sender, RoutedEventArgs e)
-        {
-            UpdateSettingsMenuItemsState();
-            MenuAppSettings.PlacementTarget = BtnSettingsMenu;
-            MenuAppSettings.IsOpen = true;
-        }
-
-        private void UpdateSettingsMenuItemsState()
-        {
-            if (MenuSettingMinToTray != null) MenuSettingMinToTray.IsChecked = _config.MinimizeToTray;
-            if (MenuSettingCloseToTray != null) MenuSettingCloseToTray.IsChecked = _config.CloseToTray;
-            if (MenuSettingStartup != null) MenuSettingStartup.IsChecked = StartupHelper.IsRunAtStartupEnabled();
-            if (MenuSettingAlwaysOnTop != null) MenuSettingAlwaysOnTop.IsChecked = Topmost;
-        }
-
-        // =========================================================================
-        // PROCESS SEARCH, SORTING & ACTION CONTROLLERS
-        // =========================================================================
-
-        private void TxtSearchProcess_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            _procSearchQuery = TxtSearchProcess.Text != null ? TxtSearchProcess.Text.Trim() : string.Empty;
-            if (TxtSearchPlaceholder != null)
-            {
-                TxtSearchPlaceholder.Visibility = string.IsNullOrEmpty(_procSearchQuery) ? Visibility.Visible : Visibility.Collapsed;
-            }
-
-            if (_searchDebounceTimer != null)
-            {
-                _searchDebounceTimer.Stop();
-                _searchDebounceTimer.Start();
-            }
-        }
-
-        private void BtnSortCpu_Click(object sender, RoutedEventArgs e)
-        {
-            ApplySortAndToast(true, "⚡ Ordenado por mayor uso de CPU");
-        }
-
-        private void BtnSortRam_Click(object sender, RoutedEventArgs e)
-        {
-            ApplySortAndToast(false, "🧠 Ordenado por mayor uso de RAM");
-        }
-
-        private void UpdateSortButtonsHighlight()
-        {
-            try
-            {
-                var activeStyle = TryFindResource("ActivePillActionButtonStyle") as Style;
-                var defaultStyle = TryFindResource("PillActionButtonStyle") as Style;
-
-                if (BtnSortCpu != null) BtnSortCpu.Style = _sortByCpu ? (activeStyle ?? defaultStyle) : defaultStyle;
-                if (BtnSortRam != null) BtnSortRam.Style = !_sortByCpu ? (activeStyle ?? defaultStyle) : defaultStyle;
-            }
-            catch { }
-        }
-
-        private void ApplyProcessSortingFast()
-        {
-            try
-            {
-                if (_lastProcs == null || _lastProcs.Count == 0)
-                {
-                    RefreshProcessListManually();
-                    return;
-                }
-
-                var query = _lastProcs.AsEnumerable();
-                if (!string.IsNullOrEmpty(_procSearchQuery))
-                {
-                    query = query.Where(x =>
-                        x.Name.IndexOf(_procSearchQuery, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        (x.FriendlyName != null && x.FriendlyName.IndexOf(_procSearchQuery, StringComparison.OrdinalIgnoreCase) >= 0) ||
-                        x.Id.ToString().Contains(_procSearchQuery)
-                    );
-                }
-
-                var sorted = _sortByCpu
-                    ? query.OrderByDescending(x => x.CpuPercent).ThenByDescending(x => x.MemoryMB).ToList()
-                    : query.OrderByDescending(x => x.MemoryMB).ThenByDescending(x => x.CpuPercent).ToList();
-
-                ListProcesses.ItemsSource = sorted;
-            }
-            catch
-            {
-                RefreshProcessListManually();
-            }
-        }
-
-        private void RefreshProcessListManually()
-        {
-            try
-            {
-                var procs = _proc.Sample(15, _lastMem != null ? _lastMem.TotalGB : 16.0, _sortByCpu, _procSearchQuery);
-                _lastProcs = procs;
-                ListProcesses.ItemsSource = procs;
-            }
-            catch { }
-        }
-
-        private void BtnResumeAll_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                int count = ProcessManager.ResumeAllSuspended();
-                ShowToast(string.Format("▶ Se reanudaron {0} procesos suspendidos", count));
-                RefreshProcessListManually();
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error al reanudar procesos: " + ex.Message);
-            }
-        }
-
-        private void BtnProcessSuspendToggle_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var proc = btn != null ? btn.Tag as ProcessMetric : null;
-            if (proc == null) return;
-
-            if (ProcessManager.IsSuspended(proc.Id))
-            {
-                bool ok = ProcessManager.ResumeProcess(proc.Id);
-                ShowToast(ok ? string.Format("▶ Reanudado: {0}", proc.Name) : "No se pudo reanudar");
-            }
-            else
-            {
-                bool ok = ProcessManager.SuspendProcess(proc.Id);
-                ShowToast(ok ? string.Format("⏸ Suspendido: {0}", proc.Name) : "No se puede suspender este proceso del sistema");
-            }
-            RefreshProcessListManually();
-        }
-
-        private void MenuProcessSuspend_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var proc = mi != null ? mi.Tag as ProcessMetric : null;
-            if (proc != null)
-            {
-                bool ok = ProcessManager.SuspendProcess(proc.Id);
-                ShowToast(ok ? string.Format("⏸ Suspendido: {0}", proc.Name) : "No se puede suspender este proceso protegido");
-                RefreshProcessListManually();
-            }
-        }
-
-        private void MenuProcessResume_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var proc = mi != null ? mi.Tag as ProcessMetric : null;
-            if (proc != null)
-            {
-                bool ok = ProcessManager.ResumeProcess(proc.Id);
-                ShowToast(ok ? string.Format("▶ Reanudado: {0}", proc.Name) : "No se pudo reanudar");
-                RefreshProcessListManually();
-            }
-        }
-
-        private void MenuProcessPriority_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            if (mi == null) return;
-
-            string priorityName = mi.Tag as string;
-            var contextMenu = mi.Parent as MenuItem;
-            var rootMenu = mi.DataContext as ProcessMetric;
-            if (rootMenu == null)
-            {
-                var context = mi.CommandParameter as ProcessMetric;
-                rootMenu = context;
-            }
-
-            if (string.IsNullOrEmpty(priorityName)) return;
-
-            ProcessPriorityClass priorityClass = ProcessPriorityClass.Normal;
-            switch (priorityName)
-            {
-                case "RealTime": priorityClass = ProcessPriorityClass.RealTime; break;
-                case "High": priorityClass = ProcessPriorityClass.High; break;
-                case "AboveNormal": priorityClass = ProcessPriorityClass.AboveNormal; break;
-                case "Normal": priorityClass = ProcessPriorityClass.Normal; break;
-                case "BelowNormal": priorityClass = ProcessPriorityClass.BelowNormal; break;
-                case "Idle": priorityClass = ProcessPriorityClass.Idle; break;
-            }
-
-            var item = sender as FrameworkElement;
-            var targetProc = item != null ? item.DataContext as ProcessMetric : null;
-            if (targetProc != null)
-            {
-                bool ok = ProcessManager.SetProcessPriority(targetProc.Id, priorityClass);
-                ShowToast(ok ? string.Format("⚡ Prioridad de {0} cambiada a {1}", targetProc.Name, priorityName) : "No se pudo cambiar prioridad (acceso denegado)");
-                RefreshProcessListManually();
-            }
-        }
-
-        private void ProcessRow_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                var border = sender as Border;
-                if (border != null)
-                {
-                    var proc = border.Tag as ProcessMetric;
-                    if (proc != null)
-                    {
-                        OpenProcessDetails(proc);
-                    }
-                }
-            }
-        }
-
-        private void OpenProcessDetails(ProcessMetric metric)
-        {
-            if (metric == null) return;
-            try
-            {
-                var win = new ProcessDetailsWindow(metric);
-                win.Owner = this;
-                win.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error abriendo detalles: " + ex.Message);
-            }
-        }
-
-        private void BtnProcessDetails_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var proc = btn != null ? btn.Tag as ProcessMetric : null;
-            if (proc != null) OpenProcessDetails(proc);
-        }
-
-        private void MenuProcessDetails_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var proc = mi != null ? mi.Tag as ProcessMetric : null;
-            if (proc != null) OpenProcessDetails(proc);
-        }
-
-        private async void BtnProcessKill_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var proc = btn != null ? btn.Tag as ProcessMetric : null;
-            if (proc != null) await CloseOrKillProcessAsync(proc.Id, proc.Name);
-        }
-
-        private async void MenuProcessKill_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var proc = mi != null ? mi.Tag as ProcessMetric : null;
-            if (proc != null) await CloseOrKillProcessAsync(proc.Id, proc.Name);
-        }
-
-        private void MenuProcessSearch_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var proc = mi != null ? mi.Tag as ProcessMetric : null;
-            if (proc != null)
-            {
-                ProcessManager.SearchProcessOnline(proc.Name, "process windows");
-            }
-        }
-
-        private async Task CloseOrKillProcessAsync(int pid, string name, bool isAgentTree = false)
-        {
-            if (ProcessManager.IsProtected(name) || pid <= 4)
-            {
-                MessageBox.Show(
-                    string.Format("'{0}' es un proceso protegido del sistema operativo y no puede ser finalizado.", name),
-                    "Acción Bloqueada",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                e.Cancel = true;
+                Hide();
                 return;
             }
 
-            ShowToast("⏳ Solicitando cierre ordenado de: " + name + "...");
-
-            // Phase 1: Graceful Close request
-            var closeStatus = await ProcessManager.RequestGracefulCloseAsync(pid, name, 2000).ConfigureAwait(true);
-
-            if (closeStatus == ProcessManager.ProcessCloseResult.ClosedGracefully)
-            {
-                ShowToast("🟢 Proceso finalizado limpiamente: " + name);
-                RefreshProcessListManually();
-                return;
-            }
-
-            if (closeStatus == ProcessManager.ProcessCloseResult.ProtectedProcess)
-            {
-                ShowToast("⚠️ Proceso protegido o en Sesión 0 del sistema: " + name);
-                return;
-            }
-
-            // Phase 2: Handle Tray minimization or unresponsive process
-            string promptMessage;
-            string promptTitle;
-
-            if (closeStatus == ProcessManager.ProcessCloseResult.MinimizedToTray)
-            {
-                promptTitle = "Aplicación Minimizada a la Bandeja";
-                promptMessage = string.Format("La aplicación '{0}' (PID: {1}) cerró su ventana pero continúa ejecutándose en segundo plano (minimizada a la Bandeja del Sistema / System Tray).\n\n¿Deseas forzar su cierre definitivo (Kill)?", name, pid);
-            }
-            else
-            {
-                promptTitle = "El Proceso Sigue en Ejecución";
-                promptMessage = string.Format("El proceso '{0}' (PID: {1}) no respondió a la solicitud de cierre ordenado.\n\n¿Deseas forzar su finalización inmediata (Kill)?", name, pid);
-            }
-
-            var confirmResult = MessageBox.Show(promptMessage, promptTitle, MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (confirmResult == MessageBoxResult.Yes)
-            {
-                string msg;
-                bool ok;
-                if (isAgentTree)
-                {
-                    ok = ProcessManager.TerminateProcessTree(pid, true, out msg);
-                }
-                else
-                {
-                    ok = ProcessManager.TerminateProcess(pid, name, out msg);
-                }
-
-                ShowToast(ok ? "🔴 Proceso forzado a finalizar: " + name : "Error: " + msg);
-                RefreshProcessListManually();
-            }
+            _timer.Stop();
+            _trayManager.Dispose();
+            _accelEngine.Dispose();
         }
 
-        private void MenuProcessOpenFolder_Click(object sender, RoutedEventArgs e)
-        {
-            var item = sender as MenuItem;
-            if (item != null)
-            {
-                var proc = item.Tag as ProcessMetric;
-                if (proc != null && !string.IsNullOrEmpty(proc.ExecutablePath))
-                {
-                    try
-                    {
-                        Process.Start("explorer.exe", string.Format("/select,\"{0}\"", proc.ExecutablePath));
-                    }
-                    catch { }
-                }
-            }
-        }
-
-        // =========================================================================
-        // DRIVES TAB ACTIONS
-        // =========================================================================
-
-        private void BtnDriveOpen_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            if (btn != null)
-            {
-                var disk = btn.Tag as DiskMetric;
-                if (disk != null && !string.IsNullOrEmpty(disk.Name))
-                {
-                    try
-                    {
-                        Process.Start("explorer.exe", disk.Name);
-                    }
-                    catch { }
-                }
-            }
-        }
-
-        private void BtnDriveClean_Click(object sender, RoutedEventArgs e)
-        {
-            ToolLauncher.StartPCManager();
-        }
-
-        // =========================================================================
-        // STORAGE ANALYZER (folder breakdown + hidden bloat)
-        // =========================================================================
-
-        private CancellationTokenSource _storageScanCts;
-        private string _storageScanRoot;
-
-        private string GetStorageScanRoot()
-        {
-            if (string.IsNullOrEmpty(_storageScanRoot))
-            {
-                _storageScanRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            }
-            return _storageScanRoot;
-        }
-
-        /// <summary>
-        /// Cycles through the user profile and the real drive roots. A folder picker would
-        /// pull in a WinForms reference, which this project deliberately avoids.
-        /// </summary>
-        private void BtnStorageScanRoot_Click(object sender, RoutedEventArgs e)
-        {
-            var candidates = new List<string> { Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) };
-
-            if (_lastDisks != null)
-            {
-                foreach (var disk in _lastDisks)
-                {
-                    if (disk.IsVirtual || string.IsNullOrEmpty(disk.Name)) continue;
-                    candidates.Add(disk.Name.EndsWith("\\") ? disk.Name : disk.Name + "\\");
-                }
-            }
-
-            int current = candidates.FindIndex(p => string.Equals(p, GetStorageScanRoot(), StringComparison.OrdinalIgnoreCase));
-            _storageScanRoot = candidates[(current + 1) % candidates.Count];
-            TxtStorageScanRoot.Text = _storageScanRoot;
-        }
-
-        private async void BtnStorageScan_Click(object sender, RoutedEventArgs e)
-        {
-            // The button doubles as the cancel control while a scan is in flight.
-            if (_storageScanCts != null)
-            {
-                _storageScanCts.Cancel();
-                return;
-            }
-
-            string root = GetStorageScanRoot();
-            TxtStorageScanRoot.Text = root;
-
-            var cts = new CancellationTokenSource();
-            _storageScanCts = cts;
-            BtnStorageScan.Content = LocalizationManager.Get("StorageScanCancel");
-            BtnStorageScanRoot.IsEnabled = false;
-            ListFolderSizes.ItemsSource = null;
-            TxtStorageSkipped.Visibility = Visibility.Collapsed;
-
-            var progress = new Progress<FolderScanProgress>(p =>
-            {
-                TxtStorageScanStatus.Text = string.Format(LocalizationManager.Get("StorageScanRunning"), p.CurrentPath);
-            });
-
-            try
-            {
-                var result = await Task.Run(() => FolderSizeScanner.Scan(root, 15, progress, cts.Token));
-
-                ListFolderSizes.ItemsSource = result.TopEntries;
-
-                if (result.WasCancelled)
-                {
-                    TxtStorageScanStatus.Text = LocalizationManager.Get("StorageScanCancelled");
-                }
-                else if (result.TopEntries.Count == 0)
-                {
-                    TxtStorageScanStatus.Text = LocalizationManager.Get("StorageScanEmpty");
-                }
-                else
-                {
-                    TxtStorageScanStatus.Text = string.Format(
-                        LocalizationManager.Get("StorageScanDone"),
-                        MetricFormatting.FormatBytesAuto(result.TotalScannedBytes),
-                        result.TopEntries.Count,
-                        result.ElapsedMilliseconds / 1000.0);
-                }
-
-                // Skipped entries are surfaced because they are exactly why the total never
-                // reconciles with the volume's used space.
-                if (result.SkippedCount > 0)
-                {
-                    TxtStorageSkipped.Text = string.Format(LocalizationManager.Get("StorageScanSkipped"), result.SkippedCount);
-                    TxtStorageSkipped.Visibility = Visibility.Visible;
-                }
-            }
-            catch (Exception ex)
-            {
-                TxtStorageScanStatus.Text = ex.Message;
-                CrashLogger.LogException("StorageScan", ex, false);
-            }
-            finally
-            {
-                _storageScanCts = null;
-                cts.Dispose();
-                BtnStorageScan.Content = LocalizationManager.Get("StorageScanButton");
-                BtnStorageScanRoot.IsEnabled = true;
-            }
-        }
-
-        private async void BtnBloatRefresh_Click(object sender, RoutedEventArgs e)
-        {
-            BtnBloatRefresh.IsEnabled = false;
-            TxtBloatStatus.Text = LocalizationManager.Get("StorageBloatScanning");
-
-            try
-            {
-                var findings = await Task.Run(() => BloatDetector.Scan());
-                ListBloatFindings.ItemsSource = findings;
-                TxtBloatStatus.Text = findings.Count == 0 ? LocalizationManager.Get("StorageBloatEmpty") : "";
-            }
-            catch (Exception ex)
-            {
-                TxtBloatStatus.Text = ex.Message;
-                CrashLogger.LogException("BloatScan", ex, false);
-            }
-            finally
-            {
-                BtnBloatRefresh.IsEnabled = true;
-            }
-        }
-
-        private async void BtnBloatAction_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var finding = btn != null ? btn.Tag as BloatFinding : null;
-            if (finding == null) return;
-
-            if (string.Equals(finding.ActionKind, BloatDetector.ActionLaunchTool, StringComparison.OrdinalIgnoreCase))
-            {
-                if (string.Equals(finding.Category, "VirtualDisk", StringComparison.OrdinalIgnoreCase))
-                {
-                    try { Process.Start("explorer.exe", "/select,\"" + finding.Path + "\""); }
-                    catch { }
-                }
-                else
-                {
-                    ToolLauncher.StartPCManager();
-                }
-
-                ShowToast(finding.ActionHint);
-                return;
-            }
-
-            if (!string.Equals(finding.ActionKind, BloatDetector.ActionSafeDelete, StringComparison.OrdinalIgnoreCase)) return;
-
-            // The recycle bin is emptied through the shell so Windows shows its own
-            // confirmation for an action that cannot be undone.
-            if (string.Equals(finding.Category, "RecycleBin", StringComparison.OrdinalIgnoreCase))
-            {
-                try { NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, null, 0); }
-                catch (Exception ex) { CrashLogger.LogException("EmptyRecycleBin", ex, false); }
-
-                BtnBloatRefresh_Click(sender, e);
-                return;
-            }
-
-            if (!BloatDetector.IsWhitelistedForDeletion(finding.Path))
-            {
-                ShowToast(LocalizationManager.Get("BloatCleanRejected"));
-                return;
-            }
-
-            btn.IsEnabled = false;
-            try
-            {
-                string path = finding.Path;
-                var result = await Task.Run(() => BloatDetector.DeleteWhitelistedCache(path));
-                ShowToast(string.Format(LocalizationManager.Get("BloatCleanDone"), result.HumanSize, finding.Title));
-            }
-            catch (Exception ex)
-            {
-                CrashLogger.LogException("BloatClean", ex, false);
-                ShowToast(ex.Message);
-            }
-            finally
-            {
-                btn.IsEnabled = true;
-            }
-
-            BtnBloatRefresh_Click(sender, e);
-        }
-
-        // =========================================================================
-        // SERVICES TAB ACTIONS
-        // =========================================================================
-
-        private void BtnServiceStart_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var svcItem = btn != null ? btn.Tag as ServiceItem : null;
-            StartServiceAction(svcItem);
-        }
-
-        private void MenuServiceStart_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var svcItem = mi != null ? mi.Tag as ServiceItem : null;
-            StartServiceAction(svcItem);
-        }
-
-        private void StartServiceAction(ServiceItem svcItem)
-        {
-            if (svcItem == null) return;
-            try
-            {
-                if (ServiceCollector.StartService(svcItem.ServiceName))
-                {
-                    ShowToast(string.Format(LocalizationManager.Get("ToastServiceStarted"), svcItem.DisplayName));
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
-        }
-
-        private void BtnServiceStop_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var svcItem = btn != null ? btn.Tag as ServiceItem : null;
-            StopServiceAction(svcItem);
-        }
-
-        private void MenuServiceStop_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var svcItem = mi != null ? mi.Tag as ServiceItem : null;
-            StopServiceAction(svcItem);
-        }
-
-        private void StopServiceAction(ServiceItem svcItem)
-        {
-            if (svcItem == null) return;
-            try
-            {
-                if (ServiceCollector.StopService(svcItem.ServiceName))
-                {
-                    ShowToast(string.Format(LocalizationManager.Get("ToastServiceStopped"), svcItem.DisplayName));
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
-        }
-
-        private void BtnServiceRestart_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as Button;
-            var svcItem = btn != null ? btn.Tag as ServiceItem : null;
-            RestartServiceAction(svcItem);
-        }
-
-        private void MenuServiceRestart_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var svcItem = mi != null ? mi.Tag as ServiceItem : null;
-            RestartServiceAction(svcItem);
-        }
-
-        private void RestartServiceAction(ServiceItem svcItem)
-        {
-            if (svcItem == null) return;
-            try
-            {
-                if (ServiceCollector.RestartService(svcItem.ServiceName))
-                {
-                    ShowToast(string.Format(LocalizationManager.Get("ToastServiceStarted"), svcItem.DisplayName));
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
-        }
-
-        private void MenuServiceSearch_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var svcItem = mi != null ? mi.Tag as ServiceItem : null;
-            if (svcItem == null) return;
-            ProcessManager.SearchProcessOnline(svcItem.ServiceName, "windows service");
-        }
-
-        private void MenuServiceCopy_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var svcItem = mi != null ? mi.Tag as ServiceItem : null;
-            if (svcItem != null)
-            {
-                try
-                {
-                    Clipboard.SetText(svcItem.ServiceName);
-                    ShowToast("📋 " + svcItem.ServiceName);
-                }
-                catch { }
-            }
-        }
-
-        // =========================================================================
-        // TASKS TAB ACTIONS
-        // =========================================================================
-
-        private void MenuTaskRun_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var task = mi != null ? mi.Tag as TaskItem : null;
-            if (task == null) return;
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "schtasks.exe",
-                    Arguments = string.Format("/run /tn \"{0}\"", task.TaskPath),
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                });
-                ShowToast(string.Format(LocalizationManager.Get("ToastTaskExecuted"), task.TaskName));
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
-        }
-
-        private void MenuTaskEnd_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var task = mi != null ? mi.Tag as TaskItem : null;
-            if (task == null) return;
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "schtasks.exe",
-                    Arguments = string.Format("/end /tn \"{0}\"", task.TaskPath),
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                });
-                ShowToast("⏹️ Tarea finalizada: " + task.TaskName);
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
-        }
-
-        private void MenuOpenTaskSchd_Click(object sender, RoutedEventArgs e)
-        {
-            ToolLauncher.StartTaskScheduler();
-        }
-
-        private void MenuTaskSearch_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var task = mi != null ? mi.Tag as TaskItem : null;
-            if (task == null) return;
-            ProcessManager.SearchProcessOnline(task.TaskName, "windows scheduled task");
-        }
-
-        private void MenuTaskCopy_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var task = mi != null ? mi.Tag as TaskItem : null;
-            if (task != null)
-            {
-                try
-                {
-                    Clipboard.SetText(task.TaskPath);
-                    ShowToast("📋 " + task.TaskPath);
-                }
-                catch { }
-            }
-        }
-
-        // =========================================================================
-        // STARTUP APPS TAB ACTIONS
-        // =========================================================================
-
-        private void BtnStartupFolder_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as FrameworkElement;
-            var item = btn != null ? btn.Tag as StartupItem : null;
-            OpenStartupItemLocation(item);
-        }
-
-        private void MenuStartupOpenFolder_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var item = mi != null ? mi.Tag as StartupItem : null;
-            OpenStartupItemLocation(item);
-        }
-
-        private void OpenStartupItemLocation(StartupItem item)
-        {
-            if (item == null) return;
-            try
-            {
-                string target = item.ExecutablePath;
-                if (!string.IsNullOrEmpty(target) && File.Exists(target))
-                {
-                    Process.Start("explorer.exe", string.Format("/select,\"{0}\"", target));
-                }
-                else if (!string.IsNullOrEmpty(target) && Directory.Exists(target))
-                {
-                    Process.Start("explorer.exe", string.Format("\"{0}\"", target));
-                }
-                else
-                {
-                    string folder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-                    Process.Start("explorer.exe", folder);
-                }
-            }
-            catch (Exception ex)
-            {
-                ShowToast("Error: " + ex.Message);
-            }
-        }
-
-        private void BtnStartupSearch_Click(object sender, RoutedEventArgs e)
-        {
-            var btn = sender as FrameworkElement;
-            var item = btn != null ? btn.Tag as StartupItem : null;
-            SearchStartupItemOnline(item);
-        }
-
-        private void MenuStartupSearch_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var item = mi != null ? mi.Tag as StartupItem : null;
-            SearchStartupItemOnline(item);
-        }
-
-        private void SearchStartupItemOnline(StartupItem item)
-        {
-            if (item == null) return;
-            string query = !string.IsNullOrEmpty(item.DisplayName) ? item.DisplayName : item.Name;
-            ProcessManager.SearchProcessOnline(query, "startup application windows");
-        }
-
-        private void MenuStartupCopyCmd_Click(object sender, RoutedEventArgs e)
-        {
-            var mi = sender as MenuItem;
-            var item = mi != null ? mi.Tag as StartupItem : null;
-            if (item != null)
-            {
-                try
-                {
-                    string textToCopy = !string.IsNullOrEmpty(item.ExecutablePath) ? item.ExecutablePath : item.Command;
-                    Clipboard.SetText(textToCopy);
-                    ShowToast(LocalizationManager.Get("ToastStartupCopied"));
-                }
-                catch { }
-            }
-        }
-
-        private void MenuStartupSettings_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo("ms-settings:startupapps") { UseShellExecute = true });
-            }
-            catch
-            {
-                ToolLauncher.StartTaskManager();
-            }
-        }
+        #endregion
     }
 }

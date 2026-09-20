@@ -1,14 +1,9 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace SystemCoreMonitor.Core.Mvvm
 {
-    /// <summary>
-    /// Asynchronous ICommand that prevents concurrent executions and exposes IsExecuting
-    /// for UI loading indicators. Fires-and-forgets the async delegate from Execute(),
-    /// surfacing exceptions via the unobserved task exception handler (caught by CrashLogger).
-    /// </summary>
     public sealed class AsyncRelayCommand : ICommand
     {
         private readonly Func<object?, Task> _execute;
@@ -47,6 +42,49 @@ namespace SystemCoreMonitor.Core.Mvvm
             {
                 IsExecuting = true;
                 await _execute(parameter);
+            }
+            finally
+            {
+                IsExecuting = false;
+            }
+        }
+    }
+
+    public sealed class AsyncRelayCommand<T> : ICommand
+    {
+        private readonly Func<T?, Task> _execute;
+        private readonly Predicate<T?>? _canExecute;
+        private bool _isExecuting;
+
+        public event EventHandler? CanExecuteChanged;
+
+        public bool IsExecuting
+        {
+            get => _isExecuting;
+            private set
+            {
+                _isExecuting = value;
+                CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public AsyncRelayCommand(Func<T?, Task> execute, Predicate<T?>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public bool CanExecute(object? parameter) =>
+            !IsExecuting && (_canExecute?.Invoke(parameter is T t ? t : default) ?? true);
+
+        public async void Execute(object? parameter)
+        {
+            if (!CanExecute(parameter)) return;
+
+            try
+            {
+                IsExecuting = true;
+                await _execute(parameter is T t ? t : default);
             }
             finally
             {
