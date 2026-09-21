@@ -1,5 +1,7 @@
-# Build & Packaging Pipeline for System Core Monitor (Native C# Standalone & Setup Wizard Edition)
-# Compiles a genuine C# WPF standalone executable for .NET 9 with zero third-party dependencies.
+# Build & Packaging Pipeline for System Core Monitor (Official Setup Wizard Edition)
+# Compiles a genuine C# WPF standalone executable for .NET 9 with zero third-party dependencies,
+# then encapsulates it into the official single deliverable: SystemCoreMonitor-Setup.exe.
+# Distribution Policy: The only official public release asset is SystemCoreMonitor-Setup.exe.
 
 [CmdletBinding()]
 param(
@@ -15,10 +17,9 @@ $InstCsproj    = Join-Path (Join-Path $SrcDir "Installer") "Installer.csproj"
 $ReleasesDir   = Join-Path $ProjectRoot "releases"
 $PackageName   = "System-Core-Monitor-$Version"
 $StageDir      = Join-Path $ReleasesDir $PackageName
-$ZipOutput     = Join-Path $ReleasesDir "$PackageName-Portable.zip"
 
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "  Building $PackageName (.NET 9 Standalone)      " -ForegroundColor Cyan
+Write-Host "  Building $PackageName (.NET 9 Setup Wizard)    " -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 
 # 1. Ensure releases directory exists
@@ -28,10 +29,6 @@ if (-not (Test-Path $ReleasesDir)) {
 
 if (-not (Test-Path $StageDir)) {
     New-Item -Path $StageDir -ItemType Directory | Out-Null
-}
-
-if (Test-Path $ZipOutput) {
-    Remove-Item -Path $ZipOutput -Force -ErrorAction SilentlyContinue
 }
 
 # 2. Generate Win32 icon.ico from icon.png

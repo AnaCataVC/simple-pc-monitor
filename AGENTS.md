@@ -85,6 +85,14 @@ system-core-monitor/
 - **Command Chaining**: NEVER use `&&` or `||` in terminal commands. Use `;` or separate sequential commands.
 - **GitHub CLI Context**: Switch to personal account `AnaCataVC` (`gh auth switch -u AnaCataVC --hostname github.com 2>$null`).
 
+### 📦 Release Distribution Invariant (Single Deliverable Policy)
+- **Single Official Deliverable**: Every GitHub Release for System Core Monitor must publish **ONLY** the Setup Wizard installer:
+  ```text
+  SystemCoreMonitor-Setup.exe
+  ```
+- **Strict Prohibition on Extra Assets**: NEVER attach `SystemCoreMonitor.exe` (standalone binary) or `System-Core-Monitor-*-Portable.zip` to public GitHub Releases. The standalone executable is compiled strictly as an embedded payload for `SystemCoreMonitor-Setup.exe` and for local test suite execution via reflection (`tests/Metrics.Tests.ps1`), never as an independent release download.
+- **Verification Invariant**: All release workflows and subagents (`ami-release-manager`) must verify via `gh release view <tag> --json assets` that exactly 1 asset exists: `SystemCoreMonitor-Setup.exe`.
+
 ---
 
 ## 4. Development & Build Commands (PowerShell)
