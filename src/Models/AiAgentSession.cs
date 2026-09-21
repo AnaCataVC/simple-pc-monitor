@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using SystemCoreMonitor.Core.Mvvm;
 
 namespace SystemCoreMonitor.Models
 {
@@ -19,6 +20,7 @@ namespace SystemCoreMonitor.Models
         public int ParentPid { get; set; }
         public string OrphanReason { get; set; }
         public string AgeDisplay { get; set; }
+        public string CommandLine { get; set; }
 
         public AiAgentMcpServer()
         {
@@ -30,11 +32,15 @@ namespace SystemCoreMonitor.Models
             CpuDisplay = "0.0%";
             OrphanReason = string.Empty;
             AgeDisplay = string.Empty;
+            CommandLine = string.Empty;
         }
     }
 
-    public class AiAgentSession
+    public class AiAgentSession : ObservableObject
     {
+        private bool _isExpanded;
+        private string _expandToggleText = "▼ Ver subprocesos";
+
         public int ParentPid { get; set; }
         public string AgentName { get; set; }
         public string AgentProcessName { get; set; }
@@ -51,11 +57,23 @@ namespace SystemCoreMonitor.Models
         public string TotalCpuDisplay { get; set; }
         public int McpServersCount { get; set; }
         public int ChildProcessCount { get; set; }
+        public bool HasChildProcesses => ChildProcessCount > 0;
         public List<int> ChildPids { get; set; }
         public List<AiAgentMcpServer> ChildProcesses { get; set; }
         public bool IsIdle { get; set; }
-        public bool IsExpanded { get; set; }
-        public string ExpandToggleText { get; set; }
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set => SetProperty(ref _isExpanded, value);
+        }
+
+        public string ExpandToggleText
+        {
+            get => _expandToggleText;
+            set => SetProperty(ref _expandToggleText, value);
+        }
+
         public string StatusDisplay { get; set; }
         public string StatusBadgeColor { get; set; }
         public string SessionContext { get; set; }
@@ -71,8 +89,8 @@ namespace SystemCoreMonitor.Models
             TotalCpuDisplay = "0.0%";
             ChildPids = new List<int>();
             ChildProcesses = new List<AiAgentMcpServer>();
-            IsExpanded = true;
-            ExpandToggleText = "Ocultar";
+            IsExpanded = false;
+            ExpandToggleText = "▼ Ver subprocesos";
             StatusDisplay = "Active";
             StatusBadgeColor = "#10B981"; // Emerald
             SessionContext = string.Empty;

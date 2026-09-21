@@ -54,32 +54,41 @@
                     <ItemsControl ItemsSource="{Binding OrphanProcesses}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#3B1818" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,6">
+                                <Border Background="#3B1818" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <WrapPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding ProcessName}" FontWeight="Bold" FontSize="12.5" Foreground="White" Margin="0,0,8,2" VerticalAlignment="Center"/>
-                                            <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Pid, StringFormat='{}PID: {0}'}" FontSize="11" Foreground="#FECACA"/>
-                                            </Border>
-                                            <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding MemoryDisplay, StringFormat='{}RAM: {0}'}" FontSize="11" Foreground="{DynamicResource AccentRam}"/>
-                                            </Border>
-                                            <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding CpuDisplay, StringFormat='{}CPU: {0}'}" FontSize="11" Foreground="{DynamicResource AccentCpu}"/>
-                                            </Border>
-                                            <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding AgeDisplay, StringFormat='{}Edad: {0}'}" FontSize="11" Foreground="#E2E8F0"/>
-                                            </Border>
-                                            <TextBlock Text="{Binding OrphanReason}" FontSize="11" Foreground="#F87171" VerticalAlignment="Center" Margin="4,0,0,2"/>
-                                        </WrapPanel>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <WrapPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ProcessName}" FontWeight="Bold" FontSize="13" Foreground="White" Margin="0,0,8,2" VerticalAlignment="Center"/>
+                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding SemanticRole}" FontSize="10.5" FontWeight="SemiBold" Foreground="#FCA5A5"/>
+                                                </Border>
+                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Pid, StringFormat='{}PID: {0}'}" FontSize="11" Foreground="#FECACA"/>
+                                                </Border>
+                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding MemoryDisplay, StringFormat='{}RAM: {0}'}" FontSize="11" Foreground="{DynamicResource AccentRam}"/>
+                                                </Border>
+                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CpuDisplay, StringFormat='{}CPU: {0}'}" FontSize="11" Foreground="{DynamicResource AccentCpu}"/>
+                                                </Border>
+                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding AgeDisplay, StringFormat='{}Edad: {0}'}" FontSize="11" Foreground="#E2E8F0"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding OrphanReason}" FontSize="11" Foreground="#F87171" VerticalAlignment="Center" Margin="4,0,0,2"/>
+                                            </WrapPanel>
+                                            <!-- CLI command line snippet with tooltip -->
+                                            <TextBlock Text="{Binding CommandLine}" FontSize="11" FontFamily="Consolas, monospace" Foreground="#94A3B8"
+                                                       TextTrimming="CharacterEllipsis" Margin="2,4,8,0"
+                                                       ToolTip="{Binding TooltipText}"/>
+                                        </StackPanel>
                                         <Button Grid.Column="1" Style="{StaticResource PillActionButtonStyle}"
                                                 Command="{Binding DataContext.KillOrphanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
-                                                Background="#DC2626" Foreground="White" Padding="8,4" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                Background="#DC2626" Foreground="White" Padding="10,5" VerticalAlignment="Center" Margin="8,0,0,0">
                                             <TextBlock Text="Cerrar" FontSize="11.5" FontWeight="SemiBold"/>
                                         </Button>
                                     </Grid>
@@ -221,6 +230,7 @@
                                     <Button DockPanel.Dock="Right" Style="{StaticResource PillActionButtonStyle}"
                                             Command="{Binding DataContext.ToggleSessionExpandedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
+                                            Visibility="{Binding HasChildProcesses, Converter={StaticResource BoolToVisibilityConverter}}"
                                             Padding="8,4" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding ExpandToggleText}" FontSize="11.5" FontWeight="SemiBold"/>
                                     </Button>

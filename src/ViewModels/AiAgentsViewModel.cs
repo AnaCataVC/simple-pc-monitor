@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -84,7 +85,7 @@ namespace SystemCoreMonitor.ViewModels
         public AsyncRelayCommand CleanStaleTranscriptsCommand { get; }
         public RelayCommand<AiAgentSession> ToggleSessionExpandedCommand { get; }
 
-        public event Action<string>? ShowToastRequested;
+        public event Action<string, NotificationType>? ShowToastRequested;
         public event Action<string>? ShowProgressRequested;
 
         public AiAgentsViewModel()
@@ -96,48 +97,85 @@ namespace SystemCoreMonitor.ViewModels
                 session.IsExpanded = AiAgentCollector.IsSessionExpanded(session.ParentPid);
                 session.ExpandToggleText = session.IsExpanded
                     ? string.Format("▲ Ocultar ({0})", session.ChildProcessCount)
-                    : string.Format("▼ Ver {0} subprocesos", session.ChildProcessCount);
+                    : string.Format("▼ Ver subprocesos ({0})", session.ChildProcessCount);
             });
             CloseSessionCommand = new AsyncRelayCommand<AiAgentSession>(async session =>
             {
                 if (session == null) return;
                 ShowProgressRequested?.Invoke(string.Format("Cerrando sesión de {0}...", session.AgentName));
                 var res = await Task.Run(() => ProcessManager.RequestGracefulCloseAsync(session.ParentPid, session.AgentName));
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), session.AgentName, res));
+                if (res == ProcessManager.ProcessCloseResult.ClosedGracefully || res == ProcessManager.ProcessCloseResult.MinimizedToTray)
+                {
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), session.AgentName, res), NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessCloseFailed"), session.AgentName, session.ParentPid, res), NotificationType.Error);
+                }
             });
 
             KillOrphanCommand = new AsyncRelayCommand<AiAgentMcpServer>(async orphan =>
             {
                 if (orphan == null) return;
                 ShowProgressRequested?.Invoke(string.Format("Cerrando proceso {0} (PID {1})...", orphan.ProcessName, orphan.Pid));
-                var res = await Task.Run(() => ProcessManager.RequestGracefulCloseAsync(orphan.Pid, orphan.ProcessName));
-                App.Current?.Dispatcher?.Invoke(() =>
+                var res = await Task.Run(() => ProcessManager.CloseProcessWithEscalationAsync(orphan.Pid, orphan.ProcessName, orphan.StartTime));
+                if (res.Success)
                 {
-                    _orphanProcesses.Remove(orphan);
-                    OnPropertyChanged(nameof(HasOrphans));
-                });
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), orphan.ProcessName, res));
+                    App.Current?.Dispatcher?.Invoke(() =>
+                    {
+                        _orphanProcesses.Remove(orphan);
+                        OnPropertyChanged(nameof(HasOrphans));
+                    });
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), orphan.ProcessName, "OK"), NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessCloseFailed"), orphan.ProcessName, orphan.Pid, res.Message), NotificationType.Error);
+                }
             });
 
             KillAllOrphansCommand = new AsyncRelayCommand(async () =>
             {
                 ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionKillingOrphans"));
-                int killed = 0;
                 var toKill = _orphanProcesses.ToList();
-                await Task.Run(() =>
+                int killed = 0;
+                int failed = 0;
+                var successfullyKilled = new List<AiAgentMcpServer>();
+
+                await Task.Run(async () =>
                 {
                     foreach (var o in toKill)
                     {
-                        ProcessManager.RequestGracefulCloseAsync(o.Pid, o.ProcessName);
-                        killed++;
+                        var res = await ProcessManager.CloseProcessWithEscalationAsync(o.Pid, o.ProcessName, o.StartTime).ConfigureAwait(false);
+                        if (res.Success)
+                        {
+                            killed++;
+                            successfullyKilled.Add(o);
+                        }
+                        else
+                        {
+                            failed++;
+                        }
                     }
                 });
+
                 App.Current?.Dispatcher?.Invoke(() =>
                 {
-                    _orphanProcesses.Clear();
+                    foreach (var o in successfullyKilled)
+                    {
+                        _orphanProcesses.Remove(o);
+                    }
                     OnPropertyChanged(nameof(HasOrphans));
                 });
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastOrphansKilled"), killed));
+
+                if (failed == 0)
+                {
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastOrphansKilled"), killed), NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastOrphansKilledPartial"), killed, failed), NotificationType.Warning);
+                }
             });
 
             ScanTranscriptsCommand = new AsyncRelayCommand(async () =>
@@ -157,7 +195,7 @@ namespace SystemCoreMonitor.ViewModels
                         retention,
                         report.StaleSizeDisplay,
                         report.StaleFilesCount);
-                    ShowToastRequested?.Invoke(string.Format("Escaneo completado: {0} liberables de transcripts IA", report.StaleSizeDisplay));
+                    ShowToastRequested?.Invoke(string.Format("Escaneo completado: {0} liberables de transcripts IA", report.StaleSizeDisplay), NotificationType.Info);
                 }
                 finally
                 {
@@ -174,7 +212,7 @@ namespace SystemCoreMonitor.ViewModels
                 {
                     int retention = ConfigManager.Current.TranscriptRetentionDays;
                     var result = await Task.Run(() => _cleaner.CleanStaleTranscripts(retention));
-                    ShowToastRequested?.Invoke(result.Message);
+                    ShowToastRequested?.Invoke(result.Message, result.Failures.Count == 0 ? NotificationType.Success : NotificationType.Error);
                     // Re-scan to update telemetry
                     var report = await Task.Run(() => _cleaner.ScanReport(retention));
                     TranscriptReport = report;

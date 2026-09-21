@@ -82,6 +82,7 @@ namespace SystemCoreMonitor.Modules
             public string RoleBadgeColor { get; set; }
             public string TooltipText { get; set; }
             public bool IsMcpServer { get; set; }
+            public string CommandLine { get; set; } = string.Empty;
         }
 
         // An MCP server is identified by evidence in its command line, not by the runtime
@@ -129,17 +130,18 @@ namespace SystemCoreMonitor.Modules
             "--session-id"
         };
 
-        private static readonly HashSet<int> CollapsedSessionPids = new HashSet<int>();
+        // Default is COLLAPSED. Only explicitly toggled sessions are expanded.
+        private static readonly HashSet<int> ExpandedSessionPids = new HashSet<int>();
         private static readonly object ExpandedLock = new object();
 
         public static void ToggleSessionExpanded(int pid)
         {
             lock (ExpandedLock)
             {
-                if (CollapsedSessionPids.Contains(pid))
-                    CollapsedSessionPids.Remove(pid);
+                if (ExpandedSessionPids.Contains(pid))
+                    ExpandedSessionPids.Remove(pid);
                 else
-                    CollapsedSessionPids.Add(pid);
+                    ExpandedSessionPids.Add(pid);
             }
         }
 
@@ -147,7 +149,7 @@ namespace SystemCoreMonitor.Modules
         {
             lock (ExpandedLock)
             {
-                return !CollapsedSessionPids.Contains(pid);
+                return ExpandedSessionPids.Contains(pid);
             }
         }
 
@@ -296,7 +298,7 @@ namespace SystemCoreMonitor.Modules
                     session.IsExpanded = IsSessionExpanded(rootPid);
                     session.ExpandToggleText = session.IsExpanded
                         ? string.Format("▲ Ocultar ({0})", session.ChildProcessCount)
-                        : string.Format("▼ Ver {0} subprocesos", session.ChildProcessCount);
+                        : string.Format("▼ Ver subprocesos ({0})", session.ChildProcessCount);
 
                     // Activity Classification
                     session.IsIdle = session.TotalCpuPercent < 0.04;
@@ -375,7 +377,7 @@ namespace SystemCoreMonitor.Modules
 
                     lock (ExpandedLock)
                     {
-                        CollapsedSessionPids.RemoveWhere(pid => !allRunningPids.Contains(pid));
+                        ExpandedSessionPids.RemoveWhere(pid => !allRunningPids.Contains(pid));
                     }
                 }
             }
@@ -444,14 +446,15 @@ namespace SystemCoreMonitor.Modules
                             ParentPid = ppid,
                             ProcessName = meta.ProcessDisplayName,
                             SemanticRole = meta.SemanticRole,
-                            RoleBadgeColor = "#F59E0B", // Amber: needs a decision, not an error
+                            RoleBadgeColor = !string.IsNullOrEmpty(meta.RoleBadgeColor) ? meta.RoleBadgeColor : "#F59E0B",
                             TooltipText = meta.TooltipText,
                             WorkingSetMB = ramMB,
                             MemoryDisplay = string.Format("{0:N1} MB", ramMB),
                             StartTime = startTime,
                             IsMcpServer = meta.IsMcpServer,
                             OrphanReason = reason,
-                            AgeDisplay = FormatAge(age)
+                            AgeDisplay = FormatAge(age),
+                            CommandLine = meta.CommandLine
                         });
                     }
                 }
@@ -783,8 +786,41 @@ namespace SystemCoreMonitor.Modules
             }
             else if (lowerName.Equals("git"))
             {
-                displayName = "git";
-                role = "Control de Versiones";
+                if (lowerCmd.Contains("fsmonitor"))
+                {
+                    displayName = "git (fsmonitor)";
+                    role = "Daemon Monitor Git";
+                }
+                else if (lowerCmd.Contains("status"))
+                {
+                    displayName = "git status";
+                    role = "Estado del Repositorio";
+                }
+                else if (lowerCmd.Contains("diff"))
+                {
+                    displayName = "git diff";
+                    role = "Diff de Código";
+                }
+                else if (lowerCmd.Contains("fetch") || lowerCmd.Contains("pull"))
+                {
+                    displayName = "git fetch/pull";
+                    role = "Sincronización Git";
+                }
+                else if (lowerCmd.Contains("push"))
+                {
+                    displayName = "git push";
+                    role = "Publicación Git";
+                }
+                else if (lowerCmd.Contains("commit"))
+                {
+                    displayName = "git commit";
+                    role = "Confirmación Git";
+                }
+                else
+                {
+                    displayName = "git";
+                    role = "Control de Versiones";
+                }
                 color = "#F97316";
             }
             else if (lowerName.Equals("pwsh") || lowerName.Equals("powershell") || lowerName.Equals("cmd") || lowerName.Equals("bash"))
@@ -814,7 +850,8 @@ namespace SystemCoreMonitor.Modules
                 SemanticRole = role,
                 RoleBadgeColor = color,
                 TooltipText = tooltip,
-                IsMcpServer = isMcpServer
+                IsMcpServer = isMcpServer,
+                CommandLine = sanitizedCmd ?? string.Empty
             };
 
             lock (_syncLock)

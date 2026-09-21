@@ -70,8 +70,28 @@ namespace SystemCoreMonitor.Core
                 if (normPath.Contains("windowsapps\\claude") || normPath.Contains("appdata\\local\\programs\\claude"))
                 {
                     meta.AgentDisplayName = "Claude Desktop";
-                    meta.ContextDisplay = "🖥️ Claude Desktop App";
                     meta.IsDetected = true;
+
+                    // Inspect descendant processes for model flag (e.g. claude.exe --model ...)
+                    if (descendantPids != null)
+                    {
+                        foreach (int childPid in descendantPids)
+                        {
+                            string childCmd = ProcessManager.GetProcessCommandLine(childPid);
+                            if (!string.IsNullOrEmpty(childCmd))
+                            {
+                                var matchModel = System.Text.RegularExpressions.Regex.Match(childCmd, @"--model[\s=]+([a-zA-Z0-9_\-\.]+)");
+                                if (matchModel.Success)
+                                {
+                                    meta.Model = matchModel.Groups[1].Value;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Resolve active workspace and user prompt from ~/.claude/projects/
+                    ResolveLatestDesktopProjectSession(meta);
                     return meta;
                 }
                 if (normPath.Contains(".local\\bin\\claude") || normPath.Contains("node_modules\\@anthropic-ai\\claude-code"))
@@ -84,6 +104,158 @@ namespace SystemCoreMonitor.Core
             }
 
             return meta;
+        }
+
+        private static readonly string ClaudeProjectsDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude",
+            "projects"
+        );
+
+        private static void ResolveLatestDesktopProjectSession(ClaudeSessionMeta meta)
+        {
+            if (!Directory.Exists(ClaudeProjectsDir))
+            {
+                meta.ContextDisplay = "🖥️ Claude Desktop App";
+                return;
+            }
+
+            try
+            {
+                var dirInfo = new DirectoryInfo(ClaudeProjectsDir);
+                FileInfo? newestJsonl = null;
+
+                foreach (var projDir in dirInfo.EnumerateDirectories())
+                {
+                    // Skip internal subagents directories when finding main session
+                    if (projDir.Name.Equals("subagents", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    try
+                    {
+                        foreach (var file in projDir.EnumerateFiles("*.jsonl", SearchOption.TopDirectoryOnly))
+                        {
+                            if (newestJsonl == null || file.LastWriteTime > newestJsonl.LastWriteTime)
+                            {
+                                newestJsonl = file;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (newestJsonl == null)
+                {
+                    meta.ContextDisplay = "🖥️ Claude Desktop App";
+                    return;
+                }
+
+                string folderName = newestJsonl.Directory?.Name ?? string.Empty;
+                string repoName = DecodeWorkspaceFromFolder(folderName);
+                string promptTitle = ExtractPromptFromJsonl(newestJsonl.FullName);
+
+                meta.WorkspaceRepo = repoName;
+                meta.SessionTitle = promptTitle;
+                meta.ContextDisplay = FormatContext(repoName, promptTitle);
+            }
+            catch
+            {
+                if (string.IsNullOrEmpty(meta.ContextDisplay))
+                {
+                    meta.ContextDisplay = "🖥️ Claude Desktop App";
+                }
+            }
+        }
+
+        public static string DecodeWorkspaceFromFolder(string folderName)
+        {
+            if (string.IsNullOrWhiteSpace(folderName)) return string.Empty;
+
+            try
+            {
+                int wtIdx = folderName.IndexOf("--claude-worktrees-", StringComparison.OrdinalIgnoreCase);
+                string worktree = string.Empty;
+                string baseFolder = folderName;
+                if (wtIdx > 0)
+                {
+                    worktree = folderName.Substring(wtIdx + "--claude-worktrees-".Length);
+                    baseFolder = folderName.Substring(0, wtIdx);
+                }
+
+                var match = System.Text.RegularExpressions.Regex.Match(baseFolder, @"(?i)(?:Repositories|Repos)[-_]+([a-zA-Z0-9_\-]+)$");
+                string repo = match.Success ? match.Groups[1].Value : string.Empty;
+
+                if (string.IsNullOrEmpty(repo))
+                {
+                    var parts = baseFolder.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length > 0)
+                    {
+                        repo = parts[parts.Length - 1];
+                    }
+                }
+
+                // Never leak user account name or bare drive letter as workspace
+                if (string.Equals(repo, "C", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(repo, Environment.UserName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return !string.IsNullOrEmpty(worktree) ? string.Format("Worktree [{0}]", worktree) : "Workspace";
+                }
+
+                if (!string.IsNullOrEmpty(worktree))
+                {
+                    return string.Format("{0} [{1}]", repo, worktree);
+                }
+
+                return repo;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string ExtractPromptFromJsonl(string filePath)
+        {
+            if (!File.Exists(filePath)) return string.Empty;
+
+            try
+            {
+                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var reader = new StreamReader(stream))
+                {
+                    string? line;
+                    int linesChecked = 0;
+                    while ((line = reader.ReadLine()) != null && linesChecked < 25)
+                    {
+                        linesChecked++;
+                        int contentIdx = line.IndexOf("\"content\":\"", StringComparison.Ordinal);
+                        if (contentIdx >= 0)
+                        {
+                            int start = contentIdx + 11;
+                            int end = line.IndexOf("\"", start, StringComparison.Ordinal);
+                            if (end > start)
+                            {
+                                string prompt = line.Substring(start, end - start);
+                                prompt = prompt.Replace("\\\"", "\"").Replace("\\n", " ").Trim();
+                                if (prompt.StartsWith("<system-reminder", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    continue;
+                                }
+                                if (prompt.Length > 45)
+                                {
+                                    return prompt.Substring(0, 42) + "...";
+                                }
+                                if (!string.IsNullOrWhiteSpace(prompt))
+                                {
+                                    return prompt;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return string.Empty;
         }
 
         private static bool TryLoadSessionFile(string filePath, ClaudeSessionMeta meta)
