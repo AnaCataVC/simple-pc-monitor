@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  let latestVersionTag = 'v3.2.0';
+  let latestVersionTag = 'v3.2.1';
   const repoOwner = 'AnaCataVC';
   const repoName = 'system-core-monitor';
 
@@ -21,10 +21,10 @@
       nav_specs: "Especificaciones",
       nav_downloads: "Descargas",
       nav_faq: "FAQ",
-      btn_download_nav: "Descargar v3.2.0",
+      btn_download_nav: "Descargar v3.2.1",
 
       hero_pill: "Windows 10 / 11 Nativo • .NET 9 C# 13",
-      hero_badge: "Versión 3.2.0 • 687 KB Standalone • .NET 9",
+      hero_badge: "Versión 3.2.1 • 687 KB Standalone • .NET 9",
       hero_title: "Monitor de Rendimiento y Agentes IA para Windows",
       hero_subtitle: "Telemetría en tiempo real, observabilidad de Claude Code y Gemini, mantenimiento de sesiones y optimización de recursos en un único ejecutable nativo.",
       btn_setup: "Descargar Instalador (.exe)",
@@ -126,9 +126,9 @@
       nav_specs: "Specifications",
       nav_downloads: "Downloads",
       nav_faq: "FAQ",
-      btn_download_nav: "Download v3.2.0",
+      btn_download_nav: "Download v3.2.1",
 
-      hero_badge: "Version 3.2.0 • 687 KB Standalone • .NET 9",
+      hero_badge: "Version 3.2.1 • 687 KB Standalone • .NET 9",
       hero_title: "High-Performance System & AI Agent Monitor for Windows",
       hero_subtitle: "Real-time telemetry, Claude Code & Gemini observability, transcript storage maintenance, and resource optimization in a single standalone binary.",
       btn_setup: "Download Installer (.exe)",

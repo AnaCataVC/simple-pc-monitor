@@ -4,7 +4,7 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![C# .NET](https://img.shields.io/badge/C%23%2013-WPF%20%2F%20.NET%209-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
-[![Version](https://img.shields.io/badge/Release-v3.2.0-93A8FD?style=flat-square)](https://github.com/AnaCataVC/system-core-monitor/releases/tag/v3.2.0)
+[![Version](https://img.shields.io/badge/Release-v3.2.1-93A8FD?style=flat-square)](https://github.com/AnaCataVC/system-core-monitor/releases/tag/v3.2.1)
 [![Binary Size](https://img.shields.io/badge/Binary%20Size-687%20KB-success?style=flat-square)]()
 [![Tests](https://img.shields.io/badge/Tests-32%20Passed-brightgreen?style=flat-square)]()
 [![Antivirus](https://img.shields.io/badge/Antivirus-0%20False%20Positives-7EE7B8?style=flat-square)]()
@@ -26,7 +26,7 @@
 ## English
 
 ### 1. Project Description
-**System Core Monitor v3.2.0** is an interactive desktop command center and telemetry suite built exclusively with compiled C# 13 and Windows Presentation Foundation (.NET 9 WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, AI Transcript Retention & Storage Maintenance, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` (687 KB) without third-party runtimes or background services.
+**System Core Monitor v3.2.1** is an interactive desktop command center and telemetry suite built exclusively with compiled C# 13 and Windows Presentation Foundation (.NET 9 WPF). It monitors and actively manages critical system resources—**CPU, Memory (RAM), Multi-Drive Storage, Network Latency & Throughput, Real-Time Processes, AI Agents & Model Context Protocol (MCP) Sessions, AI Transcript Retention & Storage Maintenance, Windows Services, Scheduled Tasks, Startup Applications, and Hardware Accelerators (GPU/NPU)**—packaged into a single standalone `.exe` (687 KB) without third-party runtimes or background services.
 
 ---
 
@@ -218,7 +218,7 @@ pwsh -ExecutionPolicy Bypass -File .\tests\DeepStress.Tests.ps1
 ## Español
 
 ### 1. Descripción del Proyecto
-**System Core Monitor v3.2.0** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# (.NET 9) y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Mantenimiento de Transcripciones y Logs de IA, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **687 KB** sin dependencias NuGet externas.
+**System Core Monitor v3.2.1** es un centro de mando interactivo y panel de telemetría de alto rendimiento desarrollado exclusivamente en C# (.NET 9) y Windows Presentation Foundation (WPF). Monitorea y gestiona de forma activa los recursos críticos del sistema—**CPU, Memoria RAM, Almacenamiento Multidisco, Red y Latencia Ping, Procesos en Tiempo Real, Sesiones de Agentes de IA y Servidores MCP, Mantenimiento de Transcripciones y Logs de IA, Servicios de Windows, Tareas Programadas, Programas de Inicio y Aceleradores de Hardware (GPU/NPU)**—en un único ejecutable standalone de **687 KB** sin dependencias NuGet externas.
 
 ---
 
