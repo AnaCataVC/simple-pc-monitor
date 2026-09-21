@@ -45,6 +45,4 @@ jobs:
         with:
           name: SystemCoreMonitor-Binaries
           path: |
-            releases/SystemCoreMonitor.exe
             releases/SystemCoreMonitor-Setup.exe
-            releases/*.zip

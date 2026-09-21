@@ -96,7 +96,7 @@ if (Test-Path $pngPath) {
 }
 
 # 3. Compile Standalone Main Executable (.NET 9 Publish)
-Write-Host "[2/4] Publishing standalone C# WPF binary with dotnet..." -ForegroundColor Yellow
+Write-Host "[2/3] Publishing standalone C# WPF binary with dotnet..." -ForegroundColor Yellow
 $publishDir = Join-Path (Join-Path $SrcDir "bin") "Publish"
 if (Test-Path $publishDir) {
     Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -112,32 +112,65 @@ if (-not (Test-Path $compiledExe)) {
     throw "Build failed: $compiledExe was not produced."
 }
 
-# Copy to Releases and Staging
+# Copy to Releases root for embedded resource inclusion in Installer
 $targetReleaseExe = Join-Path $ReleasesDir "SystemCoreMonitor.exe"
 Copy-Item -Path $compiledExe -Destination $targetReleaseExe -Force
-Copy-Item -Path $compiledExe -Destination (Join-Path $StageDir "SystemCoreMonitor.exe") -Force
 
-if (Test-Path $pngPath) { Copy-Item -Path $pngPath -Destination $StageDir -Force }
-if (Test-Path $icoPath) { Copy-Item -Path $icoPath -Destination $StageDir -Force }
-Copy-Item -Path (Join-Path $ProjectRoot "README.md") -Destination $StageDir -Force
+# 4. Locate MSBuild and Compile Setup Wizard Installer
+Write-Host "[3/3] Compiling Setup Wizard Installer executable..." -ForegroundColor Yellow
 
-# 4. Compress Portable Release ZIP
-Write-Host "[3/4] Compressing portable distribution into ZIP..." -ForegroundColor Yellow
-Compress-Archive -Path "$StageDir\*" -DestinationPath $ZipOutput -CompressionLevel Optimal -Force
-$unversionedZip = Join-Path $ReleasesDir "System-Core-Monitor-Portable.zip"
-Copy-Item -Path $ZipOutput -Destination $unversionedZip -Force
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msbuildPath = $null
 
-Write-Host "[4/4] Native C# Deliverables Ready!" -ForegroundColor Green
+if (Test-Path $vswhere) {
+    $vsPath = & $vswhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+    if ($vsPath -and (Test-Path $vsPath)) {
+        $msbuildPath = $vsPath
+    }
+}
+
+if (-not $msbuildPath) {
+    $candidates = @(
+        'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe',
+        'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe',
+        'C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe'
+    )
+    $msbuildPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+$compiledSetup = $false
+if ($msbuildPath) {
+    try {
+        & $msbuildPath $InstCsproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
+        if ($LASTEXITCODE -eq 0) { $compiledSetup = $true }
+    } catch { }
+}
+
+if (-not $compiledSetup -and (Test-Path 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe')) {
+    Write-Host "  Retrying with Framework64 MSBuild..." -ForegroundColor DarkGray
+    & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe' $InstCsproj /p:Configuration=Release /p:Platform=AnyCPU /v:m
+    if ($LASTEXITCODE -eq 0) { $compiledSetup = $true }
+}
+
+$setupExe = Join-Path $ReleasesDir "SystemCoreMonitor-Setup.exe"
+if (-not (Test-Path $setupExe)) {
+    throw "Build failed: Setup Wizard executable ($setupExe) was not produced."
+}
+
+# Clean up temporary staging directory if created
+if (Test-Path $StageDir) {
+    Remove-Item $StageDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Write-Host "Deliverables Ready!" -ForegroundColor Green
 Write-Host ""
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "  Generated Native C# Deliverables in releases/: " -ForegroundColor Cyan
+Write-Host "  Generated Installer Deliverable in releases/: " -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
-Write-Host "  1. Standalone Executable : $targetReleaseExe" -ForegroundColor White
-Write-Host "     -> Doble clic directo en cualquier PC Windows 10/11 con .NET 9 Desktop Runtime." -ForegroundColor Gray
-
-$sizeKB = [math]::Round((Get-Item $targetReleaseExe).Length / 1KB)
-Write-Host "     -> Tamano medido      : $sizeKB KB" -ForegroundColor Gray
-
-Write-Host "  2. Paquete ZIP Portable  : $ZipOutput" -ForegroundColor White
-Write-Host "     -> Copia generica     : $unversionedZip" -ForegroundColor Gray
+Write-Host "  Setup Wizard Installer : $setupExe" -ForegroundColor White
+$setupSizeKB = [math]::Round((Get-Item $setupExe).Length / 1KB)
+Write-Host "  Setup File Size        : $setupSizeKB KB" -ForegroundColor Gray
 Write-Host "=================================================" -ForegroundColor Cyan
