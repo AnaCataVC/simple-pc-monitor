@@ -1,6 +1,6 @@
 # ⚡ System Core Monitor — Command Center & Action Buttons Technical Manual
 
-This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **System Core Monitor v2.7.0**.
+This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **System Core Monitor v3.2.0**.
 
 ---
 
@@ -194,7 +194,7 @@ sequenceDiagram
 
 ## 5. AI Agent & MCP Session Telemetry Engine
 
-System Core Monitor v2.7.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
+System Core Monitor v3.2.0 features an enterprise-grade discovery and telemetry engine designed specifically for modern autonomous developer agents and Model Context Protocol (MCP) architectures.
 
 ### 5.1 Toolhelp32 Snapshot Traversal, PID Reuse Mitigation & Cache Eviction Safeguard
 - **Atomic Traversal:** Captures the full Windows process hierarchy in $<0.8\text{ ms}$ via `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)`.

@@ -59,7 +59,7 @@ system-core-monitor/
 ├── scripts/
 │   └── Build-Package.ps1          # Single-file .NET 9 publish and packaging pipeline
 ├── tests/
-│   ├── Metrics.Tests.ps1          # 19-Test Health & Reflection validation suite
+│   ├── Metrics.Tests.ps1          # 21-Test Health & Reflection validation suite
 │   ├── AiTranscript.Tests.ps1     # 5-Test AI Transcript Retention & Cleanup suite
 │   └── DeepStress.Tests.ps1       # 6-Test Live Process Tree, PID Reuse Guard, Handle Leak & 5s Smoke suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
@@ -95,9 +95,9 @@ system-core-monitor/
 dotnet build src\SystemCoreMonitor.csproj -c Release
 ```
 
-### Run Tests (30 Automated Tests)
+### Run Tests (32 Automated Tests)
 ```powershell
-# 1. Run Health & Architecture Tests (19 tests)
+# 1. Run Health & Architecture Tests (21 tests)
 pwsh -ExecutionPolicy Bypass -File tests\Metrics.Tests.ps1
 
 # 2. Run AI Transcript Retention & Cleanup Tests (5 tests)
