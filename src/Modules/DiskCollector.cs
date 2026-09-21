@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using SystemCoreMonitor.Core;
@@ -32,19 +32,11 @@ namespace SystemCoreMonitor.Modules
                         string label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "Local Disk" : d.VolumeLabel;
 
                         // Cloud mounts (Google Drive and similar) surface as fixed drives whose
-                        // capacity mirrors the host volume. Reporting their numbers would double
-                        // the machine's apparent storage, so they are listed but never measured.
-                        if (FileSystemSafety.IsLikelyVirtualVolume(d.DriveFormat, d.TotalSize, d.DriveType == DriveType.Fixed))
+                        // capacity mirrors the host volume or remote cloud storage. They do not
+                        // consume real local storage, so omit them from physical disk reporting.
+                        if (FileSystemSafety.IsLikelyVirtualVolume(d.DriveFormat, d.TotalSize, d.DriveType == DriveType.Fixed) ||
+                            (!string.IsNullOrWhiteSpace(d.VolumeLabel) && (d.VolumeLabel.IndexOf("Google Drive", StringComparison.OrdinalIgnoreCase) >= 0 || d.VolumeLabel.IndexOf("Cloud", StringComparison.OrdinalIgnoreCase) >= 0)))
                         {
-                            results.Add(new DiskMetric
-                            {
-                                Name        = d.Name.TrimEnd('\\'),
-                                VolumeLabel = label,
-                                DriveFormat = d.DriveFormat,
-                                IsVirtual   = true,
-                                KindLabel   = LocalizationManager.Get("DriveKindCloud"),
-                                Status      = "Ok"
-                            });
                             continue;
                         }
 

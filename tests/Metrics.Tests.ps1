@@ -386,6 +386,95 @@ Assert-Test "Security: Bloat cleanup refuses every path outside the whitelist" {
     return $true
 }
 
+# 20. Test MainViewModel Dynamic Accelerators Navigation Visibility
+Assert-Test "UI: MainViewModel dynamically hides and restores Accelerators in sidebar navigation" {
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $mainVmType = $asm.GetType("SystemCoreMonitor.ViewModels.MainViewModel")
+    $accelVmType = $asm.GetType("SystemCoreMonitor.ViewModels.AcceleratorsViewModel")
+    $aiAgentsVmType = $asm.GetType("SystemCoreMonitor.ViewModels.AiAgentsViewModel")
+    $storageVmType = $asm.GetType("SystemCoreMonitor.ViewModels.StorageViewModel")
+    if ($null -eq $mainVmType) { return $false }
+
+    $vm = [System.Activator]::CreateInstance($mainVmType)
+    $setVisibleMethod = $mainVmType.GetMethod("SetAcceleratorsVisibility")
+    $navItemsProp = $mainVmType.GetProperty("NavigationItems")
+    $navToMethod = $mainVmType.GetMethod("NavigateTo")
+    $currVmProp = $mainVmType.GetProperty("CurrentViewModel")
+
+    # 1. Hide Accelerators
+    $setVisibleMethod.Invoke($vm, @([bool]$false))
+    $items = $navItemsProp.GetValue($vm)
+    $hasAccelWhenHidden = $false
+    foreach ($item in $items) {
+        if ($item.ViewModelType -eq $accelVmType) { $hasAccelWhenHidden = $true }
+    }
+    if ($hasAccelWhenHidden) { return $false }
+
+    # 2. Prevent navigation while hidden
+    $navToMethod.Invoke($vm, @($accelVmType))
+    $curr = $currVmProp.GetValue($vm)
+    if ($curr.GetType() -eq $accelVmType) { return $false }
+
+    # 3. Restore Accelerators
+    $setVisibleMethod.Invoke($vm, @([bool]$true))
+    $items = $navItemsProp.GetValue($vm)
+    $accelIndex = -1
+    $aiAgentsIndex = -1
+    $storageIndex = -1
+    $idx = 0
+    foreach ($item in $items) {
+        if ($item.ViewModelType -eq $accelVmType) { $accelIndex = $idx }
+        if ($item.ViewModelType -eq $aiAgentsVmType) { $aiAgentsIndex = $idx }
+        if ($item.ViewModelType -eq $storageVmType) { $storageIndex = $idx }
+        $idx++
+    }
+
+    # Verify restored and in correct order (AiAgents < Accelerators < Storage)
+    if ($accelIndex -eq -1) { return $false }
+    if ($aiAgentsIndex -ne -1 -and $accelIndex -le $aiAgentsIndex) { return $false }
+    if ($storageIndex -ne -1 -and $accelIndex -ge $storageIndex) { return $false }
+
+    return $true
+}
+
+# 21. Test Dynamic 4-Theme Switching
+Assert-Test "Theme Engine: App.SetTheme switches between all 4 palettes dynamically" {
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $appType = $asm.GetType("SystemCoreMonitor.App")
+    if ($null -eq $appType) { return $false }
+
+    $app = [System.Activator]::CreateInstance($appType)
+    $init = $appType.GetMethod("InitializeComponent")
+    if ($init) { $init.Invoke($app, $null) }
+
+    $setThemeMethod = $appType.GetMethod("SetTheme")
+    if ($null -eq $setThemeMethod) { return $false }
+
+    # Test Light (#FFF4F6FB)
+    $setThemeMethod.Invoke($null, @("Light"))
+    $bgLight = $app.Resources["BgApp"]
+    if ($null -eq $bgLight -or $bgLight.ToString() -ne "#FFF4F6FB") { return $false }
+
+    # Test Neon (#FF0B0E14)
+    $setThemeMethod.Invoke($null, @("Neon"))
+    $bgNeon = $app.Resources["BgApp"]
+    if ($null -eq $bgNeon -or $bgNeon.ToString() -ne "#FF0B0E14") { return $false }
+
+    # Test Rose (#FF181318)
+    $setThemeMethod.Invoke($null, @("Rose"))
+    $bgRose = $app.Resources["BgApp"]
+    if ($null -eq $bgRose -or $bgRose.ToString() -ne "#FF181318") { return $false }
+
+    # Test Dark (#FF10121A)
+    $setThemeMethod.Invoke($null, @("Dark"))
+    $bgDark = $app.Resources["BgApp"]
+    if ($null -eq $bgDark -or $bgDark.ToString() -ne "#FF10121A") { return $false }
+
+    return $true
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Results: $passed Passed, $failed Failed" -ForegroundColor $(if ($failed -eq 0) { "Green" } else { "Red" })
 Write-Host "=================================================" -ForegroundColor Cyan

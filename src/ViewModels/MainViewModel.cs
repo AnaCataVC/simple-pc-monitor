@@ -28,6 +28,13 @@ namespace SystemCoreMonitor.ViewModels
             set => SetProperty(ref _isSelected, value);
         }
 
+        private bool _isVisible = true;
+        public bool IsVisible
+        {
+            get => _isVisible;
+            set => SetProperty(ref _isVisible, value);
+        }
+
         public string BadgeText
         {
             get => _badgeText;
@@ -48,6 +55,7 @@ namespace SystemCoreMonitor.ViewModels
         private ViewModelBase _currentViewModel;
         private string _viewMode = "Full";
         private NavigationItem? _selectedNavItem;
+        private NavigationItem? _acceleratorsNavItem;
 
         public DashboardViewModel Dashboard { get; } = new();
         public ProcessesViewModel Processes { get; } = new();
@@ -100,6 +108,8 @@ namespace SystemCoreMonitor.ViewModels
             });
 
             InitializeNavItems();
+            SetAcceleratorsVisibility(ConfigManager.Current.EnableAcceleratorsMonitoring);
+            Settings.AcceleratorsMonitoringChanged += SetAcceleratorsVisibility;
             LocalizationManager.LanguageChanged += RefreshLocalization;
         }
 
@@ -109,6 +119,7 @@ namespace SystemCoreMonitor.ViewModels
             {
                 item.RefreshTitle();
             }
+            _acceleratorsNavItem?.RefreshTitle();
             OnPropertyChanged(nameof(WindowModesHeader));
             OnPropertyChanged(nameof(ViewModeWidgetText));
             OnPropertyChanged(nameof(HwSummaryBadgeText));
@@ -118,8 +129,14 @@ namespace SystemCoreMonitor.ViewModels
         {
             NavigationItems.Add(new NavigationItem { LocalizationKey = "TabOverview", Title = LocalizationManager.Get("TabOverview"), IconKey = "IconHardware", ViewModelType = typeof(DashboardViewModel), IsSelected = true });
             NavigationItems.Add(new NavigationItem { LocalizationKey = "TabProcesses", Title = LocalizationManager.Get("TabProcesses"), IconKey = "IconProcess", ViewModelType = typeof(ProcessesViewModel) });
-            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabAiAgents", Title = LocalizationManager.Get("TabAiAgents"), IconKey = "IconNpu", ViewModelType = typeof(AiAgentsViewModel) });
-            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabAccelerators", Title = LocalizationManager.Get("TabAccelerators"), IconKey = "IconGpu", ViewModelType = typeof(AcceleratorsViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabAiAgents", Title = LocalizationManager.Get("TabAiAgents"), IconKey = "IconBot", ViewModelType = typeof(AiAgentsViewModel) });
+            
+            _acceleratorsNavItem = new NavigationItem { LocalizationKey = "TabAccelerators", Title = LocalizationManager.Get("TabAccelerators"), IconKey = "IconGpu", ViewModelType = typeof(AcceleratorsViewModel) };
+            if (ConfigManager.Current.EnableAcceleratorsMonitoring)
+            {
+                NavigationItems.Add(_acceleratorsNavItem);
+            }
+
             NavigationItems.Add(new NavigationItem { LocalizationKey = "TabDrives", Title = LocalizationManager.Get("TabDrives"), IconKey = "IconDisk", ViewModelType = typeof(StorageViewModel) });
             NavigationItems.Add(new NavigationItem { LocalizationKey = "TabServices", Title = LocalizationManager.Get("TabServices"), IconKey = "IconService", ViewModelType = typeof(ServicesViewModel) });
             NavigationItems.Add(new NavigationItem { LocalizationKey = "TabStartup", Title = LocalizationManager.Get("TabStartup"), IconKey = "IconStartup", ViewModelType = typeof(StartupViewModel) });
@@ -128,8 +145,83 @@ namespace SystemCoreMonitor.ViewModels
             _selectedNavItem = NavigationItems[0];
         }
 
+        public void SetAcceleratorsVisibility(bool visible)
+        {
+            void Apply()
+            {
+                if (_acceleratorsNavItem == null) return;
+
+                _acceleratorsNavItem.IsVisible = visible;
+
+                if (visible)
+                {
+                    if (!NavigationItems.Contains(_acceleratorsNavItem))
+                    {
+                        int targetIndex = -1;
+                        for (int i = 0; i < NavigationItems.Count; i++)
+                        {
+                            if (NavigationItems[i].ViewModelType == typeof(AiAgentsViewModel))
+                            {
+                                targetIndex = i + 1;
+                                break;
+                            }
+                        }
+
+                        if (targetIndex >= 0 && targetIndex <= NavigationItems.Count)
+                        {
+                            NavigationItems.Insert(targetIndex, _acceleratorsNavItem);
+                        }
+                        else
+                        {
+                            int settingsIndex = -1;
+                            for (int i = 0; i < NavigationItems.Count; i++)
+                            {
+                                if (NavigationItems[i].ViewModelType == typeof(SettingsViewModel))
+                                {
+                                    settingsIndex = i;
+                                    break;
+                                }
+                            }
+                            if (settingsIndex >= 0)
+                                NavigationItems.Insert(settingsIndex, _acceleratorsNavItem);
+                            else
+                                NavigationItems.Add(_acceleratorsNavItem);
+                        }
+                    }
+                }
+                else
+                {
+                    if (NavigationItems.Contains(_acceleratorsNavItem))
+                    {
+                        NavigationItems.Remove(_acceleratorsNavItem);
+                    }
+
+                    if (CurrentViewModel == Accelerators)
+                    {
+                        NavigateTo(typeof(DashboardViewModel));
+                    }
+                }
+            }
+
+            if (System.Windows.Application.Current?.Dispatcher != null && 
+                !System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(Apply);
+            }
+            else
+            {
+                Apply();
+            }
+        }
+
         public void NavigateTo(Type viewModelType)
         {
+            if (viewModelType == typeof(AcceleratorsViewModel) && (_acceleratorsNavItem?.IsVisible != true || !ConfigManager.Current.EnableAcceleratorsMonitoring))
+            {
+                NavigateTo(typeof(DashboardViewModel));
+                return;
+            }
+
             if (viewModelType == typeof(DashboardViewModel)) CurrentViewModel = Dashboard;
             else if (viewModelType == typeof(ProcessesViewModel)) CurrentViewModel = Processes;
             else if (viewModelType == typeof(AiAgentsViewModel)) CurrentViewModel = AiAgents;

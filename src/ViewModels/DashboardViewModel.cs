@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using SystemCoreMonitor.Core;
 using SystemCoreMonitor.Core.Mvvm;
 using SystemCoreMonitor.Models;
+using SystemCoreMonitor.Modules;
 
 namespace SystemCoreMonitor.ViewModels
 {
@@ -61,11 +62,12 @@ namespace SystemCoreMonitor.ViewModels
 
         public AsyncRelayCommand OptimizeMemoryCommand { get; }
         public AsyncRelayCommand CleanTempCommand { get; }
+        public AsyncRelayCommand FlushDnsCommand { get; }
         public RelayCommand SwitchPowerPlanCommand { get; }
         public RelayCommand LaunchTaskMgrCommand { get; }
         public RelayCommand LaunchResMonCommand { get; }
 
-        public event Action<string>? ShowToastRequested;
+        public event Action<string, NotificationType>? ShowToastRequested;
         public event Action<string>? ShowProgressRequested;
 
         public DashboardViewModel()
@@ -77,14 +79,28 @@ namespace SystemCoreMonitor.ViewModels
             {
                 ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionOptimizingRam"));
                 double freedMB = await Task.Run(() => MemoryOptimizer.OptimizeWorkingSet(out _));
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastMemoryOptimized"), freedMB));
+                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastMemoryOptimized"), freedMB), NotificationType.Success);
             });
 
             CleanTempCommand = new AsyncRelayCommand(async () =>
             {
                 ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionCleaningTemp"));
                 var result = await Task.Run(() => SafeTempCleaner.CleanDeepStorage(false));
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), result.HumanSize));
+                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), result.HumanSize), NotificationType.Success);
+            });
+
+            FlushDnsCommand = new AsyncRelayCommand(async () =>
+            {
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionFlushingDns"));
+                bool ok = await Task.Run(() => NetworkCollector.FlushDnsCache());
+                if (ok)
+                {
+                    ShowToastRequested?.Invoke(LocalizationManager.Get("ToastDnsFlushed"), NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(LocalizationManager.Get("ToastDnsFailed"), NotificationType.Error);
+                }
             });
 
             SwitchPowerPlanCommand = new RelayCommand(param =>
@@ -96,7 +112,7 @@ namespace SystemCoreMonitor.ViewModels
                     else PowerPlanManager.SetScheme(PowerSchemeMode.Balanced);
 
                     CurrentPowerPlan = planName;
-                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastPlanChanged"), planName));
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastPlanChanged"), planName), NotificationType.Success);
                 }
             });
 
