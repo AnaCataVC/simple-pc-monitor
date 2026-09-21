@@ -37,7 +37,7 @@ namespace SystemCoreMonitor.ViewModels
             set => SetProperty(ref _isScanningBloat, value);
         }
 
-        public event Action<string>? ShowToastRequested;
+        public event Action<string, NotificationType>? ShowToastRequested;
         public event Action<string>? ShowProgressRequested;
 
         public StorageViewModel()
@@ -46,14 +46,14 @@ namespace SystemCoreMonitor.ViewModels
             {
                 ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionCleaningTemp"));
                 var res = await Task.Run(() => SafeTempCleaner.CleanDeepStorage(false));
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), res.HumanSize));
+                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), res.HumanSize), NotificationType.Success);
             });
 
             EmptyRecycleBinCommand = new AsyncRelayCommand(async () =>
             {
                 ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionEmptyingRecycleBin"));
                 await Task.Run(() => NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, null, NativeMethods.SHERB_NOCONFIRMATION | NativeMethods.SHERB_NOPROGRESSUI));
-                ShowToastRequested?.Invoke(LocalizationManager.Get("ToastRecycleBinEmptied"));
+                ShowToastRequested?.Invoke(LocalizationManager.Get("ToastRecycleBinEmptied"), NotificationType.Success);
             });
 
             ExecuteBloatActionCommand = new AsyncRelayCommand<BloatFinding>(async finding =>
@@ -63,7 +63,7 @@ namespace SystemCoreMonitor.ViewModels
                 {
                     ShowProgressRequested?.Invoke(string.Format("Limpiando caché {0}...", finding.Category));
                     var res = await Task.Run(() => BloatDetector.DeleteWhitelistedCache(finding.Path));
-                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), res.HumanSize));
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), res.HumanSize), NotificationType.Success);
                 }
                 else if (finding.ActionKind == "LaunchTool")
                 {
@@ -80,7 +80,7 @@ namespace SystemCoreMonitor.ViewModels
                 {
                     var findings = await Task.Run(() => BloatDetector.Scan());
                     UpdateBloat(findings);
-                    ShowToastRequested?.Invoke(LocalizationManager.CurrentLanguage == "es" ? "Análisis de almacenamiento completado" : "Storage scan completed");
+                    ShowToastRequested?.Invoke(LocalizationManager.CurrentLanguage == "es" ? "Análisis de almacenamiento completado" : "Storage scan completed", NotificationType.Info);
                 }
                 finally
                 {

@@ -424,6 +424,67 @@ namespace SystemCoreMonitor.Core
             }
         }
 
+        /// <summary>
+        /// Attempts graceful close first, escalating to reverse-topological tree termination if the
+        /// process does not exit within <paramref name="gracefulTimeoutMs"/>. Respects the PID-reuse
+        /// invariant with <paramref name="expectedStartTime"/>.
+        /// </summary>
+        public static async Task<(bool Success, string Message)> CloseProcessWithEscalationAsync(
+            int pid, string processName, DateTime expectedStartTime = default(DateTime), int gracefulTimeoutMs = 800)
+        {
+            if (pid <= 4 || IsProtected(processName))
+            {
+                return (false, string.Format("El proceso '{0}' está protegido por el sistema.", processName));
+            }
+
+            // Phase 1: Try graceful close
+            var closeStatus = await RequestGracefulCloseAsync(pid, processName, gracefulTimeoutMs).ConfigureAwait(false);
+
+            if (closeStatus == ProcessCloseResult.ClosedGracefully)
+            {
+                return (true, string.Format("Proceso '{0}' (PID {1}) cerrado correctamente.", processName, pid));
+            }
+
+            if (closeStatus == ProcessCloseResult.ProtectedProcess)
+            {
+                return (false, string.Format("El proceso '{0}' está protegido por el sistema.", processName));
+            }
+
+            if (closeStatus == ProcessCloseResult.AccessDenied)
+            {
+                return (false, string.Format("Acceso denegado al intentar cerrar '{0}' (PID {1}). Requiere elevación.", processName, pid));
+            }
+
+            // Phase 2: Escalate to reverse topological tree termination with PID-reuse guard
+            string termMsg;
+            bool killed = TerminateProcessTree(pid, force: true, out termMsg, expectedStartTime);
+            if (killed)
+            {
+                return (true, string.Format("Proceso '{0}' (PID {1}) finalizado.", processName, pid));
+            }
+            else
+            {
+                // Double check if process actually exited in the meantime
+                try
+                {
+                    using (var p = Process.GetProcessById(pid))
+                    {
+                        if (p.HasExited)
+                        {
+                            return (true, string.Format("Proceso '{0}' (PID {1}) finalizado.", processName, pid));
+                        }
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    return (true, string.Format("Proceso '{0}' (PID {1}) finalizado.", processName, pid));
+                }
+                catch { }
+
+                return (false, !string.IsNullOrEmpty(termMsg) ? termMsg : string.Format("No se pudo finalizar '{0}' (PID {1}).", processName, pid));
+            }
+        }
+
         public static bool TerminateProcess(int pid, string processName, out string message)
         {
             message = string.Empty;

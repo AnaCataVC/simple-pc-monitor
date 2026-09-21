@@ -15,33 +15,60 @@ namespace SystemCoreMonitor
 
         public static void SetTheme(string themeName)
         {
-            var dict = new ResourceDictionary();
+            if (Current != null && Current.Dispatcher != null && !Current.Dispatcher.CheckAccess())
+            {
+                Current.Dispatcher.Invoke(() => SetTheme(themeName));
+                return;
+            }
+
+            string themeFile = "PastelDark.xaml";
             if (string.Equals(themeName, "Light", StringComparison.OrdinalIgnoreCase))
             {
-                dict.Source = new Uri("UI/Themes/PastelLight.xaml", UriKind.Relative);
+                themeFile = "PastelLight.xaml";
             }
             else if (string.Equals(themeName, "Neon", StringComparison.OrdinalIgnoreCase))
             {
-                dict.Source = new Uri("UI/Themes/PastelNeon.xaml", UriKind.Relative);
+                themeFile = "PastelNeon.xaml";
             }
             else if (string.Equals(themeName, "Rose", StringComparison.OrdinalIgnoreCase))
             {
-                dict.Source = new Uri("UI/Themes/PastelRose.xaml", UriKind.Relative);
+                themeFile = "PastelRose.xaml";
             }
-            else
+
+            ResourceDictionary? newDict = null;
+            try
             {
-                dict.Source = new Uri("UI/Themes/PastelDark.xaml", UriKind.Relative);
+                var uri = new Uri($"/SystemCoreMonitor;component/UI/Themes/{themeFile}", UriKind.RelativeOrAbsolute);
+                newDict = LoadComponent(uri) as ResourceDictionary;
             }
+            catch (Exception ex)
+            {
+                CrashLogger.LogException("SetTheme", ex, false);
+            }
+
+            if (newDict == null) return;
 
             if (Current != null && Current.Resources != null)
             {
-                if (Current.Resources.MergedDictionaries.Count > 0)
+                var merged = Current.Resources.MergedDictionaries;
+                int targetIndex = -1;
+                for (int i = 0; i < merged.Count; i++)
                 {
-                    Current.Resources.MergedDictionaries[0] = dict;
+                    var m = merged[i];
+                    if (m.Contains("BgApp") || (m.Source != null && m.Source.OriginalString.Contains("Pastel")))
+                    {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+
+                if (targetIndex >= 0)
+                {
+                    merged[targetIndex] = newDict;
                 }
                 else
                 {
-                    Current.Resources.MergedDictionaries.Insert(0, dict);
+                    merged.Add(newDict);
                 }
             }
         }

@@ -66,21 +66,33 @@ namespace SystemCoreMonitor.UI
 
         private void WireViewModelEvents()
         {
-            _viewModel.Dashboard.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Dashboard.ShowToastRequested += (msg, type) => ShowToast(msg, type);
             _viewModel.Dashboard.ShowProgressRequested += msg => ShowToast(msg, NotificationType.InProgress);
 
-            _viewModel.Processes.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Processes.ShowToastRequested += (msg, type) => ShowToast(msg, type);
 
-            _viewModel.AiAgents.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.AiAgents.ShowToastRequested += (msg, type) => ShowToast(msg, type);
             _viewModel.AiAgents.ShowProgressRequested += msg => ShowToast(msg, NotificationType.InProgress);
 
-            _viewModel.Storage.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Storage.ShowToastRequested += (msg, type) => ShowToast(msg, type);
             _viewModel.Storage.ShowProgressRequested += msg => ShowToast(msg, NotificationType.InProgress);
 
-            _viewModel.Services.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
-            _viewModel.Startup.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Services.ShowToastRequested += (msg, type) => ShowToast(msg, type);
+            _viewModel.Startup.ShowToastRequested += (msg, type) => ShowToast(msg, type);
 
-            _viewModel.Settings.ThemeChanged += theme => App.SetTheme(theme);
+            _viewModel.Settings.ThemeChanged += theme =>
+            {
+                App.SetTheme(theme);
+                string themeLabel = theme switch
+                {
+                    "Light" => "Pastel Light",
+                    "Neon" => "Cyber Neon",
+                    "Rose" => "Sakura Rose",
+                    _ => "Pastel Dark"
+                };
+                bool isEs = LocalizationManager.CurrentLanguage == "es";
+                ShowToast(isEs ? $"Tema visual aplicado: {themeLabel}" : $"Visual theme applied: {themeLabel}", NotificationType.Success);
+            };
             _viewModel.Settings.LanguageChanged += lang =>
             {
                 LocalizationManager.CurrentLanguage = lang;
@@ -88,10 +100,12 @@ namespace SystemCoreMonitor.UI
             };
 
             _viewModel.Accelerators.IsEnabled = _config.EnableAcceleratorsMonitoring;
+            _viewModel.SetAcceleratorsVisibility(_config.EnableAcceleratorsMonitoring);
             _viewModel.Settings.AcceleratorsMonitoringChanged += enabled =>
             {
                 _config.EnableAcceleratorsMonitoring = enabled;
                 _viewModel.Accelerators.IsEnabled = enabled;
+                _viewModel.SetAcceleratorsVisibility(enabled);
                 if (!enabled)
                 {
                     _viewModel.Accelerators.Update(
@@ -329,43 +343,40 @@ namespace SystemCoreMonitor.UI
                     ToastOverlayBanner.BorderBrush = (Brush)FindResource("AccentCpu");
                     ToastStatusIcon.Fill = (Brush)FindResource("AccentCpu");
                     ToastStatusIcon.Data = (Geometry)FindResource("IconSync");
-
-                    ToastOverlayBanner.Visibility = Visibility.Visible;
-                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
-                    ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
                 }
                 else if (type == NotificationType.Success)
                 {
                     ToastOverlayBanner.BorderBrush = (Brush)FindResource("StatusOk");
                     ToastStatusIcon.Fill = (Brush)FindResource("StatusOk");
                     ToastStatusIcon.Data = (Geometry)FindResource("IconCheck");
-
-                    ToastOverlayBanner.Visibility = Visibility.Visible;
-                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
-                    ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-
-                    // Auto-dismiss after 3.5 seconds
-                    _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
-                    _toastTimer.Tick += (s, e) =>
-                    {
-                        _toastTimer?.Stop();
-                        var fadeOut = new DoubleAnimation(0.0, TimeSpan.FromMilliseconds(350));
-                        fadeOut.Completed += (s2, e2) => ToastOverlayBanner.Visibility = Visibility.Collapsed;
-                        ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-                    };
-                    _toastTimer.Start();
+                }
+                else if (type == NotificationType.Error)
+                {
+                    ToastOverlayBanner.BorderBrush = (Brush)FindResource("StatusCrit");
+                    ToastStatusIcon.Fill = (Brush)FindResource("StatusCrit");
+                    ToastStatusIcon.Data = (Geometry)FindResource("IconClose");
+                }
+                else if (type == NotificationType.Warning)
+                {
+                    ToastOverlayBanner.BorderBrush = (Brush)FindResource("StatusWarn");
+                    ToastStatusIcon.Fill = (Brush)FindResource("StatusWarn");
+                    ToastStatusIcon.Data = (Geometry)FindResource("IconAlert");
                 }
                 else
                 {
                     ToastOverlayBanner.BorderBrush = (Brush)FindResource("AccentCpu");
                     ToastStatusIcon.Fill = (Brush)FindResource("AccentCpu");
                     ToastStatusIcon.Data = (Geometry)FindResource("IconInfo");
+                }
 
-                    ToastOverlayBanner.Visibility = Visibility.Visible;
-                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
-                    ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                ToastOverlayBanner.Visibility = Visibility.Visible;
+                var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
+                ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
 
-                    _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
+                if (type != NotificationType.InProgress)
+                {
+                    double duration = (type == NotificationType.Error || type == NotificationType.Warning) ? 4.5 : 3.5;
+                    _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(duration) };
                     _toastTimer.Tick += (s, e) =>
                     {
                         _toastTimer?.Stop();
@@ -539,6 +550,24 @@ namespace SystemCoreMonitor.UI
         private void BtnPlanHighPerf_Click(object sender, RoutedEventArgs e) => PowerPlanManager.SetScheme(PowerSchemeMode.HighPerformance);
         private void BtnOptimize_Click(object sender, RoutedEventArgs e) => Task.Run(() => MemoryOptimizer.OptimizeWorkingSet(out _));
         private void BtnCleanTemp_Click(object sender, RoutedEventArgs e) => Task.Run(() => SafeTempCleaner.CleanDeepStorage(false));
+        private void BtnFlushDns_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Run(() =>
+            {
+                bool ok = NetworkCollector.FlushDnsCache();
+                Dispatcher.Invoke(() =>
+                {
+                    if (ok)
+                    {
+                        ShowToast(LocalizationManager.Get("ToastDnsFlushed"), NotificationType.Success);
+                    }
+                    else
+                    {
+                        ShowToast(LocalizationManager.Get("ToastDnsFailed"), NotificationType.Error);
+                    }
+                });
+            });
+        }
         private void TrayMenuMinToTray_Click(object sender, RoutedEventArgs e) => _config.MinimizeToTray = !_config.MinimizeToTray;
         private void TrayMenuCloseToTray_Click(object sender, RoutedEventArgs e) => _config.CloseToTray = !_config.CloseToTray;
         private void TrayMenuRunAtStartup_Click(object sender, RoutedEventArgs e) => _config.RunAtStartup = !_config.RunAtStartup;

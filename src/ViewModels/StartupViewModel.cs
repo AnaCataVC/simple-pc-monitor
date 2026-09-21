@@ -12,7 +12,7 @@ namespace SystemCoreMonitor.ViewModels
     {
         private ObservableCollection<StartupItem> _startupItems = new();
 
-        public event Action<string>? ShowToastRequested;
+        public event Action<string, NotificationType>? ShowToastRequested;
 
         public ObservableCollection<StartupItem> StartupItems
         {
@@ -51,14 +51,14 @@ namespace SystemCoreMonitor.ViewModels
                     string msg = isEs
                         ? $"{(newState ? "Habilitado" : "Deshabilitado")}: {appName}"
                         : $"{(newState ? "Enabled" : "Disabled")}: {appName}";
-                    ShowToastRequested?.Invoke(msg);
+                    ShowToastRequested?.Invoke(msg, NotificationType.Success);
                 }
                 else
                 {
                     string errMsg = isEs
                         ? $"No se pudo modificar {item.Name} (posiblemente requiere elevación)"
                         : $"Could not modify {item.Name} (may require elevation)";
-                    ShowToastRequested?.Invoke(errMsg);
+                    ShowToastRequested?.Invoke(errMsg, NotificationType.Error);
                 }
             });
 
@@ -66,7 +66,7 @@ namespace SystemCoreMonitor.ViewModels
             {
                 ToolLauncher.StartStartupSettings();
                 bool isEs = LocalizationManager.CurrentLanguage == "es";
-                ShowToastRequested?.Invoke(isEs ? "Abriendo Configuración de Inicio de Windows..." : "Opening Windows Startup Settings...");
+                ShowToastRequested?.Invoke(isEs ? "Abriendo Configuración de Inicio de Windows..." : "Opening Windows Startup Settings...", NotificationType.Info);
             });
         }
 

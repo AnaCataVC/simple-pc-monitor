@@ -30,7 +30,7 @@ namespace SystemCoreMonitor.ViewModels
         public AsyncRelayCommand<ServiceItem> RestartServiceCommand { get; }
         public RelayCommand OpenServicesConsoleCommand { get; }
 
-        public event Action<string>? ShowToastRequested;
+        public event Action<string, NotificationType>? ShowToastRequested;
 
         public ServicesViewModel()
         {
@@ -39,34 +39,61 @@ namespace SystemCoreMonitor.ViewModels
                 ToolLauncher.StartServicesConsole();
                 ShowToastRequested?.Invoke(LocalizationManager.CurrentLanguage == "es"
                     ? "Abriendo Consola de Servicios de Windows..."
-                    : "Opening Windows Services Console...");
+                    : "Opening Windows Services Console...", NotificationType.Info);
             });
 
             StartServiceCommand = new AsyncRelayCommand<ServiceItem>(async svc =>
             {
                 if (svc == null) return;
                 bool ok = await Task.Run(() => ServiceCollector.StartService(svc.ServiceName));
-                ShowToastRequested?.Invoke(ok
-                    ? string.Format(LocalizationManager.Get("ToastServiceStarted"), svc.DisplayName)
-                    : "Failed to start service");
+                if (ok)
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastServiceStarted"), svc.DisplayName),
+                        NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastServiceStartFailed"), svc.DisplayName),
+                        NotificationType.Error);
+                }
             });
 
             StopServiceCommand = new AsyncRelayCommand<ServiceItem>(async svc =>
             {
                 if (svc == null) return;
                 bool ok = await Task.Run(() => ServiceCollector.StopService(svc.ServiceName));
-                ShowToastRequested?.Invoke(ok
-                    ? string.Format(LocalizationManager.Get("ToastServiceStopped"), svc.DisplayName)
-                    : "Failed to stop service");
+                if (ok)
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastServiceStopped"), svc.DisplayName),
+                        NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastServiceStopFailed"), svc.DisplayName),
+                        NotificationType.Error);
+                }
             });
 
             RestartServiceCommand = new AsyncRelayCommand<ServiceItem>(async svc =>
             {
                 if (svc == null) return;
                 bool ok = await Task.Run(() => ServiceCollector.RestartService(svc.ServiceName));
-                ShowToastRequested?.Invoke(ok
-                    ? string.Format(LocalizationManager.Get("ToastServiceStarted"), svc.DisplayName)
-                    : "Failed to restart service");
+                if (ok)
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastServiceStarted"), svc.DisplayName),
+                        NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastServiceRestartFailed"), svc.DisplayName),
+                        NotificationType.Error);
+                }
             });
         }
 

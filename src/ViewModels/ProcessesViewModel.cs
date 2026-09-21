@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -45,7 +45,7 @@ namespace SystemCoreMonitor.ViewModels
         public RelayCommand<ProcessMetric> SearchOnlineCommand { get; }
         public RelayCommand<string> SortCommand { get; }
 
-        public event Action<string>? ShowToastRequested;
+        public event Action<string, NotificationType>? ShowToastRequested;
 
         private List<ProcessMetric> _allProcesses = new();
 
@@ -55,7 +55,18 @@ namespace SystemCoreMonitor.ViewModels
             {
                 if (item == null) return;
                 var result = await Task.Run(() => ProcessManager.RequestGracefulCloseAsync(item.Id, item.Name));
-                ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), item.Name, result));
+                if (result == ProcessManager.ProcessCloseResult.ClosedGracefully || result == ProcessManager.ProcessCloseResult.MinimizedToTray)
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastProcessClosed"), item.Name, result),
+                        NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(
+                        string.Format(LocalizationManager.Get("ToastProcessCloseFailed"), item.Name, item.Id, result),
+                        NotificationType.Error);
+                }
             });
 
             SearchOnlineCommand = new RelayCommand<ProcessMetric>(item =>
