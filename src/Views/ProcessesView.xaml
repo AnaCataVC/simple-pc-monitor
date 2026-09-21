@@ -86,7 +86,7 @@
                                     <TextBlock Text="⚙️" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                     <StackPanel VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding FriendlyName, FallbackValue={Binding Name}}" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" MaxWidth="380"/>
+                                            <TextBlock Text="{Binding DisplayTitle}" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" MaxWidth="380"/>
                                             <TextBlock Text="{Binding Id, StringFormat='{} (PID {0})'}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
                                         <TextBlock Text="{Binding Name}" FontSize="11.5" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" MaxWidth="380"/>

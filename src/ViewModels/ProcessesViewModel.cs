@@ -107,7 +107,38 @@ namespace SystemCoreMonitor.ViewModels
                 _ => _sortDescending ? query.OrderByDescending(p => p.CpuPercent) : query.OrderBy(p => p.CpuPercent)
             };
 
-            Processes = new ObservableCollection<ProcessMetric>(query);
+            var targetList = query.ToList();
+            if (_processes.Count == 0)
+            {
+                Processes = new ObservableCollection<ProcessMetric>(targetList);
+                return;
+            }
+
+            // In-place synchronization to prevent scroll reset and UI flickering
+            int targetCount = targetList.Count;
+            for (int i = 0; i < targetCount; i++)
+            {
+                var target = targetList[i];
+                if (i < _processes.Count)
+                {
+                    if (_processes[i].Id != target.Id ||
+                        _processes[i].CpuPercent != target.CpuPercent ||
+                        _processes[i].MemoryMB != target.MemoryMB ||
+                        _processes[i].IsResponding != target.IsResponding)
+                    {
+                        _processes[i] = target;
+                    }
+                }
+                else
+                {
+                    _processes.Add(target);
+                }
+            }
+
+            while (_processes.Count > targetCount)
+            {
+                _processes.RemoveAt(_processes.Count - 1);
+            }
         }
     }
 }

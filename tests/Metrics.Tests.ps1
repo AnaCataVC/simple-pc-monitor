@@ -475,6 +475,39 @@ Assert-Test "Theme Engine: App.SetTheme switches between all 4 palettes dynamica
     return $true
 }
 
+# 22. Test XAML Syntax Integrity (No nested FallbackValue={Binding} expressions)
+Assert-Test "XAML Quality: All XAML views free of invalid nested FallbackValue bindings" {
+    $xamlFiles = Get-ChildItem -Path (Join-Path $projectRoot "src") -Filter "*.xaml" -Recurse
+    foreach ($file in $xamlFiles) {
+        $content = [System.IO.File]::ReadAllText($file.FullName)
+        if ($content -match 'FallbackValue\s*=\s*\{\s*Binding') {
+            Write-Host "         -> Invalid XAML FallbackValue={Binding} found in $($file.Name)" -ForegroundColor Red
+            return $false
+        }
+    }
+    return $true
+}
+
+# 23. Test ProcessMetric DisplayTitle Fallback Invariant
+Assert-Test "Models: ProcessMetric.DisplayTitle resolves FriendlyName and falls back to Name" {
+    $dllPath = Join-Path $projectRoot "src\bin\Release\net9.0-windows\SystemCoreMonitor.dll"
+    $asm = if (Test-Path $dllPath) { [System.Reflection.Assembly]::LoadFrom($dllPath) } else { [System.Reflection.Assembly]::Load([System.IO.File]::ReadAllBytes($exePath)) }
+    $procMetricType = $asm.GetType("SystemCoreMonitor.Models.ProcessMetric")
+    if ($null -eq $procMetricType) { return $false }
+
+    $item1 = [System.Activator]::CreateInstance($procMetricType)
+    $item1.Name = "notepad.exe"
+    $item1.FriendlyName = "Bloc de notas"
+    if ($item1.DisplayTitle -ne "Bloc de notas") { return $false }
+
+    $item2 = [System.Activator]::CreateInstance($procMetricType)
+    $item2.Name = "custom_tool.exe"
+    $item2.FriendlyName = ""
+    if ($item2.DisplayTitle -ne "custom_tool.exe") { return $false }
+
+    return $true
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Results: $passed Passed, $failed Failed" -ForegroundColor $(if ($failed -eq 0) { "Green" } else { "Red" })
 Write-Host "=================================================" -ForegroundColor Cyan

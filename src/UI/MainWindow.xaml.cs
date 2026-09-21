@@ -240,11 +240,14 @@ namespace SystemCoreMonitor.UI
 
             try
             {
+                // 1. Fast telemetry collectors (~15-40ms total)
                 var cpuTask = Task.Run(() => _cpu.Sample());
                 var memTask = Task.Run(() => _mem.Sample());
                 var diskTask = Task.Run(() => _disk.Sample());
                 var netTask = Task.Run(() => _net.Sample());
-                var procsTask = Task.Run(() => _proc.Sample(50, _cachedTotalRamGB));
+                var procsTask = Task.Run(() => _proc.Sample(150, _cachedTotalRamGB));
+
+                // 2. Slower background analyzers (AI sessions, accelerators, services, startup)
                 var aiTask = Task.Run(() => _ai.Sample());
                 var svcTask = Task.Run(() => _svc.Sample());
                 var startupTask = Task.Run(() => _startup.Sample());
@@ -253,28 +256,43 @@ namespace SystemCoreMonitor.UI
                     ? Task.Run(() => _accelEngine.SampleAllEngines())
                     : null;
 
-                if (accelTask != null)
-                {
-                    await Task.WhenAll(cpuTask, memTask, diskTask, netTask, accelTask, procsTask, aiTask, svcTask, startupTask);
-                }
-                else
-                {
-                    await Task.WhenAll(cpuTask, memTask, diskTask, netTask, procsTask, aiTask, svcTask, startupTask);
-                }
+                // Await fast metrics first for instant UI response (<40ms)
+                await Task.WhenAll(cpuTask, memTask, diskTask, netTask, procsTask);
 
                 var cpu = cpuTask.Result;
                 var mem = memTask.Result;
                 var disk = diskTask.Result;
                 var net = netTask.Result;
                 var procs = procsTask.Result;
-                var ai = aiTask.Result;
-                var svc = svcTask.Result;
-                var startup = startupTask.Result;
 
                 if (mem?.TotalGB > 0)
                 {
                     _cachedTotalRamGB = mem.TotalGB;
                 }
+
+                // Immediately update Processes, Fast Storage & Widgets
+                _viewModel.Processes.Update(procs);
+                _viewModel.Storage.UpdateDrives(disk);
+
+                TxtWidgetCpu.Text = $"{cpu.LoadPercent:F0}%";
+                ProgressWidgetCpu.Value = cpu.LoadPercent;
+                TxtWidgetRam.Text = $"{mem.LoadPercent:F0}%";
+                ProgressWidgetRam.Value = mem.LoadPercent;
+                TxtWidgetNet.Text = net.DownloadDisplay;
+
+                // Await remaining slower analyzers
+                if (accelTask != null)
+                {
+                    await Task.WhenAll(accelTask, aiTask, svcTask, startupTask);
+                }
+                else
+                {
+                    await Task.WhenAll(aiTask, svcTask, startupTask);
+                }
+
+                var ai = aiTask.Result;
+                var svc = svcTask.Result;
+                var startup = startupTask.Result;
 
                 GpuMetric gpu;
                 NpuMetric npu;
@@ -290,23 +308,15 @@ namespace SystemCoreMonitor.UI
                     npu = new NpuMetric { Status = "Disabled", Name = "Monitoreo desactivado" };
                 }
 
-                // Dispatch to ViewModels
+                // Dispatch remaining ViewModels
                 _viewModel.Dashboard.Update(cpu, mem, disk, net, gpu, npu);
-                _viewModel.Processes.Update(procs);
                 _viewModel.AiAgents.Update(ai);
                 _viewModel.Accelerators.Update(gpu, npu);
-                _viewModel.Storage.UpdateDrives(disk);
                 _viewModel.Services.Update(svc);
                 _viewModel.Startup.Update(startup);
 
-                // Update Widget UI
-                TxtWidgetCpu.Text = $"{cpu.LoadPercent:F0}%";
-                ProgressWidgetCpu.Value = cpu.LoadPercent;
-                TxtWidgetRam.Text = $"{mem.LoadPercent:F0}%";
-                ProgressWidgetRam.Value = mem.LoadPercent;
                 TxtWidgetGpu.Text = _config.EnableAcceleratorsMonitoring ? $"{gpu.LoadPercent:F0}%" : "Off";
                 ProgressWidgetGpu.Value = _config.EnableAcceleratorsMonitoring ? gpu.LoadPercent : 0;
-                TxtWidgetNet.Text = net.DownloadDisplay;
 
                 // Uptime
                 var hw = _hw.Sample();
