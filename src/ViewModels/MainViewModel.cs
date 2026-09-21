@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using SystemCoreMonitor.Core;
 using SystemCoreMonitor.Core.Mvvm;
@@ -7,10 +7,16 @@ namespace SystemCoreMonitor.ViewModels
 {
     public class NavigationItem : ObservableObject
     {
+        private string _title = string.Empty;
         private bool _isSelected;
         private string _badgeText = string.Empty;
 
-        public string Title { get; init; } = string.Empty;
+        public string LocalizationKey { get; init; } = string.Empty;
+        public string Title
+        {
+            get => _title;
+            set => SetProperty(ref _title, value);
+        }
         public string IconKey { get; init; } = string.Empty;
         public System.Windows.Media.Geometry? IconGeometry => 
             System.Windows.Application.Current?.TryFindResource(IconKey) as System.Windows.Media.Geometry;
@@ -26,6 +32,14 @@ namespace SystemCoreMonitor.ViewModels
         {
             get => _badgeText;
             set => SetProperty(ref _badgeText, value);
+        }
+
+        public void RefreshTitle()
+        {
+            if (!string.IsNullOrEmpty(LocalizationKey))
+            {
+                Title = LocalizationManager.Get(LocalizationKey);
+            }
         }
     }
 
@@ -44,6 +58,18 @@ namespace SystemCoreMonitor.ViewModels
         public StartupViewModel Startup { get; } = new();
         public SettingsViewModel Settings { get; } = new();
 
+        public string WindowModesHeader => LocalizationManager.Get("MenuViewsHeader");
+        public string ViewModeWidgetText => LocalizationManager.Get("ViewWidget");
+        public string HwSummaryBadgeText => LocalizationManager.Get("HwSummaryBadge");
+
+        public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
+
+        public NavigationItem? SelectedNavItem
+        {
+            get => _selectedNavItem;
+            set => SetProperty(ref _selectedNavItem, value);
+        }
+
         public ViewModelBase CurrentViewModel
         {
             get => _currentViewModel;
@@ -54,20 +80,6 @@ namespace SystemCoreMonitor.ViewModels
         {
             get => _viewMode;
             set => SetProperty(ref _viewMode, value);
-        }
-
-        public ObservableCollection<NavigationItem> NavigationItems { get; } = new();
-
-        public NavigationItem? SelectedNavItem
-        {
-            get => _selectedNavItem;
-            set
-            {
-                if (SetProperty(ref _selectedNavItem, value) && value != null)
-                {
-                    NavigateTo(value.ViewModelType);
-                }
-            }
         }
 
         public RelayCommand<Type> NavigateCommand { get; }
@@ -88,18 +100,30 @@ namespace SystemCoreMonitor.ViewModels
             });
 
             InitializeNavItems();
+            LocalizationManager.LanguageChanged += RefreshLocalization;
+        }
+
+        private void RefreshLocalization()
+        {
+            foreach (var item in NavigationItems)
+            {
+                item.RefreshTitle();
+            }
+            OnPropertyChanged(nameof(WindowModesHeader));
+            OnPropertyChanged(nameof(ViewModeWidgetText));
+            OnPropertyChanged(nameof(HwSummaryBadgeText));
         }
 
         private void InitializeNavItems()
         {
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabOverview"), IconKey = "IconHardware", ViewModelType = typeof(DashboardViewModel), IsSelected = true });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabProcesses"), IconKey = "IconProcess", ViewModelType = typeof(ProcessesViewModel) });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabAiAgents"), IconKey = "IconNpu", ViewModelType = typeof(AiAgentsViewModel) });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabAccelerators"), IconKey = "IconGpu", ViewModelType = typeof(AcceleratorsViewModel) });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabDrives"), IconKey = "IconDisk", ViewModelType = typeof(StorageViewModel) });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabServices"), IconKey = "IconService", ViewModelType = typeof(ServicesViewModel) });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("TabStartup"), IconKey = "IconStartup", ViewModelType = typeof(StartupViewModel) });
-            NavigationItems.Add(new NavigationItem { Title = LocalizationManager.Get("MenuSettings"), IconKey = "IconTheme", ViewModelType = typeof(SettingsViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabOverview", Title = LocalizationManager.Get("TabOverview"), IconKey = "IconHardware", ViewModelType = typeof(DashboardViewModel), IsSelected = true });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabProcesses", Title = LocalizationManager.Get("TabProcesses"), IconKey = "IconProcess", ViewModelType = typeof(ProcessesViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabAiAgents", Title = LocalizationManager.Get("TabAiAgents"), IconKey = "IconNpu", ViewModelType = typeof(AiAgentsViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabAccelerators", Title = LocalizationManager.Get("TabAccelerators"), IconKey = "IconGpu", ViewModelType = typeof(AcceleratorsViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabDrives", Title = LocalizationManager.Get("TabDrives"), IconKey = "IconDisk", ViewModelType = typeof(StorageViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabServices", Title = LocalizationManager.Get("TabServices"), IconKey = "IconService", ViewModelType = typeof(ServicesViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "TabStartup", Title = LocalizationManager.Get("TabStartup"), IconKey = "IconStartup", ViewModelType = typeof(StartupViewModel) });
+            NavigationItems.Add(new NavigationItem { LocalizationKey = "MenuSettings", Title = LocalizationManager.Get("MenuSettings"), IconKey = "IconSettings", ViewModelType = typeof(SettingsViewModel) });
 
             _selectedNavItem = NavigationItems[0];
         }

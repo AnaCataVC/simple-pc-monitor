@@ -5,11 +5,20 @@ namespace SystemCoreMonitor.Core
 {
     public static class LocalizationManager
     {
+        public static event Action? LanguageChanged;
+
         private static string _currentLanguage = "es";
         public static string CurrentLanguage
         {
             get { return _currentLanguage; }
-            set { _currentLanguage = value; }
+            set
+            {
+                if (!string.Equals(_currentLanguage, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    _currentLanguage = value;
+                    LanguageChanged?.Invoke();
+                }
+            }
         }
 
         private static readonly Dictionary<string, string> StringsEs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -58,11 +67,8 @@ namespace SystemCoreMonitor.Core
 
             // View Modes Dropdown
             { "ViewFull", "Completo" },
-            { "ViewHero", "Modo Compacto" },
-            { "ViewWidget", "Modo Mini Widget" },
-            { "ViewModeTooltip", "Cambiar Modo de Vista (Completo / Compacto / Mini Widget)" },
+            { "ViewModeTooltip", "Cambiar Modo de Vista (Completo / Mini Widget)" },
             { "MenuFullDesc", "🖥️ Modo Completo (Dashboard + Procesos)" },
-            { "MenuHeroDesc", "📊 Modo Compacto (Tarjetas y Ondas)" },
             { "MenuWidgetDesc", "📌 Modo Mini Widget (Barra Flotante)" },
 
             // Themes Dropdown
@@ -101,12 +107,45 @@ namespace SystemCoreMonitor.Core
             { "PeakLabel", "Pico" },
 
             // Deep Dive Tabs
-            { "TabProcesses", "\uE9D9 Procesos" },
-            { "TabAccelerators", "\uE9F5 Aceleradores (GPU/NPU)" },
-            { "TabServices", "\uE713 Servicios" },
-            { "TabTasks", "\uE823 Tareas Programadas" },
-            { "TabStartup", "\uE7BE Apps de Inicio" },
-            { "TabDrives", "\uEDA2 Discos & Almacenamiento" },
+            { "TabOverview", "Panel Principal" },
+            { "TabProcesses", "Procesos" },
+            { "TabAiAgents", "Sesiones IA" },
+            { "TabAccelerators", "Aceleradores (GPU/NPU)" },
+            { "TabServices", "Servicios" },
+            { "TabTasks", "Tareas Programadas" },
+            { "TabStartup", "Apps de Inicio" },
+            { "TabDrives", "Discos & Almacenamiento" },
+            { "MenuSettings", "Configuración" },
+
+            // Settings View
+            { "SettingsThemeTitle", "Paleta de Colores y Tema" },
+            { "SettingsThemeDesc", "Elige la combinación visual para el tablero y widgets" },
+            { "SettingsLangTitle", "Idioma de la Interfaz" },
+            { "SettingsLangDesc", "Configura el idioma preferido para etiquetas, tooltips e informes" },
+            { "SettingsIntervalTitle", "Frecuencia de Muestreo de Telemetría" },
+            { "SettingsIntervalDesc", "Intervalo de actualización en segundo plano de CPU, memoria y procesos" },
+            { "SettingsInterval1s", "1 segundo" },
+            { "SettingsInterval2s", "2 segundos" },
+            { "SettingsInterval3s", "3 segundos (Recomendado)" },
+            { "SettingsInterval5s", "5 segundos" },
+            { "SettingsInterval10s", "10 segundos" },
+            { "SettingsRetentionTitle", "Periodo de Retención de Transcripts IA" },
+            { "SettingsRetentionDesc", "Días de retención para historiales y sesiones CLI (Claude, Gemini). Archivos con menos de 24h nunca se eliminan." },
+            { "SettingsRetention3d", "3 días" },
+            { "SettingsRetention7d", "7 días (Recomendado)" },
+            { "SettingsRetention14d", "14 días" },
+            { "SettingsRetention30d", "30 días" },
+            { "SettingsAccelTitle", "Monitoreo de Aceleradores (GPU / NPU)" },
+            { "SettingsAccelDesc", "Habilita o desactiva la recolección de métricas de GPU y NPU para ahorrar ciclos de CPU" },
+            { "SettingsAccelEnabled", "Activo (Monitoreando)" },
+            { "SettingsAccelDisabled", "Desactivado (Ahorro de recursos)" },
+            { "AccelMonitoringDisabledNotice", "Monitoreo de Aceleradores Desactivado" },
+            { "AccelMonitoringDisabledHint", "El muestreo de telemetría para GPU y NPU está apagado para ahorrar recursos. Puedes volver a activarlo en cualquier momento desde Configuración." },
+
+            // Window Modes
+            { "MenuViewsHeader", "Modos de Ventana" },
+            { "ViewWidget", "Mini Widget Flotante" },
+            { "HwSummaryBadge", "💻 Hardware del Sistema" },
 
             { "TabProcessesSummary", "Principales Procesos en Ejecución" },
             { "TabAcceleratorsSummary", "Diagnóstico de Aceleradores GPU y NPU" },
@@ -204,6 +243,7 @@ namespace SystemCoreMonitor.Core
             { "ToastPowerPlan", "⚡ Plan de energía: {0}" },
             { "ToastTheme", "🎨 Tema: {0}" },
             { "ToastInterval", "⏱️ Intervalo: {0}s" },
+            { "ToastRetention", "🗄️ Retención IA: {0} días" },
             { "ToastPinned", "📌 Ventana fijada al frente" },
             { "ToastUnpinned", "📌 Ventana desanclada" },
             { "ToastWidgetDocked", "📍 Widget acoplado a la esquina inferior derecha" },
@@ -215,6 +255,17 @@ namespace SystemCoreMonitor.Core
             { "ToastServiceStopped", "⏹️ Servicio detenido: {0}" },
             { "ToastTaskExecuted", "📅 Tarea ejecutada: {0}" },
             { "ToastStartupCopied", "📋 Ruta copiada al portapapeles" },
+            { "ToastMemoryOptimized", "✓ Memoria RAM optimizada ({0:F0} MB liberados)" },
+            { "ToastPlanChanged", "⚡ Plan de energía cambiado a {0}" },
+            { "ToastProcessClosed", "✓ Proceso {0} cerrado ({1})" },
+            { "ToastOrphansKilled", "✓ {0} proceso(s) huérfano(s) cerrado(s)" },
+            { "ToastRecycleBinEmptied", "✓ Papelera de reciclaje vaciada con éxito" },
+            { "ActionOptimizingRam", "⚡ Optimizando memoria RAM en segundo plano..." },
+            { "ActionCleaningTemp", "🧹 Limpiando temporales y cachés del sistema..." },
+            { "ActionKillingOrphans", "⚡ Cerrando procesos huérfanos..." },
+            { "ActionScanningTranscripts", "🔍 Escaneando transcripciones de agentes..." },
+            { "ActionPruningTranscripts", "🧹 Purgando transcripciones obsoletas..." },
+            { "ActionEmptyingRecycleBin", "🗑️ Vaciando papelera de reciclaje..." },
 
             // Storage Analyzer
             { "DriveKindCloud", "Nube" },
@@ -294,11 +345,8 @@ namespace SystemCoreMonitor.Core
 
             // View Modes Dropdown
             { "ViewFull", "Full" },
-            { "ViewHero", "Compact" },
-            { "ViewWidget", "Mini Widget" },
-            { "ViewModeTooltip", "Switch View Mode (Full / Compact / Mini Widget)" },
+            { "ViewModeTooltip", "Switch View Mode (Full / Mini Widget)" },
             { "MenuFullDesc", "🖥️ Full Mode (Dashboard + Processes)" },
-            { "MenuHeroDesc", "📊 Compact Mode (Cards & Waves)" },
             { "MenuWidgetDesc", "📌 Mini Widget (Floating Bar)" },
 
             // Themes Dropdown
@@ -337,12 +385,45 @@ namespace SystemCoreMonitor.Core
             { "PeakLabel", "Peak" },
 
             // Deep Dive Tabs
-            { "TabProcesses", "\uE9D9 Processes" },
-            { "TabAccelerators", "\uE9F5 Accelerators (GPU/NPU)" },
-            { "TabServices", "\uE713 Services" },
-            { "TabTasks", "\uE823 Scheduled Tasks" },
-            { "TabStartup", "\uE7BE Startup Apps" },
-            { "TabDrives", "\uEDA2 Storage & Drives" },
+            { "TabOverview", "Overview" },
+            { "TabProcesses", "Processes" },
+            { "TabAiAgents", "AI Sessions" },
+            { "TabAccelerators", "Accelerators (GPU/NPU)" },
+            { "TabServices", "Services" },
+            { "TabTasks", "Scheduled Tasks" },
+            { "TabStartup", "Startup Apps" },
+            { "TabDrives", "Storage & Drives" },
+            { "MenuSettings", "Settings" },
+
+            // Settings View
+            { "SettingsThemeTitle", "Color Palette & Theme" },
+            { "SettingsThemeDesc", "Choose the visual styling for dashboard and widgets" },
+            { "SettingsLangTitle", "Interface Language" },
+            { "SettingsLangDesc", "Configure preferred language for labels, tooltips, and reports" },
+            { "SettingsIntervalTitle", "Telemetry Sampling Rate" },
+            { "SettingsIntervalDesc", "Background polling interval for CPU, memory, and processes" },
+            { "SettingsInterval1s", "1 second" },
+            { "SettingsInterval2s", "2 seconds" },
+            { "SettingsInterval3s", "3 seconds (Recommended)" },
+            { "SettingsInterval5s", "5 seconds" },
+            { "SettingsInterval10s", "10 seconds" },
+            { "SettingsRetentionTitle", "AI Transcript Retention Period" },
+            { "SettingsRetentionDesc", "Retention days for CLI session transcripts (Claude, Gemini). Files modified within the last 24h are never deleted." },
+            { "SettingsRetention3d", "3 days" },
+            { "SettingsRetention7d", "7 days (Recommended)" },
+            { "SettingsRetention14d", "14 days" },
+            { "SettingsRetention30d", "30 days" },
+            { "SettingsAccelTitle", "Hardware Accelerators Monitoring (GPU / NPU)" },
+            { "SettingsAccelDesc", "Enable or disable GPU and NPU telemetry sampling to save CPU cycles" },
+            { "SettingsAccelEnabled", "Active (Monitoring)" },
+            { "SettingsAccelDisabled", "Disabled (Power saving)" },
+            { "AccelMonitoringDisabledNotice", "Hardware Accelerators Monitoring Disabled" },
+            { "AccelMonitoringDisabledHint", "Telemetry sampling for GPU and NPU is turned off to save resources. You can re-enable it at any time in Settings." },
+
+            // Window Modes
+            { "MenuViewsHeader", "Window Modes" },
+            { "ViewWidget", "Floating Mini Widget" },
+            { "HwSummaryBadge", "💻 System Hardware" },
 
             { "TabProcessesSummary", "Top Running Processes" },
             { "TabAcceleratorsSummary", "GPU & NPU Accelerator Diagnostics" },
@@ -440,6 +521,7 @@ namespace SystemCoreMonitor.Core
             { "ToastPowerPlan", "⚡ Power Plan: {0}" },
             { "ToastTheme", "🎨 Theme: {0}" },
             { "ToastInterval", "⏱️ Interval: {0}s" },
+            { "ToastRetention", "🗄️ AI Retention: {0} days" },
             { "ToastPinned", "📌 Window Pinned on Top" },
             { "ToastUnpinned", "📌 Window Unpinned" },
             { "ToastWidgetDocked", "📍 Widget Docked to Bottom-Right Corner" },
@@ -451,6 +533,17 @@ namespace SystemCoreMonitor.Core
             { "ToastServiceStopped", "⏹️ Service Stopped: {0}" },
             { "ToastTaskExecuted", "📅 Task Executed: {0}" },
             { "ToastStartupCopied", "📋 Path copied to clipboard" },
+            { "ToastMemoryOptimized", "✓ RAM optimized ({0:F0} MB freed)" },
+            { "ToastPlanChanged", "⚡ Power plan switched to {0}" },
+            { "ToastProcessClosed", "✓ Process {0} closed ({1})" },
+            { "ToastOrphansKilled", "✓ {0} orphan process(es) closed" },
+            { "ToastRecycleBinEmptied", "✓ Recycle Bin emptied successfully" },
+            { "ActionOptimizingRam", "⚡ Optimizing RAM in background..." },
+            { "ActionCleaningTemp", "🧹 Cleaning system temp files and cache..." },
+            { "ActionKillingOrphans", "⚡ Terminating orphan processes..." },
+            { "ActionScanningTranscripts", "🔍 Scanning agent transcripts..." },
+            { "ActionPruningTranscripts", "🧹 Pruning stale transcripts..." },
+            { "ActionEmptyingRecycleBin", "🗑️ Emptying Recycle Bin..." },
 
             // Storage Analyzer
             { "DriveKindCloud", "Cloud" },

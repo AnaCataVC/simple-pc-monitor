@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Input;
 
 namespace SystemCoreMonitor.Core.Mvvm
@@ -54,9 +54,19 @@ namespace SystemCoreMonitor.Core.Mvvm
         }
 
         public bool CanExecute(object? parameter) =>
-            _canExecute?.Invoke(parameter is T t ? t : default) ?? true;
+            _canExecute?.Invoke(ConvertParameter(parameter)) ?? true;
 
         public void Execute(object? parameter) =>
-            _execute(parameter is T t ? t : default);
+            _execute(ConvertParameter(parameter));
+
+        private static T? ConvertParameter(object? parameter)
+        {
+            if (parameter is T t) return t;
+            if (parameter != null && typeof(T) == typeof(int) && int.TryParse(parameter.ToString(), out int i))
+                return (T)(object)i;
+            if (parameter != null && typeof(T) == typeof(string))
+                return (T)(object)parameter.ToString()!;
+            return default;
+        }
     }
 }

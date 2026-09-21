@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SystemCoreMonitor.Core;
@@ -52,6 +52,13 @@ namespace SystemCoreMonitor.ViewModels
             set => SetProperty(ref _npu, value);
         }
 
+        private string _currentPowerPlan = "Balanced";
+        public string CurrentPowerPlan
+        {
+            get => _currentPowerPlan;
+            set => SetProperty(ref _currentPowerPlan, value);
+        }
+
         public AsyncRelayCommand OptimizeMemoryCommand { get; }
         public AsyncRelayCommand CleanTempCommand { get; }
         public RelayCommand SwitchPowerPlanCommand { get; }
@@ -59,17 +66,23 @@ namespace SystemCoreMonitor.ViewModels
         public RelayCommand LaunchResMonCommand { get; }
 
         public event Action<string>? ShowToastRequested;
+        public event Action<string>? ShowProgressRequested;
 
         public DashboardViewModel()
         {
+            PowerPlanManager.GetActiveScheme(out string initialScheme);
+            _currentPowerPlan = initialScheme == "Power Saver" ? "Saver" : initialScheme == "High Performance" ? "HighPerf" : "Balanced";
+
             OptimizeMemoryCommand = new AsyncRelayCommand(async () =>
             {
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionOptimizingRam"));
                 double freedMB = await Task.Run(() => MemoryOptimizer.OptimizeWorkingSet(out _));
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastMemoryOptimized"), freedMB));
             });
 
             CleanTempCommand = new AsyncRelayCommand(async () =>
             {
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionCleaningTemp"));
                 var result = await Task.Run(() => SafeTempCleaner.CleanDeepStorage(false));
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), result.HumanSize));
             });
@@ -81,6 +94,8 @@ namespace SystemCoreMonitor.ViewModels
                     if (planName == "Saver") PowerPlanManager.SetScheme(PowerSchemeMode.PowerSaver);
                     else if (planName == "HighPerf") PowerPlanManager.SetScheme(PowerSchemeMode.HighPerformance);
                     else PowerPlanManager.SetScheme(PowerSchemeMode.Balanced);
+
+                    CurrentPowerPlan = planName;
                     ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastPlanChanged"), planName));
                 }
             });
@@ -97,6 +112,10 @@ namespace SystemCoreMonitor.ViewModels
             Network = net;
             Gpu = gpu;
             Npu = npu;
+
+            PowerPlanManager.GetActiveScheme(out string activeScheme);
+            string mapped = activeScheme == "Power Saver" ? "Saver" : activeScheme == "High Performance" ? "HighPerf" : "Balanced";
+            if (CurrentPowerPlan != mapped) CurrentPowerPlan = mapped;
         }
     }
 }

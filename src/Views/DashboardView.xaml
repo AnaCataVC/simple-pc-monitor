@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SystemCoreMonitor.Views.DashboardView"
+<UserControl x:Class="SystemCoreMonitor.Views.DashboardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -20,7 +20,7 @@
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding OptimizeMemoryCommand}" Margin="0,0,8,0" Padding="12,6">
                             <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconBroom}" Fill="{DynamicResource AccentRam}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0"/>
+                                <Path Data="{StaticResource IconBroom}" Fill="{DynamicResource AccentMem}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0"/>
                                 <TextBlock Text="Optimizar RAM" FontWeight="SemiBold" FontSize="12.5"/>
                             </StackPanel>
                         </Button>
@@ -48,12 +48,56 @@
                     </StackPanel>
 
                     <!-- Power Scheme Segmented Control -->
-                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                        <TextBlock Text="⚡ Plan:" Foreground="{DynamicResource TextSecondary}" FontSize="12.5" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                        <Button Style="{StaticResource SegmentedPillButtonStyle}" Command="{Binding SwitchPowerPlanCommand}" CommandParameter="Saver" Content="Eco" Padding="10,4"/>
-                        <Button Style="{StaticResource SegmentedPillButtonStyle}" Command="{Binding SwitchPowerPlanCommand}" CommandParameter="Balanced" Content="Equilibrado" Padding="10,4"/>
-                        <Button Style="{StaticResource SegmentedPillButtonStyle}" Command="{Binding SwitchPowerPlanCommand}" CommandParameter="HighPerf" Content="Turbo" Padding="10,4"/>
-                    </StackPanel>
+                    <Border Background="{DynamicResource BgSurface}" CornerRadius="7" Padding="2" VerticalAlignment="Center" DockPanel.Dock="Right" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚡ Plan:" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" Margin="6,0,4,0"/>
+                            <Button Command="{Binding SwitchPowerPlanCommand}" CommandParameter="Saver" Content="Eco" Padding="10,4">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentedPillButtonStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentPowerPlan}" Value="Saver">
+                                                <Setter Property="Background" Value="{DynamicResource BgControlActive}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentCpu}"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentCpuAlpha}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Command="{Binding SwitchPowerPlanCommand}" CommandParameter="Balanced" Content="Equilibrado" Padding="10,4">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentedPillButtonStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentPowerPlan}" Value="Balanced">
+                                                <Setter Property="Background" Value="{DynamicResource BgControlActive}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentCpu}"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentCpuAlpha}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Command="{Binding SwitchPowerPlanCommand}" CommandParameter="HighPerf" Content="Turbo" Padding="10,4">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SegmentedPillButtonStyle}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CurrentPowerPlan}" Value="HighPerf">
+                                                <Setter Property="Background" Value="{DynamicResource BgControlActive}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentCpu}"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentCpuAlpha}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Border>
                 </DockPanel>
             </Border>
 
@@ -71,13 +115,17 @@
                 <!-- CPU Card -->
                 <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource BentoCardStyle}" Margin="0,0,6,12" Padding="18,14">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Path Data="{StaticResource IconCpu}" Fill="{DynamicResource AccentCpu}" Width="22" Height="22" Stretch="Uniform" Margin="0,0,10,0"/>
                                 <TextBlock Text="PROCESADOR (CPU)" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding Cpu.LoadDisplay}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}" VerticalAlignment="Center"/>
-                        </DockPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Cpu.LoadDisplay}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0"/>
+                        </Grid>
 
                         <!-- Progress Bar -->
                         <ProgressBar Style="{StaticResource PastelProgressBarStyle}" Value="{Binding Cpu.LoadPercent}" Foreground="{DynamicResource AccentCpu}" Height="8" Margin="0,0,0,10"/>
@@ -92,13 +140,17 @@
                 <!-- RAM Memory Card -->
                 <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource BentoCardStyle}" Margin="6,0,0,12" Padding="18,14">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Path Data="{StaticResource IconRam}" Fill="{DynamicResource AccentRam}" Width="22" Height="22" Stretch="Uniform" Margin="0,0,10,0"/>
                                 <TextBlock Text="MEMORIA (RAM)" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding Memory.MemoryDisplay}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentRam}" VerticalAlignment="Center"/>
-                        </DockPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Memory.MemoryDisplay}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentRam}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0"/>
+                        </Grid>
 
                         <!-- Progress Bar -->
                         <ProgressBar Style="{StaticResource PastelProgressBarStyle}" Value="{Binding Memory.LoadPercent}" Foreground="{DynamicResource AccentRam}" Height="8" Margin="0,0,0,10"/>
@@ -113,13 +165,17 @@
                 <!-- GPU Graphics Card -->
                 <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource BentoCardStyle}" Margin="0,0,6,0" Padding="18,14">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Path Data="{StaticResource IconGpu}" Fill="{DynamicResource AccentGpu}" Width="22" Height="22" Stretch="Uniform" Margin="0,0,10,0"/>
                                 <TextBlock Text="GRÁFICOS (GPU)" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding Gpu.LoadPercent, StringFormat='{}{0:F0}%'}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentGpu}" VerticalAlignment="Center"/>
-                        </DockPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Gpu.LoadPercent, StringFormat='{}{0:F0}%'}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentGpu}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0"/>
+                        </Grid>
 
                         <!-- Progress Bar -->
                         <ProgressBar Style="{StaticResource PastelProgressBarStyle}" Value="{Binding Gpu.LoadPercent}" Foreground="{DynamicResource AccentGpu}" Height="8" Margin="0,0,0,10"/>
@@ -134,13 +190,17 @@
                 <!-- Network / Latency Card -->
                 <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource BentoCardStyle}" Margin="6,0,0,0" Padding="18,14">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Path Data="{StaticResource IconNetwork}" Fill="{DynamicResource AccentNetwork}" Width="22" Height="22" Stretch="Uniform" Margin="0,0,10,0"/>
                                 <TextBlock Text="RED Y LATENCIA" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Right" Text="{Binding Network.PingDisplay}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentNetwork}" VerticalAlignment="Center"/>
-                        </DockPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding Network.PingDisplay}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource AccentNetwork}" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0"/>
+                        </Grid>
 
                         <DockPanel LastChildFill="False" Margin="0,6,0,0">
                             <StackPanel Orientation="Horizontal">

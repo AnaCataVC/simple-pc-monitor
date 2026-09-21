@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 
 namespace SystemCoreMonitor.Core
@@ -54,6 +54,19 @@ namespace SystemCoreMonitor.Core
         public static void StartTaskScheduler()
         {
             try { Process.Start("taskschd.msc"); } catch { }
+        }
+
+        public static void StartStartupSettings()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("ms-settings:startupapps") { UseShellExecute = true };
+                Process.Start(psi);
+            }
+            catch
+            {
+                try { Process.Start("taskmgr.exe"); } catch { }
+            }
         }
     }
 }

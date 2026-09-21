@@ -20,6 +20,9 @@ namespace SystemCoreMonitor.Core
 
         /// <summary>Retention period in days for AI CLI session transcripts (Claude, Gemini). Default: 7 days.</summary>
         public int TranscriptRetentionDays { get; set; } = 7;
+
+        /// <summary>Whether to sample GPU and NPU hardware accelerator engines. Can be disabled to save CPU cycles.</summary>
+        public bool EnableAcceleratorsMonitoring { get; set; } = true;
     }
 
     [JsonSourceGenerationOptions(

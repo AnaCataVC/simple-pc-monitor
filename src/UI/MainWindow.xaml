@@ -51,7 +51,6 @@
             <Separator Margin="0,3"/>
             <MenuItem Name="TrayMenuViewModes" Header="📐 Modo de Visualización">
                 <MenuItem Header="🖥️ Dashboard Completo" Click="MenuViewFull_Click"/>
-                <MenuItem Header="📊 Modo Compacto (Hero)" Click="MenuViewHero_Click"/>
                 <MenuItem Header="📌 Mini Widget Flotante" Click="MenuViewWidget_Click"/>
             </MenuItem>
             <MenuItem Name="TrayMenuSettings" Header="⚙️ Preferencias">
@@ -177,17 +176,11 @@
                                 <Separator Background="{DynamicResource BorderCard}" Margin="6,12"/>
 
                                 <!-- View Mode Switcher in Sidebar -->
-                                <TextBlock Text="Modos de Ventana" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="10,0,0,6"/>
-                                <Button Style="{StaticResource SidebarNavButtonStyle}" Click="MenuViewHero_Click">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📊 " FontSize="15" Margin="0,0,10,0"/>
-                                        <TextBlock Text="Modo Compacto" FontSize="13"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource SidebarNavButtonStyle}" Click="MenuViewWidget_Click">
+                                <TextBlock Text="{Binding WindowModesHeader}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource TextMuted}" Margin="10,0,0,6"/>
+                                <Button Style="{StaticResource SidebarNavButtonStyle}" Click="MenuViewWidget_Click" Margin="2,2">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="📌 " FontSize="15" Margin="0,0,10,0"/>
-                                        <TextBlock Text="Mini Widget" FontSize="13"/>
+                                        <TextBlock Text="{Binding ViewModeWidgetText}" FontSize="13"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -200,51 +193,74 @@
                     </Border>
                 </Grid>
 
-                <!-- ROW 2: ACTION STATUS FOOTER WITH DYNAMIC TOASTS -->
+                <!-- ROW 2: ACTION STATUS FOOTER -->
                 <Grid Grid.Row="2" Margin="0,8,0,0" Name="ContainerFooter">
-                    <DockPanel>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Name="TxtStatusNotification" Text="⚡ Telemetría Win32 .NET 9 Activa • 0% CPU Overhead" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <TextBlock Name="TxtFooterRight" Text="Direct3D C# P/Invoke • Pure BCL Standalone" DockPanel.Dock="Right" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
-                    </DockPanel>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Name="TxtStatusNotification" Text="⚡ Telemetría Win32 .NET 9 Activa • 0% CPU Overhead" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1" Name="TxtFooterRight" Text="Direct3D C# P/Invoke • Pure BCL Standalone" FontSize="11" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="12,0,0,0"/>
                 </Grid>
+
+                <!-- PROMINENT FLOATING TOAST BANNER -->
+                <Border Name="ToastOverlayBanner"
+                        Grid.Row="1"
+                        Grid.RowSpan="2"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,32"
+                        CornerRadius="20"
+                        Background="{DynamicResource BgCard}"
+                        BorderBrush="{DynamicResource AccentCpu}"
+                        BorderThickness="1.5"
+                        Padding="18,10"
+                        Visibility="Collapsed"
+                        Opacity="0">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.5" Color="#000000"/>
+                    </Border.Effect>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Name="ToastStatusIcon" Width="18" Height="18" Stretch="Uniform" Margin="0,0,10,0" Fill="{DynamicResource AccentCpu}" Data="{DynamicResource IconSync}" VerticalAlignment="Center"/>
+                        <TextBlock Name="ToastStatusText" Text="Acción en progreso..." FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <!-- 2. MINI WIDGET VIEW CONTAINER (ACTIVE ONLY IN WIDGET MODE) -->
-            <Border Name="ContainerWidgetView" Style="{DynamicResource WidgetCardStyle}" Visibility="Collapsed" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" MouseDown="Widget_MouseDown">
-                <Border.ContextMenu>
+            <Grid Name="ContainerWidgetView" Visibility="Collapsed" Margin="8,4"
+                  MouseLeftButtonDown="Widget_MouseLeftButtonDown">
+                <Grid.ContextMenu>
                     <ContextMenu Name="MenuWidgetContext">
-                        <MenuItem Name="MenuWidgetRestore" Header="🖥️ Restaurar a Modo Completo" Click="MenuViewFull_Click"/>
-                        <MenuItem Name="MenuWidgetHero" Header="📊 Cambiar a Modo Compacto" Click="MenuViewHero_Click"/>
+                        <MenuItem Name="MenuWidgetRestore" Header="🖥️ Restaurar Dashboard" Click="MenuViewFull_Click"/>
                         <Separator/>
                         <MenuItem Name="MenuWidgetSnap" Header="📍 Acoplar a la Esquina Inferior Derecha" Click="MenuWidgetSnap_Click"/>
                         <MenuItem Name="MenuWidgetPin" Header="📌 Fijar Siempre Visible (Always on Top)" Click="BtnPinTop_Click"/>
                         <Separator/>
                         <MenuItem Name="MenuWidgetClose" Header="❌ Cerrar Monitor" Click="BtnClose_Click"/>
                     </ContextMenu>
-                </Border.ContextMenu>
-                <Grid Margin="4">
+                </Grid.ContextMenu>
+                <Grid Margin="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                    <DockPanel Grid.Row="0" Margin="2,0,2,5">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Image Name="ImgWidgetLogo" Width="16" Height="16" Margin="0,0,6,0" RenderOptions.BitmapScalingMode="HighQuality"/>
-                            <TextBlock Text="Core Monitor" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                            <Image Name="ImgWidgetLogo" Width="15" Height="15" Margin="0,0,6,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <TextBlock Text="Core Monitor" FontWeight="Bold" FontSize="11.5" Foreground="{DynamicResource TextPrimary}"/>
                         </StackPanel>
 
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Name="BtnWidgetPin" Style="{DynamicResource WindowCaptionButtonStyle}" Width="24" Height="22" Click="BtnPinTop_Click">
-                                <Path Name="PathWidgetPin" Data="{DynamicResource IconPin}" Fill="{DynamicResource TextMuted}" Width="10" Height="10" Stretch="Uniform"/>
+                            <Button Name="BtnWidgetPin" Style="{DynamicResource WindowCaptionButtonStyle}" Width="22" Height="20" Click="BtnPinTop_Click" ToolTip="Siempre Visible (Always on Top)">
+                                <Path Name="PathWidgetPin" Data="{DynamicResource IconPin}" Fill="{DynamicResource TextMuted}" Width="9" Height="9" Stretch="Uniform"/>
                             </Button>
-                            <Button Name="BtnWidgetExpand" Style="{DynamicResource WindowCaptionButtonStyle}" Width="24" Height="22" Click="MenuViewFull_Click">
-                                <Path Data="{DynamicResource IconRestore}" Fill="{DynamicResource AccentCpu}" Width="10" Height="10" Stretch="Uniform"/>
+                            <Button Name="BtnWidgetExpand" Style="{DynamicResource WindowCaptionButtonStyle}" Width="22" Height="20" Click="MenuViewFull_Click" ToolTip="Restaurar Dashboard Completo">
+                                <Path Data="{DynamicResource IconRestore}" Fill="{DynamicResource AccentCpu}" Width="9" Height="9" Stretch="Uniform"/>
                             </Button>
-                            <Button Name="BtnWidgetClose" Style="{DynamicResource WindowCloseButtonStyle}" Width="24" Height="22" Click="BtnClose_Click">
-                                <Path Data="{DynamicResource IconClose}" Fill="{DynamicResource TextSecondary}" Width="10" Height="10" Stretch="Uniform"/>
+                            <Button Name="BtnWidgetClose" Style="{DynamicResource WindowCloseButtonStyle}" Width="22" Height="20" Click="BtnClose_Click" ToolTip="Cerrar">
+                                <Path Data="{DynamicResource IconClose}" Fill="{DynamicResource TextSecondary}" Width="9" Height="9" Stretch="Uniform"/>
                             </Button>
                         </StackPanel>
                     </DockPanel>
@@ -258,40 +274,40 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Border Grid.Column="0" Background="{DynamicResource BgControl}" CornerRadius="5" Padding="6,4" Margin="2,0">
+                        <Border Grid.Column="0" Background="{DynamicResource BgControl}" CornerRadius="6" Padding="6,4" Margin="2,0">
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="CPU" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}"/>
+                                    <TextBlock Text="CPU" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentCpu}"/>
                                     <TextBlock Name="TxtWidgetCpu" Text="0%" DockPanel.Dock="Right" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                                 </DockPanel>
                                 <ProgressBar Name="ProgressWidgetCpu" Value="0" Style="{DynamicResource MicroProgressBarStyle}" Foreground="{DynamicResource AccentCpu}" Margin="0,3,0,0"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="1" Background="{DynamicResource BgControl}" CornerRadius="5" Padding="6,4" Margin="2,0">
+                        <Border Grid.Column="1" Background="{DynamicResource BgControl}" CornerRadius="6" Padding="6,4" Margin="2,0">
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="GPU" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentGpu}"/>
+                                    <TextBlock Text="GPU" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentGpu}"/>
                                     <TextBlock Name="TxtWidgetGpu" Text="0%" DockPanel.Dock="Right" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                                 </DockPanel>
                                 <ProgressBar Name="ProgressWidgetGpu" Value="0" Style="{DynamicResource MicroProgressBarStyle}" Foreground="{DynamicResource AccentGpu}" Margin="0,3,0,0"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="2" Background="{DynamicResource BgControl}" CornerRadius="5" Padding="6,4" Margin="2,0">
+                        <Border Grid.Column="2" Background="{DynamicResource BgControl}" CornerRadius="6" Padding="6,4" Margin="2,0">
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="RAM" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentRam}"/>
+                                    <TextBlock Text="RAM" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentRam}"/>
                                     <TextBlock Name="TxtWidgetRam" Text="0%" DockPanel.Dock="Right" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                                 </DockPanel>
                                 <ProgressBar Name="ProgressWidgetRam" Value="0" Style="{DynamicResource MicroProgressBarStyle}" Foreground="{DynamicResource AccentRam}" Margin="0,3,0,0"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="3" Background="{DynamicResource BgControl}" CornerRadius="5" Padding="6,4" Margin="2,0">
+                        <Border Grid.Column="3" Background="{DynamicResource BgControl}" CornerRadius="6" Padding="6,4" Margin="2,0">
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="NET" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentNetwork}"/>
+                                    <TextBlock Text="NET" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentNetwork}"/>
                                     <TextBlock Name="TxtWidgetNet" Text="0K" DockPanel.Dock="Right" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
                                 </DockPanel>
                                 <ProgressBar Name="ProgressWidgetNet" Value="0" Style="{DynamicResource MicroProgressBarStyle}" Foreground="{DynamicResource AccentNetwork}" Margin="0,3,0,0"/>
@@ -299,7 +315,7 @@
                         </Border>
                     </Grid>
                 </Grid>
-            </Border>
+            </Grid>
         </Grid>
     </Border>
 </Window>

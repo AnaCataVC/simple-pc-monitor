@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using SystemCoreMonitor.Core;
@@ -28,11 +28,20 @@ namespace SystemCoreMonitor.ViewModels
         public AsyncRelayCommand<ServiceItem> StartServiceCommand { get; }
         public AsyncRelayCommand<ServiceItem> StopServiceCommand { get; }
         public AsyncRelayCommand<ServiceItem> RestartServiceCommand { get; }
+        public RelayCommand OpenServicesConsoleCommand { get; }
 
         public event Action<string>? ShowToastRequested;
 
         public ServicesViewModel()
         {
+            OpenServicesConsoleCommand = new RelayCommand(() =>
+            {
+                ToolLauncher.StartServicesConsole();
+                ShowToastRequested?.Invoke(LocalizationManager.CurrentLanguage == "es"
+                    ? "Abriendo Consola de Servicios de Windows..."
+                    : "Opening Windows Services Console...");
+            });
+
             StartServiceCommand = new AsyncRelayCommand<ServiceItem>(async svc =>
             {
                 if (svc == null) return;

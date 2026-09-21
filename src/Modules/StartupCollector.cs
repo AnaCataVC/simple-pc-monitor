@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Win32;
@@ -160,7 +160,10 @@ namespace SystemCoreMonitor.Modules
                 locLabel = isEs ? "Carpeta de Inicio" : "Startup Folder";
             }
 
-            string statusLabel = isEs ? "✓ Habilitado" : "✓ Enabled";
+            bool isEnabled = CheckIfEnabled(name, locationType);
+            string statusLabel = isEnabled
+                ? (isEs ? "✓ Habilitado" : "✓ Enabled")
+                : (isEs ? "✕ Deshabilitado" : "✕ Disabled");
 
             return new StartupItem
             {
@@ -170,8 +173,68 @@ namespace SystemCoreMonitor.Modules
                 Command = rawCommand,
                 ExecutablePath = exePath,
                 Location = locLabel,
-                Status = statusLabel
+                LocationType = locationType,
+                Status = statusLabel,
+                IsEnabled = isEnabled
             };
+        }
+
+        public static bool CheckIfEnabled(string name, string locationType)
+        {
+            try
+            {
+                string subKey = locationType == "Folder"
+                    ? @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder"
+                    : @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+
+                RegistryKey root = locationType == "HKLM" ? Registry.LocalMachine : Registry.CurrentUser;
+                using (var key = root.OpenSubKey(subKey, false))
+                {
+                    if (key != null)
+                    {
+                        var val = key.GetValue(name);
+                        if (val is byte[] bytes && bytes.Length > 0)
+                        {
+                            return (bytes[0] % 2 == 0);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return true;
+        }
+
+        public static bool SetStartupItemEnabled(string name, string locationType, bool enable)
+        {
+            try
+            {
+                string subKey = locationType == "Folder"
+                    ? @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder"
+                    : @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+
+                RegistryKey root = locationType == "HKLM" ? Registry.LocalMachine : Registry.CurrentUser;
+                using (var key = root.OpenSubKey(subKey, true) ?? root.CreateSubKey(subKey))
+                {
+                    if (key != null)
+                    {
+                        var val = key.GetValue(name);
+                        byte[] bytes;
+                        if (val is byte[] existing && existing.Length >= 12)
+                        {
+                            bytes = existing;
+                        }
+                        else
+                        {
+                            bytes = new byte[12];
+                        }
+                        bytes[0] = (byte)(enable ? 2 : 3);
+                        key.SetValue(name, bytes, RegistryValueKind.Binary);
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
 
         public static string ExtractExecutablePath(string rawCommand)

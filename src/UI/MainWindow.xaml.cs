@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using SystemCoreMonitor.Core;
@@ -36,6 +38,7 @@ namespace SystemCoreMonitor.UI
         private readonly DispatcherTimer _timer = new();
         private readonly TrayManager _trayManager = new();
         private AppConfig _config = new();
+        private DispatcherTimer? _toastTimer;
 
         private bool _isClosing = false;
         private bool _isSampling = false;
@@ -63,17 +66,66 @@ namespace SystemCoreMonitor.UI
 
         private void WireViewModelEvents()
         {
-            _viewModel.Dashboard.ShowToastRequested += ShowToast;
-            _viewModel.Processes.ShowToastRequested += ShowToast;
-            _viewModel.AiAgents.ShowToastRequested += ShowToast;
-            _viewModel.Storage.ShowToastRequested += ShowToast;
-            _viewModel.Services.ShowToastRequested += ShowToast;
+            _viewModel.Dashboard.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Dashboard.ShowProgressRequested += msg => ShowToast(msg, NotificationType.InProgress);
+
+            _viewModel.Processes.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+
+            _viewModel.AiAgents.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.AiAgents.ShowProgressRequested += msg => ShowToast(msg, NotificationType.InProgress);
+
+            _viewModel.Storage.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Storage.ShowProgressRequested += msg => ShowToast(msg, NotificationType.InProgress);
+
+            _viewModel.Services.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
+            _viewModel.Startup.ShowToastRequested += msg => ShowToast(msg, NotificationType.Success);
 
             _viewModel.Settings.ThemeChanged += theme => App.SetTheme(theme);
             _viewModel.Settings.LanguageChanged += lang =>
             {
                 LocalizationManager.CurrentLanguage = lang;
-                ShowToast(lang == "es" ? "Idioma cambiado a Español" : "Language set to English");
+                ShowToast(lang == "es" ? "Idioma cambiado a Español" : "Language set to English", NotificationType.Info);
+            };
+
+            _viewModel.Accelerators.IsEnabled = _config.EnableAcceleratorsMonitoring;
+            _viewModel.Settings.AcceleratorsMonitoringChanged += enabled =>
+            {
+                _config.EnableAcceleratorsMonitoring = enabled;
+                _viewModel.Accelerators.IsEnabled = enabled;
+                if (!enabled)
+                {
+                    _viewModel.Accelerators.Update(
+                        new GpuMetric { Name = "Monitoreo Desactivado", Vendor = "Desactivado en Configuración" },
+                        new NpuMetric { Status = "Disabled", Name = "Monitoreo desactivado" });
+                    TxtWidgetGpu.Text = "Off";
+                    ProgressWidgetGpu.Value = 0;
+                }
+                ShowToast(enabled 
+                    ? (LocalizationManager.CurrentLanguage == "es" ? "Monitoreo de aceleradores activado" : "Accelerators monitoring enabled") 
+                    : (LocalizationManager.CurrentLanguage == "es" ? "Monitoreo de aceleradores desactivado" : "Accelerators monitoring disabled"), 
+                    NotificationType.Info);
+            };
+
+            _viewModel.Settings.IntervalChanged += sec =>
+            {
+                _config.RefreshIntervalSeconds = sec;
+                _timer.Interval = TimeSpan.FromSeconds(Math.Max(1, sec));
+                bool isEs = LocalizationManager.CurrentLanguage == "es";
+                string msg = isEs
+                    ? $"Frecuencia de telemetría: cada {sec} segundo{(sec == 1 ? "" : "s")}"
+                    : $"Telemetry sampling rate: every {sec} second{(sec == 1 ? "" : "s")}";
+                ShowToast(msg, NotificationType.Info);
+            };
+
+            _viewModel.Settings.RetentionChanged += days =>
+            {
+                _config.TranscriptRetentionDays = days;
+                _viewModel.AiAgents.RefreshRetentionDisplay();
+                bool isEs = LocalizationManager.CurrentLanguage == "es";
+                string msg = isEs
+                    ? $"Periodo de retención IA: {days} días"
+                    : $"AI transcript retention period: {days} days";
+                ShowToast(msg, NotificationType.Info);
             };
         }
 
@@ -85,6 +137,20 @@ namespace SystemCoreMonitor.UI
 
             _timer.Start();
             _ = SampleTelemetryTickAsync();
+            _ = ScanBloatInitialAsync();
+        }
+
+        private async Task ScanBloatInitialAsync()
+        {
+            try
+            {
+                var bloat = await Task.Run(() => BloatDetector.Scan());
+                _viewModel.Storage.UpdateBloat(bloat);
+            }
+            catch (Exception ex)
+            {
+                CrashLogger.LogException("MainWindow.ScanBloatInitialAsync", ex, false);
+            }
         }
 
         private void InitHwndHooks()
@@ -151,6 +217,8 @@ namespace SystemCoreMonitor.UI
             _trayManager.Initialize(helper.Handle, "System Core Monitor");
         }
 
+        private double _cachedTotalRamGB = 16.0;
+
         private async Task SampleTelemetryTickAsync()
         {
             if (_isSampling) return;
@@ -158,25 +226,62 @@ namespace SystemCoreMonitor.UI
 
             try
             {
-                var cpu = await Task.Run(() => _cpu.Sample());
-                var mem = await Task.Run(() => _mem.Sample());
-                var disk = await Task.Run(() => _disk.Sample());
-                var net = await Task.Run(() => _net.Sample());
-                var engineLoads = await Task.Run(() => _accelEngine.SampleAllEngines());
-                var gpu = await Task.Run(() => _gpu.Sample(engineLoads));
-                var npu = await Task.Run(() => _npu.Sample(engineLoads, gpu?.LuidString ?? ""));
-                var procs = await Task.Run(() => _proc.Sample(50, mem?.TotalGB ?? 16.0));
-                var ai = await Task.Run(() => _ai.Sample());
-                var svc = await Task.Run(() => _svc.Sample());
-                var startup = await Task.Run(() => _startup.Sample());
-                var bloat = await Task.Run(() => BloatDetector.Scan());
+                var cpuTask = Task.Run(() => _cpu.Sample());
+                var memTask = Task.Run(() => _mem.Sample());
+                var diskTask = Task.Run(() => _disk.Sample());
+                var netTask = Task.Run(() => _net.Sample());
+                var procsTask = Task.Run(() => _proc.Sample(50, _cachedTotalRamGB));
+                var aiTask = Task.Run(() => _ai.Sample());
+                var svcTask = Task.Run(() => _svc.Sample());
+                var startupTask = Task.Run(() => _startup.Sample());
+
+                var accelTask = _config.EnableAcceleratorsMonitoring
+                    ? Task.Run(() => _accelEngine.SampleAllEngines())
+                    : null;
+
+                if (accelTask != null)
+                {
+                    await Task.WhenAll(cpuTask, memTask, diskTask, netTask, accelTask, procsTask, aiTask, svcTask, startupTask);
+                }
+                else
+                {
+                    await Task.WhenAll(cpuTask, memTask, diskTask, netTask, procsTask, aiTask, svcTask, startupTask);
+                }
+
+                var cpu = cpuTask.Result;
+                var mem = memTask.Result;
+                var disk = diskTask.Result;
+                var net = netTask.Result;
+                var procs = procsTask.Result;
+                var ai = aiTask.Result;
+                var svc = svcTask.Result;
+                var startup = startupTask.Result;
+
+                if (mem?.TotalGB > 0)
+                {
+                    _cachedTotalRamGB = mem.TotalGB;
+                }
+
+                GpuMetric gpu;
+                NpuMetric npu;
+                if (accelTask != null)
+                {
+                    var engineLoads = accelTask.Result;
+                    gpu = _gpu.Sample(engineLoads);
+                    npu = _npu.Sample(engineLoads, gpu?.LuidString ?? "");
+                }
+                else
+                {
+                    gpu = new GpuMetric { Name = "Monitoreo Desactivado", Vendor = "Desactivado en Configuración" };
+                    npu = new NpuMetric { Status = "Disabled", Name = "Monitoreo desactivado" };
+                }
 
                 // Dispatch to ViewModels
                 _viewModel.Dashboard.Update(cpu, mem, disk, net, gpu, npu);
                 _viewModel.Processes.Update(procs);
                 _viewModel.AiAgents.Update(ai);
                 _viewModel.Accelerators.Update(gpu, npu);
-                _viewModel.Storage.Update(disk, bloat);
+                _viewModel.Storage.UpdateDrives(disk);
                 _viewModel.Services.Update(svc);
                 _viewModel.Startup.Update(startup);
 
@@ -185,15 +290,16 @@ namespace SystemCoreMonitor.UI
                 ProgressWidgetCpu.Value = cpu.LoadPercent;
                 TxtWidgetRam.Text = $"{mem.LoadPercent:F0}%";
                 ProgressWidgetRam.Value = mem.LoadPercent;
-                TxtWidgetGpu.Text = $"{gpu.LoadPercent:F0}%";
-                ProgressWidgetGpu.Value = gpu.LoadPercent;
+                TxtWidgetGpu.Text = _config.EnableAcceleratorsMonitoring ? $"{gpu.LoadPercent:F0}%" : "Off";
+                ProgressWidgetGpu.Value = _config.EnableAcceleratorsMonitoring ? gpu.LoadPercent : 0;
                 TxtWidgetNet.Text = net.DownloadDisplay;
 
                 // Uptime
                 var hw = _hw.Sample();
                 TxtUptime.Text = $"Uptime: {hw.UptimeDisplay}";
 
-                _trayManager.UpdateTooltip($"System Core Monitor\nCPU: {cpu.LoadPercent:F0}% | RAM: {mem.LoadPercent:F0}% | GPU: {gpu.LoadPercent:F0}%");
+                string trayGpuText = _config.EnableAcceleratorsMonitoring ? $" | GPU: {gpu.LoadPercent:F0}%" : "";
+                _trayManager.UpdateTooltip($"System Core Monitor\nCPU: {cpu.LoadPercent:F0}% | RAM: {mem.LoadPercent:F0}%{trayGpuText}");
             }
             catch (Exception ex)
             {
@@ -205,15 +311,81 @@ namespace SystemCoreMonitor.UI
             }
         }
 
-        public void ShowToast(string message)
+        public void ShowToast(string message) => ShowToast(message, NotificationType.Info);
+
+        public void ShowToast(string message, NotificationType type)
         {
             Dispatcher.Invoke(() =>
             {
-                TxtStatusNotification.Text = $"ℹ️ {message}";
+                // 1. Update footer status text
+                TxtStatusNotification.Text = message;
+
+                // 2. Configure prominent floating banner
+                ToastStatusText.Text = message;
+                _toastTimer?.Stop();
+
+                if (type == NotificationType.InProgress)
+                {
+                    ToastOverlayBanner.BorderBrush = (Brush)FindResource("AccentCpu");
+                    ToastStatusIcon.Fill = (Brush)FindResource("AccentCpu");
+                    ToastStatusIcon.Data = (Geometry)FindResource("IconSync");
+
+                    ToastOverlayBanner.Visibility = Visibility.Visible;
+                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
+                    ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                }
+                else if (type == NotificationType.Success)
+                {
+                    ToastOverlayBanner.BorderBrush = (Brush)FindResource("StatusOk");
+                    ToastStatusIcon.Fill = (Brush)FindResource("StatusOk");
+                    ToastStatusIcon.Data = (Geometry)FindResource("IconCheck");
+
+                    ToastOverlayBanner.Visibility = Visibility.Visible;
+                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
+                    ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+
+                    // Auto-dismiss after 3.5 seconds
+                    _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
+                    _toastTimer.Tick += (s, e) =>
+                    {
+                        _toastTimer?.Stop();
+                        var fadeOut = new DoubleAnimation(0.0, TimeSpan.FromMilliseconds(350));
+                        fadeOut.Completed += (s2, e2) => ToastOverlayBanner.Visibility = Visibility.Collapsed;
+                        ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+                    };
+                    _toastTimer.Start();
+                }
+                else
+                {
+                    ToastOverlayBanner.BorderBrush = (Brush)FindResource("AccentCpu");
+                    ToastStatusIcon.Fill = (Brush)FindResource("AccentCpu");
+                    ToastStatusIcon.Data = (Geometry)FindResource("IconInfo");
+
+                    ToastOverlayBanner.Visibility = Visibility.Visible;
+                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180));
+                    ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+
+                    _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
+                    _toastTimer.Tick += (s, e) =>
+                    {
+                        _toastTimer?.Stop();
+                        var fadeOut = new DoubleAnimation(0.0, TimeSpan.FromMilliseconds(350));
+                        fadeOut.Completed += (s2, e2) => ToastOverlayBanner.Visibility = Visibility.Collapsed;
+                        ToastOverlayBanner.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+                    };
+                    _toastTimer.Start();
+                }
             });
         }
 
         #region Window Caption Controls & View Modes
+
+        private double _prevWidth = 1200;
+        private double _prevHeight = 760;
+        private double _prevLeft = 100;
+        private double _prevTop = 100;
+        private WindowState _prevWindowState = WindowState.Normal;
+        private bool _isWidgetMode = false;
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -227,11 +399,15 @@ namespace SystemCoreMonitor.UI
             }
         }
 
-        private void Widget_MouseDown(object sender, MouseButtonEventArgs e)
+        private void Widget_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
             {
                 MenuViewFull_Click(sender, e);
+            }
+            else
+            {
+                DragMove();
             }
         }
 
@@ -249,6 +425,7 @@ namespace SystemCoreMonitor.UI
 
         private void BtnMaximize_Click(object sender, RoutedEventArgs e)
         {
+            if (_isWidgetMode) return;
             WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         }
 
@@ -269,42 +446,81 @@ namespace SystemCoreMonitor.UI
         {
             _isPinnedTop = !_isPinnedTop;
             Topmost = _isPinnedTop;
+            var pinBrush = _isPinnedTop ? (Brush)FindResource("AccentCpu") : (Brush)FindResource("TextMuted");
+            if (PathPin != null) PathPin.Fill = pinBrush;
+            if (PathWidgetPin != null) PathWidgetPin.Fill = pinBrush;
             ShowToast(_isPinnedTop ? "Ventana fijada al frente" : "Ventana desfijada");
         }
 
         public void MenuViewFull_Click(object sender, RoutedEventArgs e)
         {
-            ContainerMainView.Visibility = Visibility.Visible;
-            ContainerWidgetView.Visibility = Visibility.Collapsed;
-            Width = 1200;
-            Height = 760;
+            _isWidgetMode = false;
+
+            // Remove widget lock constraints
+            MaxWidth = double.PositiveInfinity;
+            MaxHeight = double.PositiveInfinity;
             MinWidth = 960;
             MinHeight = 600;
-        }
 
-        public void MenuViewHero_Click(object sender, RoutedEventArgs e)
-        {
-            MenuViewFull_Click(sender, e);
-            _viewModel.NavigateTo(typeof(DashboardViewModel));
-            Width = 1000;
-            Height = 520;
+            ContainerMainView.Visibility = Visibility.Visible;
+            ContainerWidgetView.Visibility = Visibility.Collapsed;
+
+            ResizeMode = ResizeMode.CanResizeWithGrip;
+
+            Width = _prevWidth;
+            Height = _prevHeight;
+            Left = _prevLeft;
+            Top = _prevTop;
+
+            if (_prevWindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Maximized;
+            }
         }
 
         public void MenuViewWidget_Click(object sender, RoutedEventArgs e)
         {
+            if (_isWidgetMode) return;
+
+            // Remember previous dashboard geometry
+            _prevWindowState = WindowState;
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+            }
+            _prevWidth = Width >= 960 ? Width : 1200;
+            _prevHeight = Height >= 600 ? Height : 760;
+            _prevLeft = Left;
+            _prevTop = Top;
+
+            _isWidgetMode = true;
             ContainerMainView.Visibility = Visibility.Collapsed;
             ContainerWidgetView.Visibility = Visibility.Visible;
-            Width = 340;
-            Height = 90;
-            MinWidth = 280;
-            MinHeight = 70;
+
+            ResizeMode = ResizeMode.NoResize;
+
+            // Fixed locked widget dimensions (immune to maximization)
+            MinWidth = 360;
+            MinHeight = 96;
+            MaxWidth = 360;
+            MaxHeight = 96;
+            Width = 360;
+            Height = 96;
+
+            // Ensure widget is within work area bounds
+            var workArea = SystemParameters.WorkArea;
+            if (Left + Width > workArea.Right || Top + Height > workArea.Bottom || Left < workArea.Left || Top < workArea.Top)
+            {
+                Left = workArea.Right - Width - 30;
+                Top = workArea.Bottom - Height - 30;
+            }
         }
 
         private void MenuWidgetSnap_Click(object sender, RoutedEventArgs e)
         {
             var workArea = SystemParameters.WorkArea;
-            Left = workArea.Right - Width - 20;
-            Top = workArea.Bottom - Height - 20;
+            Left = workArea.Right - Width - 30;
+            Top = workArea.Bottom - Height - 30;
         }
 
         #endregion

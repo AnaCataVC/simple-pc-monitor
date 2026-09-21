@@ -18,15 +18,22 @@
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                         <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding CleanTempCommand}" Margin="0,0,8,0" Padding="12,6">
                             <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconBroom}" Fill="{DynamicResource AccentDisk}" Width="16" Height="16" Stretch="Uniform" Margin="0,0,6,0"/>
+                                <TextBlock Text="🧹" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBlock Text="Limpiar Temporales" FontWeight="SemiBold" FontSize="12.5"/>
                             </StackPanel>
                         </Button>
 
-                        <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding EmptyRecycleBinCommand}" Padding="12,6">
+                        <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding EmptyRecycleBinCommand}" Margin="0,0,8,0" Padding="12,6">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🗑️" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBlock Text="Vaciar Papelera" FontWeight="SemiBold" FontSize="12.5"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding ScanBloatCommand}" Padding="12,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🔍" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="Analizar Cachés" FontWeight="SemiBold" FontSize="12.5"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>

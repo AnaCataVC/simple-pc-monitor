@@ -27,10 +27,14 @@
     <SolidColorBrush x:Key="AccentNpuAlpha" Color="#228B5CF6"/>
     <SolidColorBrush x:Key="AccentMem" Color="#D97706"/>
     <SolidColorBrush x:Key="AccentMemAlpha" Color="#22D97706"/>
+    <SolidColorBrush x:Key="AccentRam" Color="#D97706"/>
+    <SolidColorBrush x:Key="AccentRamAlpha" Color="#22D97706"/>
     <SolidColorBrush x:Key="AccentDisk" Color="#0EA5E9"/>
     <SolidColorBrush x:Key="AccentDiskAlpha" Color="#220EA5E9"/>
     <SolidColorBrush x:Key="AccentNet" Color="#10B981"/>
     <SolidColorBrush x:Key="AccentNetAlpha" Color="#2210B981"/>
+    <SolidColorBrush x:Key="AccentNetwork" Color="#10B981"/>
+    <SolidColorBrush x:Key="AccentNetworkAlpha" Color="#2210B981"/>
     <SolidColorBrush x:Key="AccentHardware" Color="#D97706"/>
 
     <!-- Health / Status -->

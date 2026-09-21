@@ -51,14 +51,22 @@ namespace SystemCoreMonitor.Modules
                         bool isHeavy = memPercent >= 15.0 || cpuPct >= 20.0;
 
                         bool isResponding = true;
-                        try { isResponding = p.Responding; } catch { }
+                        string winTitle = string.Empty;
+                        try
+                        {
+                            IntPtr hMain = p.MainWindowHandle;
+                            if (hMain != IntPtr.Zero)
+                            {
+                                isResponding = p.Responding;
+                                winTitle = p.MainWindowTitle;
+                            }
+                        }
+                        catch { }
 
                         string priority = "Normal";
                         try { priority = p.PriorityClass.ToString(); } catch { }
 
                         var meta = ProcessMetadataCache.GetMetadata(p.Id, p.ProcessName);
-                        string winTitle = string.Empty;
-                        try { winTitle = p.MainWindowTitle; } catch { }
 
                         rawList.Add(new ProcessMetric
                         {

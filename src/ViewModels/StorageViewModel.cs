@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
@@ -28,19 +28,30 @@ namespace SystemCoreMonitor.ViewModels
         public AsyncRelayCommand CleanTempCommand { get; }
         public AsyncRelayCommand EmptyRecycleBinCommand { get; }
         public AsyncRelayCommand<BloatFinding> ExecuteBloatActionCommand { get; }
+        public AsyncRelayCommand ScanBloatCommand { get; }
+
+        private bool _isScanningBloat;
+        public bool IsScanningBloat
+        {
+            get => _isScanningBloat;
+            set => SetProperty(ref _isScanningBloat, value);
+        }
 
         public event Action<string>? ShowToastRequested;
+        public event Action<string>? ShowProgressRequested;
 
         public StorageViewModel()
         {
             CleanTempCommand = new AsyncRelayCommand(async () =>
             {
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionCleaningTemp"));
                 var res = await Task.Run(() => SafeTempCleaner.CleanDeepStorage(false));
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), res.HumanSize));
             });
 
             EmptyRecycleBinCommand = new AsyncRelayCommand(async () =>
             {
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionEmptyingRecycleBin"));
                 await Task.Run(() => NativeMethods.SHEmptyRecycleBin(IntPtr.Zero, null, NativeMethods.SHERB_NOCONFIRMATION | NativeMethods.SHERB_NOPROGRESSUI));
                 ShowToastRequested?.Invoke(LocalizationManager.Get("ToastRecycleBinEmptied"));
             });
@@ -50,6 +61,7 @@ namespace SystemCoreMonitor.ViewModels
                 if (finding == null) return;
                 if (finding.ActionKind == "SafeDelete")
                 {
+                    ShowProgressRequested?.Invoke(string.Format("Limpiando caché {0}...", finding.Category));
                     var res = await Task.Run(() => BloatDetector.DeleteWhitelistedCache(finding.Path));
                     ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastTempCleaned"), res.HumanSize));
                 }
@@ -58,12 +70,39 @@ namespace SystemCoreMonitor.ViewModels
                     ToolLauncher.StartPCManager();
                 }
             });
+
+            ScanBloatCommand = new AsyncRelayCommand(async () =>
+            {
+                if (IsScanningBloat) return;
+                IsScanningBloat = true;
+                ShowProgressRequested?.Invoke(LocalizationManager.CurrentLanguage == "es" ? "Analizando cachés y archivos voluminosos..." : "Scanning bloat and cache files...");
+                try
+                {
+                    var findings = await Task.Run(() => BloatDetector.Scan());
+                    UpdateBloat(findings);
+                    ShowToastRequested?.Invoke(LocalizationManager.CurrentLanguage == "es" ? "Análisis de almacenamiento completado" : "Storage scan completed");
+                }
+                finally
+                {
+                    IsScanningBloat = false;
+                }
+            });
+        }
+
+        public void UpdateDrives(List<DiskMetric> drives)
+        {
+            Drives = new ObservableCollection<DiskMetric>(drives ?? new());
+        }
+
+        public void UpdateBloat(List<BloatFinding> findings)
+        {
+            BloatFindings = new ObservableCollection<BloatFinding>(findings ?? new());
         }
 
         public void Update(List<DiskMetric> drives, List<BloatFinding> findings)
         {
-            Drives = new ObservableCollection<DiskMetric>(drives ?? new());
-            BloatFindings = new ObservableCollection<BloatFinding>(findings ?? new());
+            UpdateDrives(drives);
+            UpdateBloat(findings);
         }
     }
 }
