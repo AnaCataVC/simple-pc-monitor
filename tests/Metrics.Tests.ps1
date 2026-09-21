@@ -77,6 +77,8 @@ Assert-Test "Architecture: Core classes loadable via reflection" {
         "SystemCoreMonitor.Core.SetupApiHelper",
         "SystemCoreMonitor.Core.WindowsAcceleratorEngine",
         "SystemCoreMonitor.Core.LocalizationManager",
+        "SystemCoreMonitor.Core.AntigravityContextResolver",
+        "SystemCoreMonitor.Core.ClaudeSessionResolver",
         "SystemCoreMonitor.Models.AiAgentSession",
         "SystemCoreMonitor.Models.AiAgentMetric",
         "SystemCoreMonitor.Modules.AiAgentCollector",

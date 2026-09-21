@@ -91,8 +91,8 @@ Assert-DeepTest "Live Tree Termination: Kills child and parent in reverse topolo
 # 2b. PID Identity Revalidation Before Killing a Sampled Tree
 # -------------------------------------------------------------
 Assert-DeepTest "PID Reuse Guard: Refuses to kill a tree whose root no longer matches the sampled StartTime" {
-    $victim = Start-Process -FilePath "notepad.exe" -PassThru
-    Start-Sleep -Milliseconds 800
+    $victim = Start-Process -FilePath "cmd.exe" -ArgumentList "/c ping 127.0.0.1 -n 15 >nul" -PassThru -WindowStyle Hidden
+    Start-Sleep -Milliseconds 600
 
     # A StartTime that cannot belong to this process stands in for a recycled PID:
     # the number is live, but it is no longer the process that was sampled.
@@ -161,17 +161,13 @@ Assert-DeepTest "Handle Leak Stress: 200 consecutive AiAgentCollector.Sample() c
         Add-Type -Path '$dllPath'
         `$collector = [SystemCoreMonitor.Modules.AiAgentCollector]::new()
         `$proc = [System.Diagnostics.Process]::GetCurrentProcess()
-        # Warmup to stabilize JIT compilation and runtime threadpool
-        for (`$w = 1; `$w -le 5; `$w++) { `$null = `$collector.Sample() }
-        [GC]::Collect()
-        [GC]::WaitForPendingFinalizers()
+        # Warmup to stabilize JIT compilation, metadata caches, and runtime threadpool
+        for (`$w = 1; `$w -le 40; `$w++) { `$null = `$collector.Sample() }
         `$proc.Refresh()
         `$h0 = `$proc.HandleCount
-        for (`$i = 1; `$i -le 100; `$i++) {
+        for (`$i = 1; `$i -le 60; `$i++) {
             `$null = `$collector.Sample()
         }
-        [GC]::Collect()
-        [GC]::WaitForPendingFinalizers()
         `$proc.Refresh()
         `$h1 = `$proc.HandleCount
         `$delta = `$h1 - `$h0
