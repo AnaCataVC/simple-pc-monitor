@@ -1,9 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using SystemCoreMonitor.Core;
 using SystemCoreMonitor.Core.Mvvm;
 using SystemCoreMonitor.Models;
+using SystemCoreMonitor.Modules;
 
 namespace SystemCoreMonitor.ViewModels
 {
@@ -18,6 +20,14 @@ namespace SystemCoreMonitor.ViewModels
         private string _transcriptSummaryDisplay = "Almacenamiento IA no escaneado aún";
 
         private readonly AiTranscriptCleaner _cleaner = new();
+
+        public bool HasOrphans => _orphanProcesses != null && _orphanProcesses.Count > 0;
+        public string CleanButtonText => string.Format("Limpiar (>{0}d)", ConfigManager.Current.TranscriptRetentionDays);
+
+        public void RefreshRetentionDisplay()
+        {
+            OnPropertyChanged(nameof(CleanButtonText));
+        }
 
         public AiAgentMetric Metric
         {
@@ -34,7 +44,13 @@ namespace SystemCoreMonitor.ViewModels
         public ObservableCollection<AiAgentMcpServer> OrphanProcesses
         {
             get => _orphanProcesses;
-            set => SetProperty(ref _orphanProcesses, value);
+            set
+            {
+                if (SetProperty(ref _orphanProcesses, value))
+                {
+                    OnPropertyChanged(nameof(HasOrphans));
+                }
+            }
         }
 
         public AiTranscriptReport? TranscriptReport
@@ -66,14 +82,26 @@ namespace SystemCoreMonitor.ViewModels
         public AsyncRelayCommand KillAllOrphansCommand { get; }
         public AsyncRelayCommand ScanTranscriptsCommand { get; }
         public AsyncRelayCommand CleanStaleTranscriptsCommand { get; }
+        public RelayCommand<AiAgentSession> ToggleSessionExpandedCommand { get; }
 
         public event Action<string>? ShowToastRequested;
+        public event Action<string>? ShowProgressRequested;
 
         public AiAgentsViewModel()
         {
+            ToggleSessionExpandedCommand = new RelayCommand<AiAgentSession>(session =>
+            {
+                if (session == null) return;
+                AiAgentCollector.ToggleSessionExpanded(session.ParentPid);
+                session.IsExpanded = AiAgentCollector.IsSessionExpanded(session.ParentPid);
+                session.ExpandToggleText = session.IsExpanded
+                    ? string.Format("▲ Ocultar ({0})", session.ChildProcessCount)
+                    : string.Format("▼ Ver {0} subprocesos", session.ChildProcessCount);
+            });
             CloseSessionCommand = new AsyncRelayCommand<AiAgentSession>(async session =>
             {
                 if (session == null) return;
+                ShowProgressRequested?.Invoke(string.Format("Cerrando sesión de {0}...", session.AgentName));
                 var res = await Task.Run(() => ProcessManager.RequestGracefulCloseAsync(session.ParentPid, session.AgentName));
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), session.AgentName, res));
             });
@@ -81,20 +109,33 @@ namespace SystemCoreMonitor.ViewModels
             KillOrphanCommand = new AsyncRelayCommand<AiAgentMcpServer>(async orphan =>
             {
                 if (orphan == null) return;
+                ShowProgressRequested?.Invoke(string.Format("Cerrando proceso {0} (PID {1})...", orphan.ProcessName, orphan.Pid));
                 var res = await Task.Run(() => ProcessManager.RequestGracefulCloseAsync(orphan.Pid, orphan.ProcessName));
+                App.Current?.Dispatcher?.Invoke(() =>
+                {
+                    _orphanProcesses.Remove(orphan);
+                    OnPropertyChanged(nameof(HasOrphans));
+                });
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastProcessClosed"), orphan.ProcessName, res));
             });
 
             KillAllOrphansCommand = new AsyncRelayCommand(async () =>
             {
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionKillingOrphans"));
                 int killed = 0;
+                var toKill = _orphanProcesses.ToList();
                 await Task.Run(() =>
                 {
-                    foreach (var o in _orphanProcesses)
+                    foreach (var o in toKill)
                     {
                         ProcessManager.RequestGracefulCloseAsync(o.Pid, o.ProcessName);
                         killed++;
                     }
+                });
+                App.Current?.Dispatcher?.Invoke(() =>
+                {
+                    _orphanProcesses.Clear();
+                    OnPropertyChanged(nameof(HasOrphans));
                 });
                 ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastOrphansKilled"), killed));
             });
@@ -103,6 +144,7 @@ namespace SystemCoreMonitor.ViewModels
             {
                 if (IsScanningTranscripts) return;
                 IsScanningTranscripts = true;
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionScanningTranscripts"));
                 try
                 {
                     int retention = ConfigManager.Current.TranscriptRetentionDays;
@@ -127,6 +169,7 @@ namespace SystemCoreMonitor.ViewModels
             {
                 if (IsPruningTranscripts) return;
                 IsPruningTranscripts = true;
+                ShowProgressRequested?.Invoke(LocalizationManager.Get("ActionPruningTranscripts"));
                 try
                 {
                     int retention = ConfigManager.Current.TranscriptRetentionDays;
@@ -154,6 +197,7 @@ namespace SystemCoreMonitor.ViewModels
             Metric = metric;
             Sessions = new ObservableCollection<AiAgentSession>(metric.Sessions);
             OrphanProcesses = new ObservableCollection<AiAgentMcpServer>(metric.OrphanProcesses);
+            OnPropertyChanged(nameof(HasOrphans));
         }
     }
 }

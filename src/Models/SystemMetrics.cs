@@ -2,6 +2,15 @@ using System.Collections.Generic;
 
 namespace SystemCoreMonitor.Models
 {
+    public enum NotificationType
+    {
+        InProgress,
+        Success,
+        Info,
+        Warning,
+        Error
+    }
+
     public class CpuMetric
     {
         public double LoadPercent { get; set; }
@@ -270,18 +279,20 @@ namespace SystemCoreMonitor.Models
         }
     }
 
-    public class ServiceItem
+    public class ServiceItem : SystemCoreMonitor.Core.Mvvm.ObservableObject
     {
-        public string ServiceName { get; set; }
-        public string DisplayName { get; set; }
-        public string Status { get; set; }
-        public bool IsRunning { get; set; }
+        private string _serviceName = "";
+        private string _displayName = "";
+        private string _status = "";
+        private bool _isRunning;
+
+        public string ServiceName { get => _serviceName; set => SetProperty(ref _serviceName, value); }
+        public string DisplayName { get => _displayName; set => SetProperty(ref _displayName, value); }
+        public string Status { get => _status; set => SetProperty(ref _status, value); }
+        public bool IsRunning { get => _isRunning; set => SetProperty(ref _isRunning, value); }
 
         public ServiceItem()
         {
-            ServiceName = "";
-            DisplayName = "";
-            Status = "";
         }
     }
 
@@ -313,25 +324,30 @@ namespace SystemCoreMonitor.Models
         }
     }
 
-    public class StartupItem
+    public class StartupItem : SystemCoreMonitor.Core.Mvvm.ObservableObject
     {
-        public string Name { get; set; }
-        public string DisplayName { get; set; }
-        public string Publisher { get; set; }
-        public string Command { get; set; }
-        public string ExecutablePath { get; set; }
-        public string Location { get; set; }
-        public string Status { get; set; }
+        private string _name = "";
+        private string _displayName = "";
+        private string _publisher = "";
+        private string _command = "";
+        private string _executablePath = "";
+        private string _location = "";
+        private string _locationType = "HKCU";
+        private string _status = "Enabled";
+        private bool _isEnabled = true;
+
+        public string Name { get => _name; set => SetProperty(ref _name, value); }
+        public string DisplayName { get => _displayName; set => SetProperty(ref _displayName, value); }
+        public string Publisher { get => _publisher; set => SetProperty(ref _publisher, value); }
+        public string Command { get => _command; set => SetProperty(ref _command, value); }
+        public string ExecutablePath { get => _executablePath; set => SetProperty(ref _executablePath, value); }
+        public string Location { get => _location; set => SetProperty(ref _location, value); }
+        public string LocationType { get => _locationType; set => SetProperty(ref _locationType, value); }
+        public string Status { get => _status; set => SetProperty(ref _status, value); }
+        public bool IsEnabled { get => _isEnabled; set => SetProperty(ref _isEnabled, value); }
 
         public StartupItem()
         {
-            Name = "";
-            DisplayName = "";
-            Publisher = "";
-            Command = "";
-            ExecutablePath = "";
-            Location = "";
-            Status = "Enabled";
         }
     }
 

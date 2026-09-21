@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -15,6 +15,7 @@ namespace SystemCoreMonitor.Modules
         private static readonly HashSet<string> KnownAgentSignatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "antigravity",
+            "antigravity ide",
             "agy",
             "claude",
             "claude-code",
@@ -68,9 +69,10 @@ namespace SystemCoreMonitor.Modules
 
         private class CachedSessionInfo
         {
-            public string Context { get; set; }
-            public string Workspace { get; set; }
-            public string Model { get; set; }
+            public string AgentName { get; set; } = string.Empty;
+            public string Context { get; set; } = string.Empty;
+            public string Workspace { get; set; } = string.Empty;
+            public string Model { get; set; } = string.Empty;
         }
 
         private class CachedChildProcessInfo
@@ -303,6 +305,10 @@ namespace SystemCoreMonitor.Modules
 
                     // Resolve Context (Project Workspace / Model / CLI Session) with 0ms Cache
                     var sessionInfo = ResolveSessionContext(rootProc, rootPid, rootExe, rootStartTime, descendants);
+                    if (!string.IsNullOrEmpty(sessionInfo.AgentName))
+                    {
+                        session.AgentName = sessionInfo.AgentName;
+                    }
                     session.SessionContext = sessionInfo.Context;
                     session.ModelName = sessionInfo.Model;
 
@@ -596,9 +602,10 @@ namespace SystemCoreMonitor.Modules
 
         private static string FormatAgentFriendlyName(string exeName)
         {
-            if (string.Equals(exeName, "antigravity", StringComparison.OrdinalIgnoreCase)) return "Google Antigravity IDE";
+            if (string.Equals(exeName, "antigravity", StringComparison.OrdinalIgnoreCase)) return "Google Antigravity";
+            if (string.Equals(exeName, "antigravity ide", StringComparison.OrdinalIgnoreCase)) return "Google Antigravity IDE";
             if (string.Equals(exeName, "agy", StringComparison.OrdinalIgnoreCase)) return "Antigravity CLI";
-            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "claude-code", StringComparison.OrdinalIgnoreCase)) return "Claude Code / Desktop";
+            if (string.Equals(exeName, "claude", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "claude-code", StringComparison.OrdinalIgnoreCase)) return "Claude";
             if (string.Equals(exeName, "gemini", StringComparison.OrdinalIgnoreCase) || string.Equals(exeName, "gemini-cli", StringComparison.OrdinalIgnoreCase)) return "Gemini CLI";
             if (string.Equals(exeName, "codex", StringComparison.OrdinalIgnoreCase)) return "Codex CLI";
             if (string.Equals(exeName, "chatgpt", StringComparison.OrdinalIgnoreCase)) return "ChatGPT Desktop";
@@ -968,22 +975,83 @@ namespace SystemCoreMonitor.Modules
 
             string cleanWorkspace = CleanWindowTitle(rawTitle);
             string context = string.Empty;
+            string resolvedAgentName = string.Empty;
 
-            if (!string.IsNullOrWhiteSpace(cleanWorkspace))
+            // 1. Specialized Resolver for Claude (CLI vs Desktop, Session Name, and Working Repo)
+            if (string.Equals(rootExe, "claude", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rootExe, "claude-code", StringComparison.OrdinalIgnoreCase))
             {
-                context = "📂 " + cleanWorkspace;
+                string? procPath = null;
+                try { procPath = rootProc.MainModule?.FileName; } catch { }
+
+                var claudeMeta = ClaudeSessionResolver.ResolveSession(rootPid, descendantPids, procPath);
+                if (claudeMeta.IsDetected)
+                {
+                    resolvedAgentName = claudeMeta.AgentDisplayName;
+                    if (!string.IsNullOrEmpty(claudeMeta.ContextDisplay))
+                    {
+                        context = claudeMeta.ContextDisplay;
+                    }
+                    if (string.IsNullOrEmpty(modelName) && !string.IsNullOrEmpty(claudeMeta.Model))
+                    {
+                        modelName = claudeMeta.Model;
+                    }
+                    if (!string.IsNullOrEmpty(claudeMeta.WorkspaceRepo))
+                    {
+                        cleanWorkspace = claudeMeta.WorkspaceRepo;
+                    }
+                }
             }
-            else if (!string.IsNullOrWhiteSpace(resumeId))
+
+            // 2. Specialized Resolver for Google Antigravity & Antigravity IDE
+            if (string.IsNullOrEmpty(context) &&
+                (string.Equals(rootExe, "antigravity", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(rootExe, "antigravity ide", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(rootExe, "agy", StringComparison.OrdinalIgnoreCase)))
             {
-                context = "🔗 Sesión " + resumeId.Substring(Math.Max(0, resumeId.Length - 8));
+                var agSession = AntigravityContextResolver.ResolveLatestSession();
+                if (!string.IsNullOrEmpty(agSession.Context))
+                {
+                    context = agSession.Context;
+                    if (!string.IsNullOrEmpty(agSession.Workspace))
+                    {
+                        cleanWorkspace = agSession.Workspace;
+                    }
+                }
+                if (string.Equals(rootExe, "antigravity ide", StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedAgentName = "Google Antigravity IDE";
+                }
+                else if (string.Equals(rootExe, "agy", StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedAgentName = "Antigravity CLI";
+                }
+                else
+                {
+                    resolvedAgentName = "Google Antigravity";
+                }
             }
-            else
+
+            // 3. Fallback resolution via window titles, resume ID, or default context
+            if (string.IsNullOrEmpty(context))
             {
-                context = FormatDefaultContext(rootExe, rootPid);
+                if (!string.IsNullOrWhiteSpace(cleanWorkspace))
+                {
+                    context = "📂 " + cleanWorkspace;
+                }
+                else if (!string.IsNullOrWhiteSpace(resumeId))
+                {
+                    context = "🔗 Sesión " + resumeId.Substring(Math.Max(0, resumeId.Length - 8));
+                }
+                else
+                {
+                    context = FormatDefaultContext(rootExe, rootPid);
+                }
             }
 
             var info = new CachedSessionInfo
             {
+                AgentName = resolvedAgentName,
                 Context = context,
                 Workspace = cleanWorkspace,
                 Model = modelName ?? string.Empty
