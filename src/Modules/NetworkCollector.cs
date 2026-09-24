@@ -35,10 +35,15 @@ namespace SystemCoreMonitor.Modules
             }
         }
 
+        private static readonly TimeSpan PingInterval = TimeSpan.FromSeconds(10);
+        private DateTime _lastPingUtc = DateTime.MinValue;
+
         private void TriggerAsyncPing()
         {
-            if (_isPingRunning) return;
+            // Latency drifts slowly; probing on every 1-3s tick only adds outbound ICMP noise.
+            if (_isPingRunning || DateTime.UtcNow - _lastPingUtc < PingInterval) return;
             _isPingRunning = true;
+            _lastPingUtc = DateTime.UtcNow;
 
             Task.Run(() =>
             {

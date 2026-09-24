@@ -160,12 +160,12 @@ namespace SystemCoreMonitor.Core
                         string cwd = root.TryGetProperty("cwd", out var cwdProp) ? cwdProp.GetString() ?? string.Empty : string.Empty;
                         string name = root.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? string.Empty : string.Empty;
 
-                        if (string.IsNullOrEmpty(sid) || !long.TryParse(procStartProp.GetString(), out long procStartTicks))
+                        if (string.IsNullOrEmpty(sid) || !long.TryParse(procStartProp.GetString(), out long procStartFileTime))
                         {
                             continue;
                         }
 
-                        if (IsProcessGenuinelyAlive(pid, procStartTicks))
+                        if (IsProcessGenuinelyAlive(pid, procStartFileTime))
                         {
                             result[sid] = (pid, cwd, name);
                         }
@@ -178,15 +178,16 @@ namespace SystemCoreMonitor.Core
             return result;
         }
 
-        private static bool IsProcessGenuinelyAlive(int pid, long recordedStartTicks)
+        private static bool IsProcessGenuinelyAlive(int pid, long recordedStartFileTime)
         {
             if (pid <= 4) return false;
             try
             {
                 using var proc = Process.GetProcessById(pid);
                 DateTime startTime = proc.StartTime;
-                long actualTicks = startTime.ToUniversalTime().Ticks;
-                return Math.Abs(actualTicks - recordedStartTicks) < TimeSpan.FromSeconds(3).Ticks;
+                // Claude records procStart as a Win32 FILETIME, not .NET ticks.
+                long actualFileTime = startTime.ToFileTimeUtc();
+                return Math.Abs(actualFileTime - recordedStartFileTime) < TimeSpan.FromSeconds(3).Ticks;
             }
             catch
             {

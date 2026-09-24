@@ -42,6 +42,7 @@ namespace SystemCoreMonitor.UI
 
         private bool _isClosing = false;
         private bool _isSampling = false;
+        private bool _resampleRequested = false;
         private bool _isPinnedTop = false;
 
         public MainWindow()
@@ -59,6 +60,14 @@ namespace SystemCoreMonitor.UI
 
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
+
+            // Hidden ticks skip the per-tab work, so refresh as soon as something becomes visible again.
+            IsVisibleChanged += (s, e) => { if (IsVisible) _ = SampleTelemetryTickAsync(); };
+            StateChanged += (s, e) => { if (WindowState != WindowState.Minimized) _ = SampleTelemetryTickAsync(); };
+            _viewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.CurrentViewModel)) _ = SampleTelemetryTickAsync();
+            };
 
             _timer.Interval = TimeSpan.FromSeconds(Math.Max(1, _config.RefreshIntervalSeconds));
             _timer.Tick += async (s, e) => await SampleTelemetryTickAsync();
@@ -214,6 +223,7 @@ namespace SystemCoreMonitor.UI
                     bmp.UriSource = new Uri(pngPath, UriKind.Absolute);
                     bmp.CacheOption = BitmapCacheOption.OnLoad;
                     bmp.EndInit();
+                    bmp.Freeze();
                     ImgAppLogo.Source = bmp;
                     ImgWidgetLogo.Source = bmp;
                 }
@@ -235,35 +245,49 @@ namespace SystemCoreMonitor.UI
 
         private async Task SampleTelemetryTickAsync()
         {
-            if (_isSampling) return;
+            // A tab switch landing mid-tick must not wait a full interval for its data.
+            if (_isSampling) { _resampleRequested = true; return; }
             _isSampling = true;
 
             try
             {
+                // Hidden in the tray: only the tooltip is on screen, so sample just what it shows.
+                if (!IsVisible || WindowState == WindowState.Minimized)
+                {
+                    var trayCpu = await Task.Run(() => _cpu.Sample());
+                    var trayMem = await Task.Run(() => _mem.Sample());
+                    _trayManager.UpdateTooltip($"System Core Monitor\nCPU: {trayCpu.LoadPercent:F0}% | RAM: {trayMem.LoadPercent:F0}%");
+                    return;
+                }
+
+                // Per-tab collectors only run while their tab is on screen; switching tabs triggers a tick.
+                var activeTab = _viewModel.CurrentViewModel;
+
                 // 1. Fast telemetry collectors (~15-40ms total)
                 var cpuTask = Task.Run(() => _cpu.Sample());
                 var memTask = Task.Run(() => _mem.Sample());
                 var diskTask = Task.Run(() => _disk.Sample());
                 var netTask = Task.Run(() => _net.Sample());
-                var procsTask = Task.Run(() => _proc.Sample(150, _cachedTotalRamGB));
+                var procsTask = activeTab == _viewModel.Processes
+                    ? Task.Run(() => _proc.Sample(150, _cachedTotalRamGB))
+                    : null;
 
                 // 2. Slower background analyzers (AI sessions, accelerators, services, startup)
-                var aiTask = Task.Run(() => _ai.Sample());
-                var svcTask = Task.Run(() => _svc.Sample());
-                var startupTask = Task.Run(() => _startup.Sample());
+                var aiTask = activeTab == _viewModel.AiAgents ? Task.Run(() => _ai.Sample()) : null;
+                var svcTask = activeTab == _viewModel.Services ? Task.Run(() => _svc.Sample()) : null;
+                var startupTask = activeTab == _viewModel.Startup ? Task.Run(() => _startup.Sample()) : null;
 
                 var accelTask = _config.EnableAcceleratorsMonitoring
                     ? Task.Run(() => _accelEngine.SampleAllEngines())
                     : null;
 
                 // Await fast metrics first for instant UI response (<40ms)
-                await Task.WhenAll(cpuTask, memTask, diskTask, netTask, procsTask);
+                await Task.WhenAll(cpuTask, memTask, diskTask, netTask);
 
                 var cpu = cpuTask.Result;
                 var mem = memTask.Result;
                 var disk = diskTask.Result;
                 var net = netTask.Result;
-                var procs = procsTask.Result;
 
                 if (mem?.TotalGB > 0)
                 {
@@ -271,7 +295,11 @@ namespace SystemCoreMonitor.UI
                 }
 
                 // Immediately update Processes, Fast Storage & Widgets
-                _viewModel.Processes.Update(procs);
+                if (procsTask != null)
+                {
+                    _viewModel.Processes.Update(await procsTask);
+                    _viewModel.Processes.UpdateRunaway(_proc.LastRunawayProcesses);
+                }
                 _viewModel.Storage.UpdateDrives(disk);
 
                 TxtWidgetCpu.Text = $"{cpu.LoadPercent:F0}%";
@@ -280,25 +308,11 @@ namespace SystemCoreMonitor.UI
                 ProgressWidgetRam.Value = mem.LoadPercent;
                 TxtWidgetNet.Text = net.DownloadDisplay;
 
-                // Await remaining slower analyzers
-                if (accelTask != null)
-                {
-                    await Task.WhenAll(accelTask, aiTask, svcTask, startupTask);
-                }
-                else
-                {
-                    await Task.WhenAll(aiTask, svcTask, startupTask);
-                }
-
-                var ai = aiTask.Result;
-                var svc = svcTask.Result;
-                var startup = startupTask.Result;
-
                 GpuMetric gpu;
                 NpuMetric npu;
                 if (accelTask != null)
                 {
-                    var engineLoads = accelTask.Result;
+                    var engineLoads = await accelTask;
                     gpu = _gpu.Sample(engineLoads);
                     npu = _npu.Sample(engineLoads, gpu?.LuidString ?? "");
                 }
@@ -310,10 +324,10 @@ namespace SystemCoreMonitor.UI
 
                 // Dispatch remaining ViewModels
                 _viewModel.Dashboard.Update(cpu, mem, disk, net, gpu, npu);
-                _viewModel.AiAgents.Update(ai);
                 _viewModel.Accelerators.Update(gpu, npu);
-                _viewModel.Services.Update(svc);
-                _viewModel.Startup.Update(startup);
+                if (aiTask != null) _viewModel.AiAgents.Update(await aiTask);
+                if (svcTask != null) _viewModel.Services.Update(await svcTask);
+                if (startupTask != null) _viewModel.Startup.Update(await startupTask);
 
                 TxtWidgetGpu.Text = _config.EnableAcceleratorsMonitoring ? $"{gpu.LoadPercent:F0}%" : "Off";
                 ProgressWidgetGpu.Value = _config.EnableAcceleratorsMonitoring ? gpu.LoadPercent : 0;
@@ -332,6 +346,11 @@ namespace SystemCoreMonitor.UI
             finally
             {
                 _isSampling = false;
+                if (_resampleRequested)
+                {
+                    _resampleRequested = false;
+                    _ = SampleTelemetryTickAsync();
+                }
             }
         }
 

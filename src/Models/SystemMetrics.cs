@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace SystemCoreMonitor.Models
@@ -231,6 +232,25 @@ namespace SystemCoreMonitor.Models
             IsResponding = true;
             PriorityClass = "Normal";
         }
+    }
+
+    public enum RunawayKind
+    {
+        Scan,
+        SustainedLoad
+    }
+
+    public class RunawayProcess
+    {
+        public int Pid { get; set; }
+        public DateTime StartTime { get; set; }
+        public string Name { get; set; } = "";
+        public RunawayKind Kind { get; set; }
+        public string KindDisplay { get; set; } = "";
+        public string Reason { get; set; } = "";
+        public string AgeDisplay { get; set; } = "";
+        public double CpuPercent { get; set; }
+        public string CommandLine { get; set; } = "";
     }
 
     public class ProcessDetailedInfo

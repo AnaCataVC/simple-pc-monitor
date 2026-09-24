@@ -91,7 +91,7 @@ namespace SystemCoreMonitor.ViewModels
 
         public void UpdateDrives(List<DiskMetric> drives)
         {
-            Drives = new ObservableCollection<DiskMetric>(drives ?? new());
+            _drives.SyncInPlace(drives ?? new());
         }
 
         public void UpdateBloat(List<BloatFinding> findings)

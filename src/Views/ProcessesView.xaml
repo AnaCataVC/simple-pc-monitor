@@ -8,6 +8,7 @@
     <Grid Margin="12,8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -29,8 +30,63 @@
             </DockPanel>
         </Border>
 
+        <!-- Runaway Processes Alert Card (disk-wide scans, sustained CPU) -->
+        <Border Grid.Row="1" Style="{StaticResource BentoCardStyle}" Background="#2D1F0F" BorderBrush="#F59E0B" Padding="14,10" Margin="0,0,0,10"
+                Visibility="{Binding HasRunaway, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="🔥" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RunawayTitle}" FontSize="13.5" FontWeight="Bold" Foreground="#FCD34D"/>
+                        <TextBlock Text="{Binding RunawaySubtitle}" FontSize="11.5" Foreground="#FBBF24" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </StackPanel>
+                <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding RunawayProcesses}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#3B2A12" BorderBrush="#78350F" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,6" ToolTip="{Binding CommandLine}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <WrapPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="13" Foreground="White" Margin="0,0,8,2" VerticalAlignment="Center"/>
+                                                <Border Background="#451A03" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding KindDisplay}" FontSize="10.5" FontWeight="SemiBold" Foreground="#FCD34D"/>
+                                                </Border>
+                                                <Border Background="#451A03" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Pid, StringFormat='{}PID: {0}'}" FontSize="11" Foreground="#FDE68A"/>
+                                                </Border>
+                                                <Border Background="#451A03" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CpuPercent, StringFormat='{}CPU: {0:F1}%'}" FontSize="11" Foreground="#FDE68A"/>
+                                                </Border>
+                                                <Border Background="#451A03" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding AgeDisplay, StringFormat='{}⏱ {0}'}" FontSize="11" Foreground="#FDE68A"/>
+                                                </Border>
+                                            </WrapPanel>
+                                            <TextBlock Text="{Binding Reason}" FontSize="11.5" Foreground="#FBBF24" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                            <TextBlock Text="{Binding CommandLine}" FontSize="11" FontFamily="Consolas" Foreground="#D6D3D1" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource PillActionButtonStyle}"
+                                                Command="{Binding DataContext.EndRunawayCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Background="#EF4444" Foreground="White" Padding="10,5" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DataContext.RunawayEndLabel, RelativeSource={RelativeSource AncestorType=UserControl}}" FontSize="12" FontWeight="Bold"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
         <!-- Process Items ListView with Larger Fonts & Clean Spacing -->
-        <Border Grid.Row="1" Style="{StaticResource BentoCardStyle}" Padding="4">
+        <Border Grid.Row="2" Style="{StaticResource BentoCardStyle}" Padding="4">
             <ListView ItemsSource="{Binding Processes}" SelectedItem="{Binding SelectedProcess}" 
                       Background="Transparent" BorderThickness="0" 
                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"

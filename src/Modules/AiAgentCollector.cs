@@ -157,6 +157,7 @@ namespace SystemCoreMonitor.Modules
         private readonly Dictionary<string, CachedChildProcessInfo> _childProcessCache = new Dictionary<string, CachedChildProcessInfo>();
         private readonly Dictionary<int, bool> _independentSessionCache = new Dictionary<int, bool>();
         private readonly CpuUsageTracker _cpuTracker = new CpuUsageTracker();
+        private readonly AgentLineageTracker _lineage = new AgentLineageTracker();
         private readonly object _syncLock = new object();
         private readonly object _sampleGate = new object();
 
@@ -165,6 +166,7 @@ namespace SystemCoreMonitor.Modules
             lock (_sampleGate)
             {
                 var metric = new AiAgentMetric();
+                _lineage.BeginTick();
             var parentToChildren = new Dictionary<int, List<int>>();
             var childToParent = new Dictionary<int, int>();
             var pidToExeName = new Dictionary<int, string>();
@@ -290,7 +292,9 @@ namespace SystemCoreMonitor.Modules
                     session.TotalWorkingSetMB = Math.Round(rootRamMB + childrenRamMB, 1);
                     session.TotalMemoryDisplay = string.Format("{0:N1} MB", session.TotalWorkingSetMB);
                     session.TotalCpuPercent = Math.Round(rootCpuPct + childrenCpuPct, 1);
-                    session.TotalCpuDisplay = string.Format("{0:N1}%", session.TotalCpuPercent);
+                    // Percent is normalized over all logical cores, so percent × cores / 100 gives the cores in use.
+                    session.TotalCpuDisplay = string.Format("{0:N1}% · {1:N1}/{2} cores",
+                        session.TotalCpuPercent, session.TotalCpuPercent * Environment.ProcessorCount / 100.0, Environment.ProcessorCount);
                     session.ChildProcessCount = session.ChildProcesses.Count;
                     session.McpServersCount = session.ChildProcesses.Count(c => c.IsMcpServer);
 
@@ -314,13 +318,18 @@ namespace SystemCoreMonitor.Modules
                     session.SessionContext = sessionInfo.Context;
                     session.ModelName = sessionInfo.Model;
 
+                    _lineage.RecordLiveSession(rootPid, rootStartTime, session.AgentName, session.SessionContext,
+                        session.ChildProcesses.Select(c => (c.Pid, c.StartTime)));
+
                     metric.Sessions.Add(session);
                     grandTotalRamMB += session.TotalWorkingSetMB;
                     totalMcpCount += session.McpServersCount;
                 }
             }
 
+            _lineage.EndTick(allRunningPids, DateTime.Now);
             metric.OrphanProcesses = CollectOrphans(pidToExeName, childToParent, allRunningPids, claimedPids);
+            metric.OrphanGroups = AgentLineageTracker.BuildGroups(metric.OrphanProcesses, DateTime.Now);
             metric.OrphanCount = metric.OrphanProcesses.Count;
             metric.OrphanRamMB = Math.Round(metric.OrphanProcesses.Sum(o => o.WorkingSetMB), 1);
             metric.OrphanRamDisplay = string.Format("{0:N1} MB", metric.OrphanRamMB);
@@ -392,10 +401,11 @@ namespace SystemCoreMonitor.Modules
         private static readonly TimeSpan OrphanMinimumAge = TimeSpan.FromMinutes(1);
 
         /// <summary>
-        /// Runtime processes that no live agent session claims and whose parent is gone: what an
-        /// interrupted agent session leaves behind (killed worker pools, detached MCP servers).
-        /// A dead parent is normal for many legitimate processes, so these are reported with their
-        /// command line as evidence and never terminated automatically.
+        /// Processes no live agent session claims that an ended session left behind. Primary
+        /// evidence is lineage: the exact (PID, StartTime) was seen inside a session that has
+        /// since ended, whatever its executable. The fallback covers a runtime spawned between
+        /// two samples, flagged only when its dead parent was itself a remembered agent process.
+        /// Reported with evidence for the user to judge, never terminated automatically.
         /// </summary>
         private List<AiAgentMcpServer> CollectOrphans(
             Dictionary<int, string> pidToExeName,
@@ -416,26 +426,38 @@ namespace SystemCoreMonitor.Modules
                 int pid = kvp.Key;
                 if (claimedPids.Contains(pid)) continue;
 
-                string exeName = Path.GetFileNameWithoutExtension(kvp.Value);
-                if (!KnownMcpRuntimes.Contains(exeName)) continue;
-
                 int ppid;
                 if (!childToParent.TryGetValue(pid, out ppid)) continue;
+
+                string exeName = Path.GetFileNameWithoutExtension(kvp.Value);
+                bool isRuntime = KnownMcpRuntimes.Contains(exeName);
+
+                // Only open a handle when memory could make this process an orphan.
+                if (!_lineage.KnowsPid(pid) && !(isRuntime && _lineage.KnowsPid(ppid))) continue;
 
                 try
                 {
                     using (var proc = Process.GetProcessById(pid))
                     {
                         DateTime startTime = TryGetStartTime(proc);
-                        if (startTime == DateTime.MinValue) continue; // Age unknown: cannot judge
+                        if (startTime == DateTime.MinValue) continue; // Identity unknown: cannot judge
 
                         TimeSpan age = nowLocal - startTime;
                         if (age < OrphanMinimumAge) continue;
 
-                        string reason = ResolveOrphanReason(ppid, startTime, allRunningPids);
-                        if (reason == null) continue; // Parent alive and genuinely its parent
+                        var lineageSession = _lineage.FindSessionOf(pid, startTime);
+                        string parentReason = ResolveOrphanReason(ppid, startTime, allRunningPids);
+                        var parentSession = parentReason != null ? _lineage.FindSessionOfParent(ppid, startTime) : null;
+
+                        var kind = AgentLineageTracker.Decide(lineageSession, isRuntime, parentReason != null, parentSession, nowLocal);
+                        if (kind == OrphanKind.None) continue;
 
                         if (!ProcessManager.IsSafeToControl(pid, proc.ProcessName)) continue;
+
+                        var owner = lineageSession ?? parentSession;
+                        string reason = kind == OrphanKind.Lineage
+                            ? string.Format("Su sesión de {0} (PID {1}) terminó", owner.AgentName, owner.RootPid)
+                            : parentReason;
 
                         double ramMB = Math.Round((double)TryGetWorkingSet(proc) / (1024.0 * 1024.0), 1);
                         var meta = ResolveChildMetadata(pid, proc.ProcessName, startTime);
@@ -453,8 +475,12 @@ namespace SystemCoreMonitor.Modules
                             StartTime = startTime,
                             IsMcpServer = meta.IsMcpServer,
                             OrphanReason = reason,
-                            AgeDisplay = FormatAge(age),
-                            CommandLine = meta.CommandLine
+                            AgeDisplay = MetricFormatting.FormatAge(age),
+                            CommandLine = meta.CommandLine,
+                            OrphanSessionRootPid = owner?.RootPid ?? 0,
+                            OrphanSessionStartTime = owner?.RootStartTime ?? DateTime.MinValue,
+                            OrphanSessionAgent = owner?.AgentName ?? string.Empty,
+                            OrphanSessionEndedAt = owner?.EndedAt
                         });
                     }
                 }
@@ -493,13 +519,6 @@ namespace SystemCoreMonitor.Modules
             }
 
             return null;
-        }
-
-        private static string FormatAge(TimeSpan age)
-        {
-            if (age.TotalDays >= 1) return string.Format("{0}d {1}h", (int)age.TotalDays, age.Hours);
-            if (age.TotalHours >= 1) return string.Format("{0}h {1}m", (int)age.TotalHours, age.Minutes);
-            return string.Format("{0}m", (int)age.TotalMinutes);
         }
 
         private void CollectDescendantsWithMetrics(

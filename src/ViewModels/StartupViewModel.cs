@@ -72,7 +72,7 @@ namespace SystemCoreMonitor.ViewModels
 
         public void Update(List<StartupItem> items)
         {
-            StartupItems = new ObservableCollection<StartupItem>(items ?? new());
+            _startupItems.SyncInPlace(items ?? new());
         }
     }
 }

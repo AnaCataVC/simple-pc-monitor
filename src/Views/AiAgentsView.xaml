@@ -29,7 +29,7 @@
                 </DockPanel>
             </Border>
 
-            <!-- Orphan Processes Alert Card (if any) -->
+            <!-- Orphan Processes Alert Card: one expandable row per ended session -->
             <Border Style="{StaticResource BentoCardStyle}" Background="#2D1515" BorderBrush="#EF4444" Padding="14,10" Margin="0,0,0,12"
                     Visibility="{Binding HasOrphans, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel>
@@ -41,8 +41,8 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="⚠️" FontSize="18" VerticalAlignment="Center" Margin="0,0,10,0"/>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding OrphanProcesses.Count, StringFormat='{}Procesos huérfanos detectados: {0}'}" FontSize="13.5" FontWeight="Bold" Foreground="#FCA5A5"/>
-                                <TextBlock Text="Subprocesos de agentes IA cuyo proceso padre ya terminó. Puedes cerrarlos de forma segura." FontSize="11.5" Foreground="#F87171" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding OrphanCount, StringFormat='{}Procesos huérfanos detectados: {0}'}" FontSize="13.5" FontWeight="Bold" Foreground="#FCA5A5"/>
+                                <TextBlock Text="Procesos que dejó una sesión de agente IA ya terminada. Revisa la evidencia antes de cerrarlos." FontSize="11.5" Foreground="#F87171" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1" Style="{StaticResource PillActionButtonStyle}" Command="{Binding KillAllOrphansCommand}" Background="#EF4444" Foreground="White" Padding="10,5" VerticalAlignment="Center">
@@ -50,49 +50,146 @@
                         </Button>
                     </Grid>
 
-                    <!-- Lista detallada de procesos huérfanos -->
-                    <ItemsControl ItemsSource="{Binding OrphanProcesses}">
+                    <ItemsControl ItemsSource="{Binding OrphanGroups}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#3B1818" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <WrapPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding ProcessName}" FontWeight="Bold" FontSize="13" Foreground="White" Margin="0,0,8,2" VerticalAlignment="Center"/>
-                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding SemanticRole}" FontSize="10.5" FontWeight="SemiBold" Foreground="#FCA5A5"/>
-                                                </Border>
-                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Pid, StringFormat='{}PID: {0}'}" FontSize="11" Foreground="#FECACA"/>
-                                                </Border>
-                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding MemoryDisplay, StringFormat='{}RAM: {0}'}" FontSize="11" Foreground="{DynamicResource AccentRam}"/>
-                                                </Border>
-                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding CpuDisplay, StringFormat='{}CPU: {0}'}" FontSize="11" Foreground="{DynamicResource AccentCpu}"/>
-                                                </Border>
-                                                <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding AgeDisplay, StringFormat='{}Edad: {0}'}" FontSize="11" Foreground="#E2E8F0"/>
-                                                </Border>
-                                                <TextBlock Text="{Binding OrphanReason}" FontSize="11" Foreground="#F87171" VerticalAlignment="Center" Margin="4,0,0,2"/>
-                                            </WrapPanel>
-                                            <!-- CLI command line snippet with tooltip -->
-                                            <TextBlock Text="{Binding CommandLine}" FontSize="11" FontFamily="Consolas, monospace" Foreground="#94A3B8"
-                                                       TextTrimming="CharacterEllipsis" Margin="2,4,8,0"
-                                                       ToolTip="{Binding TooltipText}"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1" Style="{StaticResource PillActionButtonStyle}"
-                                                Command="{Binding DataContext.KillOrphanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                Background="#DC2626" Foreground="White" Padding="10,5" VerticalAlignment="Center" Margin="8,0,0,0">
-                                            <TextBlock Text="Cerrar" FontSize="11.5" FontWeight="SemiBold"/>
-                                        </Button>
-                                    </Grid>
+                                <Border Background="#3B1818" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Header}" FontWeight="Bold" FontSize="12.5" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <Button Grid.Column="1" Style="{StaticResource PillActionButtonStyle}" Padding="8,4" Margin="8,0,0,0"
+                                                    Command="{Binding DataContext.ToggleOrphanGroupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock FontSize="11">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="▼ Ver procesos"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsExpanded}" Value="True">
+                                                                    <Setter Property="Text" Value="▲ Ocultar"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Button>
+                                            <Button Grid.Column="2" Style="{StaticResource PillActionButtonStyle}" Background="#DC2626" Foreground="White" Padding="8,4" Margin="6,0,0,0"
+                                                    Command="{Binding DataContext.KillOrphanGroupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="Cerrar grupo" FontSize="11" FontWeight="SemiBold"/>
+                                            </Button>
+                                        </Grid>
+
+                                        <ItemsControl ItemsSource="{Binding Processes}" Margin="0,6,0,0"
+                                                      Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#2A1111" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,4">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                <WrapPanel VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding ProcessName}" FontWeight="Bold" FontSize="12.5" Foreground="White" Margin="0,0,8,2" VerticalAlignment="Center"/>
+                                                                    <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding SemanticRole}" FontSize="10.5" FontWeight="SemiBold" Foreground="#FCA5A5"/>
+                                                                    </Border>
+                                                                    <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding Pid, StringFormat='{}PID: {0}'}" FontSize="11" Foreground="#FECACA"/>
+                                                                    </Border>
+                                                                    <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding MemoryDisplay, StringFormat='{}RAM: {0}'}" FontSize="11" Foreground="{DynamicResource AccentRam}"/>
+                                                                    </Border>
+                                                                    <Border Background="#450A0A" CornerRadius="4" Padding="5,2" Margin="0,0,6,2" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding AgeDisplay, StringFormat='{}Edad: {0}'}" FontSize="11" Foreground="#E2E8F0"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding OrphanReason}" FontSize="11" Foreground="#F87171" VerticalAlignment="Center" Margin="4,0,0,2"/>
+                                                                </WrapPanel>
+                                                                <TextBlock Text="{Binding CommandLine}" FontSize="11" FontFamily="Consolas, monospace" Foreground="#94A3B8"
+                                                                           TextTrimming="CharacterEllipsis" Margin="2,4,8,0"
+                                                                           ToolTip="{Binding TooltipText}"/>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1" Style="{StaticResource PillActionButtonStyle}"
+                                                                    Command="{Binding DataContext.KillOrphanCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="#DC2626" Foreground="White" Padding="10,5" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                                <TextBlock Text="Cerrar" FontSize="11.5" FontWeight="SemiBold"/>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                 </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- AI Agent Leftovers (worktrees, %TEMP% scratch, stale locks, old MCP logs) -->
+            <Border Style="{StaticResource BentoCardStyle}" Padding="14,10" Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="Restos de sesiones de agentes IA" FontSize="14.5" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{Binding LeftoverSummaryDisplay}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding ScanLeftoversCommand}" Margin="0,0,8,0" Padding="10,6">
+                                <TextBlock Text="Escanear" FontSize="12"/>
+                            </Button>
+                            <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding CancelLeftoverScanCommand}" Margin="0,0,8,0" Padding="10,6"
+                                    Visibility="{Binding IsScanningLeftovers, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="Cancelar" FontSize="12"/>
+                            </Button>
+                            <Button Style="{StaticResource PillActionButtonStyle}" Command="{Binding CleanLeftoversCommand}" Background="#D97706" Foreground="White" Padding="10,6"
+                                    Visibility="{Binding HasLeftovers, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="Limpiar seleccionables" FontSize="12" FontWeight="SemiBold"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding LeftoverItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="70"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding KindDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding DisplayPath}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextPrimary}"
+                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Reason}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding SizeDisplay}" FontSize="11" Foreground="{DynamicResource AccentRam}" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="3" FontSize="11" HorizontalAlignment="Right">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="Limpiable"/>
+                                                <Setter Property="Foreground" Value="#10B981"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanDelete}" Value="False">
+                                                        <Setter Property="Text" Value="Solo aviso"/>
+                                                        <Setter Property="Foreground" Value="#F59E0B"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

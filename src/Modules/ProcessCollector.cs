@@ -10,6 +10,11 @@ namespace SystemCoreMonitor.Modules
     public class ProcessCollector
     {
         private readonly CpuUsageTracker _cpuTracker = new CpuUsageTracker();
+        private readonly SustainedLoadTracker _loadTracker = new SustainedLoadTracker();
+        private volatile List<RunawayProcess> _lastRunaway = new List<RunawayProcess>();
+
+        /// <summary>Runaway processes detected during the most recent <see cref="Sample"/> pass.</summary>
+        public List<RunawayProcess> LastRunawayProcesses => _lastRunaway;
 
         private class ProcessCandidate
         {
@@ -79,6 +84,10 @@ namespace SystemCoreMonitor.Modules
 
                 // Cleanup dead PIDs from CPU cache
                 _cpuTracker.RemoveDeadPids(activePids);
+                _loadTracker.RemoveDeadPids(activePids);
+
+                // Runs over every candidate, not only the top list: a disk-wide scan is often small in RAM and CPU.
+                _lastRunaway = DetectRunaway(candidates, now);
 
                 IEnumerable<ProcessCandidate> query = candidates;
                 if (!string.IsNullOrEmpty(searchFilter))
@@ -168,6 +177,65 @@ namespace SystemCoreMonitor.Modules
             catch { }
 
             return resultList;
+        }
+
+        private List<RunawayProcess> DetectRunaway(List<ProcessCandidate> candidates, DateTime now)
+        {
+            var found = new List<RunawayProcess>();
+            foreach (var cand in candidates)
+            {
+                try
+                {
+                    bool aboveThreshold = cand.CpuPercent >= RunawayProcessDetector.CpuThresholdPercent;
+                    bool scanCandidate = RunawayProcessDetector.IsScanCandidate(cand.Name);
+                    if (!aboveThreshold && !scanCandidate)
+                    {
+                        // Below the threshold the start time is irrelevant: the tracker closes the window by PID.
+                        _loadTracker.Observe(cand.Id, default(DateTime), cand.CpuPercent, now);
+                        continue;
+                    }
+
+                    // (PID, StartTime) is the identity passed to the kill path (AGENTS rule 12).
+                    DateTime startTime;
+                    try { startTime = cand.Process.StartTime; } catch { continue; }
+
+                    TimeSpan? sustained = _loadTracker.Observe(cand.Id, startTime, cand.CpuPercent, now);
+                    string? scanTarget = null;
+                    string commandLine = string.Empty;
+                    if (scanCandidate)
+                    {
+                        string raw = ProcessManager.GetProcessCommandLine(cand.Id);
+                        scanTarget = RunawayProcessDetector.ClassifyScan(cand.Name, raw);
+                        commandLine = ProcessManager.SanitizeCommandLine(raw);
+                    }
+
+                    if (scanTarget == null && sustained == null) continue;
+                    if (!ProcessManager.IsSafeToControl(cand.Id, cand.Name)) continue;
+
+                    if (!scanCandidate)
+                    {
+                        commandLine = ProcessManager.SanitizeCommandLine(ProcessManager.GetProcessCommandLine(cand.Id));
+                    }
+
+                    bool isScan = scanTarget != null;
+                    found.Add(new RunawayProcess
+                    {
+                        Pid         = cand.Id,
+                        StartTime   = startTime,
+                        Name        = cand.Name,
+                        Kind        = isScan ? RunawayKind.Scan : RunawayKind.SustainedLoad,
+                        KindDisplay = LocalizationManager.Get(isScan ? "RunawayKindScan" : "RunawayKindSustained"),
+                        Reason      = isScan
+                            ? string.Format(LocalizationManager.Get("RunawayReasonScan"), ProcessManager.SanitizeCommandLine(scanTarget!))
+                            : string.Format(LocalizationManager.Get("RunawayReasonSustained"), RunawayProcessDetector.CpuThresholdPercent, MetricFormatting.FormatAge(sustained!.Value)),
+                        AgeDisplay  = MetricFormatting.FormatAge(DateTime.Now - startTime),
+                        CpuPercent  = cand.CpuPercent,
+                        CommandLine = commandLine
+                    });
+                }
+                catch { }
+            }
+            return found.OrderByDescending(r => r.CpuPercent).ToList();
         }
     }
 }

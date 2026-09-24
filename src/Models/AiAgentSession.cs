@@ -22,6 +22,12 @@ namespace SystemCoreMonitor.Models
         public string AgeDisplay { get; set; }
         public string CommandLine { get; set; }
 
+        // Identity of the dead session an orphan row belongs to; RootPid 0 means unknown origin.
+        public int OrphanSessionRootPid { get; set; }
+        public DateTime OrphanSessionStartTime { get; set; }
+        public string OrphanSessionAgent { get; set; } = string.Empty;
+        public DateTime? OrphanSessionEndedAt { get; set; }
+
         public AiAgentMcpServer()
         {
             ProcessName = string.Empty;
@@ -98,6 +104,35 @@ namespace SystemCoreMonitor.Models
         }
     }
 
+    /// <summary>
+    /// Orphans left behind by one ended agent session, or the "unknown origin" bucket.
+    /// </summary>
+    public class AiAgentOrphanGroup : ObservableObject
+    {
+        private bool _isExpanded;
+
+        public int RootPid { get; set; }
+        public DateTime RootStartTime { get; set; }
+        public bool IsUnknownOrigin { get; set; }
+        public string AgentName { get; set; } = string.Empty;
+        public DateTime? EndedAt { get; set; }
+        public string EndedDisplay { get; set; } = string.Empty;
+        public double TotalRamMB { get; set; }
+        public string TotalRamDisplay { get; set; } = "0.0 MB";
+        public int ProcessCount { get; set; }
+        public List<AiAgentMcpServer> Processes { get; set; } = new List<AiAgentMcpServer>();
+
+        public string Header => IsUnknownOrigin
+            ? string.Format("{0} • {1} proceso(s) • {2}", AgentName, ProcessCount, TotalRamDisplay)
+            : string.Format("{0} (PID {1}) • terminó hace {2} • {3} proceso(s) • {4}", AgentName, RootPid, EndedDisplay, ProcessCount, TotalRamDisplay);
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set => SetProperty(ref _isExpanded, value);
+        }
+    }
+
     public class AiAgentMetric
     {
         public int ActiveSessionsCount { get; set; }
@@ -107,10 +142,11 @@ namespace SystemCoreMonitor.Models
         public List<AiAgentSession> Sessions { get; set; }
 
         /// <summary>
-        /// Runtime processes an agent session normally owns that no live session claims and
-        /// whose parent is gone. Reported for the user to judge, never acted on automatically.
+        /// Processes an ended agent session left behind (see AgentLineageTracker). Reported for
+        /// the user to judge, never acted on automatically.
         /// </summary>
         public List<AiAgentMcpServer> OrphanProcesses { get; set; }
+        public List<AiAgentOrphanGroup> OrphanGroups { get; set; } = new List<AiAgentOrphanGroup>();
         public int OrphanCount { get; set; }
         public double OrphanRamMB { get; set; }
         public string OrphanRamDisplay { get; set; }

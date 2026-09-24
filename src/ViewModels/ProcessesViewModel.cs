@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using SystemCoreMonitor.Core;
 using SystemCoreMonitor.Core.Mvvm;
 using SystemCoreMonitor.Models;
@@ -41,7 +42,16 @@ namespace SystemCoreMonitor.ViewModels
             }
         }
 
+        private readonly ObservableCollection<RunawayProcess> _runawayProcesses = new();
+
+        public ObservableCollection<RunawayProcess> RunawayProcesses => _runawayProcesses;
+        public bool HasRunaway => _runawayProcesses.Count > 0;
+        public string RunawayTitle => string.Format(LocalizationManager.Get("CardRunawayTitle"), _runawayProcesses.Count);
+        public string RunawaySubtitle => LocalizationManager.Get("CardRunawaySubtitle");
+        public string RunawayEndLabel => LocalizationManager.Get("ButtonRunawayEnd");
+
         public AsyncRelayCommand<ProcessMetric> TerminateProcessCommand { get; }
+        public AsyncRelayCommand<RunawayProcess> EndRunawayCommand { get; }
         public RelayCommand<ProcessMetric> SearchOnlineCommand { get; }
         public RelayCommand<string> SortCommand { get; }
 
@@ -69,6 +79,30 @@ namespace SystemCoreMonitor.ViewModels
                 }
             });
 
+            EndRunawayCommand = new AsyncRelayCommand<RunawayProcess>(async item =>
+            {
+                if (item == null) return;
+
+                // Detection is a filter for human attention, never a verdict (AGENTS rule 13).
+                string prompt = string.Format(LocalizationManager.Get("ConfirmRunawayKill"), item.Name, item.Pid, item.Reason, item.CommandLine);
+                var answer = MessageBox.Show(prompt, LocalizationManager.Get("ConfirmRunawayTitle"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes) return;
+
+                // The sampled StartTime aborts the kill if the PID was recycled since the sample (AGENTS rule 12).
+                string message = string.Empty;
+                bool killed = await Task.Run(() => ProcessManager.TerminateProcessTree(item.Pid, true, out message, item.StartTime));
+                if (killed)
+                {
+                    _runawayProcesses.Remove(item);
+                    NotifyRunawayChanged();
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastRunawayKilled"), item.Name, item.Pid), NotificationType.Success);
+                }
+                else
+                {
+                    ShowToastRequested?.Invoke(string.Format(LocalizationManager.Get("ToastRunawayKillFailed"), item.Name, item.Pid, message), NotificationType.Error);
+                }
+            });
+
             SearchOnlineCommand = new RelayCommand<ProcessMetric>(item =>
             {
                 if (item != null) ProcessManager.SearchProcessOnline(item.Name);
@@ -86,6 +120,39 @@ namespace SystemCoreMonitor.ViewModels
         {
             _allProcesses = processes ?? new();
             ApplyFilter();
+        }
+
+        public void UpdateRunaway(List<RunawayProcess> runaway)
+        {
+            var target = runaway ?? new List<RunawayProcess>();
+            for (int i = 0; i < target.Count; i++)
+            {
+                var item = target[i];
+                if (i >= _runawayProcesses.Count)
+                {
+                    _runawayProcesses.Add(item);
+                    continue;
+                }
+
+                var current = _runawayProcesses[i];
+                if (current.Pid != item.Pid || current.StartTime != item.StartTime ||
+                    current.CpuPercent != item.CpuPercent || current.Reason != item.Reason || current.AgeDisplay != item.AgeDisplay)
+                {
+                    _runawayProcesses[i] = item;
+                }
+            }
+
+            while (_runawayProcesses.Count > target.Count)
+            {
+                _runawayProcesses.RemoveAt(_runawayProcesses.Count - 1);
+            }
+            NotifyRunawayChanged();
+        }
+
+        private void NotifyRunawayChanged()
+        {
+            OnPropertyChanged(nameof(HasRunaway));
+            OnPropertyChanged(nameof(RunawayTitle));
         }
 
         private void ApplyFilter()
@@ -108,37 +175,8 @@ namespace SystemCoreMonitor.ViewModels
             };
 
             var targetList = query.ToList();
-            if (_processes.Count == 0)
-            {
-                Processes = new ObservableCollection<ProcessMetric>(targetList);
-                return;
-            }
-
-            // In-place synchronization to prevent scroll reset and UI flickering
-            int targetCount = targetList.Count;
-            for (int i = 0; i < targetCount; i++)
-            {
-                var target = targetList[i];
-                if (i < _processes.Count)
-                {
-                    if (_processes[i].Id != target.Id ||
-                        _processes[i].CpuPercent != target.CpuPercent ||
-                        _processes[i].MemoryMB != target.MemoryMB ||
-                        _processes[i].IsResponding != target.IsResponding)
-                    {
-                        _processes[i] = target;
-                    }
-                }
-                else
-                {
-                    _processes.Add(target);
-                }
-            }
-
-            while (_processes.Count > targetCount)
-            {
-                _processes.RemoveAt(_processes.Count - 1);
-            }
+            _processes.SyncInPlace(targetList, (a, b) =>
+                a.Id == b.Id && a.CpuPercent == b.CpuPercent && a.MemoryMB == b.MemoryMB && a.IsResponding == b.IsResponding);
         }
     }
 }

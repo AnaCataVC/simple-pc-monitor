@@ -20,6 +20,13 @@ namespace SystemCoreMonitor.Core
             return string.Format("{0} Bytes", bytes);
         }
 
+        public static string FormatAge(TimeSpan age)
+        {
+            if (age.TotalDays >= 1) return string.Format("{0}d {1}h", (int)age.TotalDays, age.Hours);
+            if (age.TotalHours >= 1) return string.Format("{0}h {1}m", (int)age.TotalHours, age.Minutes);
+            return string.Format("{0}m", (int)age.TotalMinutes);
+        }
+
         public static string ClassifyStatus(double percent, double warnThreshold = 80.0, double critThreshold = 90.0)
         {
             return percent >= critThreshold ? "Crit" : (percent >= warnThreshold ? "Warn" : "Ok");

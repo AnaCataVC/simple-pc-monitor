@@ -100,7 +100,7 @@ namespace SystemCoreMonitor.ViewModels
         public void Update(ServiceMetric metric)
         {
             Metric = metric;
-            Services = new ObservableCollection<ServiceItem>(metric.CriticalServices);
+            _services.SyncInPlace(metric.CriticalServices);
         }
     }
 }
