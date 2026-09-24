@@ -27,12 +27,15 @@ This document serves as the operational manual, architecture reference, and work
   - `ToolLauncher.cs`: Shared launchers for external Windows tools (Task Manager, Resource Monitor, Reliability Monitor, PC Manager/Storage Sense, Services console, Task Scheduler), reused across `MainWindow.xaml.cs` handlers instead of each reimplementing `Process.Start`.
   - `CpuUsageTracker.cs`: Shared PID-keyed CPU delta tracker (dictionary of previous `TotalProcessorTime`/timestamp samples), used by both `ProcessCollector` and `AiAgentCollector` instead of each maintaining its own copy.
   - `TimedCache.cs`: Generic `TimedCache<T>` wrapping the "cache for N seconds unless force-refreshed" pattern shared by `ServiceCollector`, `StartupCollector`, `DiskCollector`, and `TaskCollector`.
-  - `MetricFormatting.cs`: Shared byte→GB conversion, auto-scaled human-readable byte formatting, and `Crit`/`Warn`/`Ok` percentage threshold classification, used across the collectors.
+  - `AgentLineageTracker.cs`: Remembers every process seen inside a live agent session, keyed by `(PID, StartTime)`. When the session's root dies, any remembered descendant still alive is an orphan whatever its executable (`OrphanKind.Lineage`, after a 10 s grace). Without lineage, only a known runtime whose dead parent belonged to an ended session qualifies (`OrphanKind.Fallback`), so a runtime launched from a closed terminal is not reported. Dead descendants stay remembered for `DeadLineageRetention` as parent evidence; `EndTick` is a no-op on an empty snapshot. `BuildGroups` groups orphans per dead session with an "unknown origin" bucket last. Kills from the AI Agents tab go through a Yes/No confirmation listing names, reasons, ages and total RAM, then `TerminateProcessTree` with each row's sampled `StartTime`.
+  - `AiAgentLeftoverScanner.cs`: On-demand, read-only scan (IProgress + CancellationToken) of disk leftovers from agent sessions: dangling `.git/worktrees/*` registrations and abandoned `<repo>/.claude/worktrees/*` (repos discovered from the cwd in each Claude project's newest transcript; dirty worktrees are report-only), stale per-project scratch under `%TEMP%\claude` and `claude-*-cwd` markers (dual 24 h timestamp, never a live session's folder), `~/.claude/sessions` records whose `(PID, StartTime)` no longer matches, and MCP logs under `%LOCALAPPDATA%\claude-cli-nodejs\Cache\*\mcp-logs-*` older than the transcript retention. `IsDeletionAllowed` is an exact-match gate against each kind's root; worktrees are removed only through `git worktree prune`/`remove`.
+  - `RunawayProcessDetector.cs`: Pure runaway heuristics. `ClassifyScan` flags find/rg/fd/findstr/where/robocopy, `cmd` with `dir /s` and PowerShell with `-Recurse` only when an argument is a drive root or the whole user profile (scoped paths never match); `SustainedLoadTracker` flags a process held above `CpuThresholdPercent` for `MinSustained`, keyed on `(PID, StartTime)` and evicting only on a non-empty snapshot. `ProcessCollector` exposes the result as `LastRunawayProcesses`; the Processes view lists them and ends one only after a confirmation, through `TerminateProcessTree` with the sampled `StartTime`.
+  - `MetricFormatting.cs`: Shared byte→GB conversion, auto-scaled human-readable byte formatting, and `Crit`/`Warn`/`Ok` percentage threshold classification, and the shared `FormatAge` duration label, used across the collectors.
 - **`Models/`**:
   - `SystemMetrics.cs`: Strongly typed telemetry DTOs, hardware metrics, and process data structures.
-  - `AiAgentSession.cs`: AI developer session models (`ParentPid`, `AgentName`, `StartTime`, `SessionContext`, `ModelName`), child MCP server subprocess models (`AiAgentMcpServer`, `RoleBadgeColor`, `IsMcpServer`), decoupled metrics (`ChildProcessCount` vs `McpServersCount`), dynamic status visual binding (`StatusBadgeColor`, `StatusDisplay`), conditional model badge (`🧬 <ModelName>`), resumed CLI hash naming (`🔗 Sesión <8-char-hash>`), consolidated RAM/CPU metrics (`TotalWorkingSetMB`, `TotalCpuPercent`), and the orphan report (`AiAgentMetric.OrphanProcesses` plus `ParentPid`, `OrphanReason`, `AgeDisplay` on `AiAgentMcpServer`, which doubles as the orphan row).
+  - `AiAgentSession.cs`: AI developer session models (`ParentPid`, `AgentName`, `StartTime`, `SessionContext`, `ModelName`), child MCP server subprocess models (`AiAgentMcpServer`, `RoleBadgeColor`, `IsMcpServer`), decoupled metrics (`ChildProcessCount` vs `McpServersCount`), dynamic status visual binding (`StatusBadgeColor`, `StatusDisplay`), conditional model badge (`🧬 <ModelName>`), resumed CLI hash naming (`🔗 Sesión <8-char-hash>`), consolidated RAM/CPU metrics (`TotalWorkingSetMB`, `TotalCpuPercent`), and the orphan report (`AiAgentMetric.OrphanProcesses` plus `ParentPid`, `OrphanReason`, `AgeDisplay` on `AiAgentMcpServer`, which doubles as the orphan row, tagged with its dead session's identity), plus `AiAgentOrphanGroup` (one expandable row per ended session).
 - **`Modules/`**:
-  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Thread-safe debounced delta % math with `_syncLock` and fast in-memory sorting), `AiAgentCollector.cs` (Atomic Win32 Toolhelp32 process tree scanner & MCP session aggregator hardened with `_sampleGate` anti-reentrancy lock, deterministic `SafeProcessHandle` disposal via `using`/`Dispose()`, cold-start PEB protection without premature negative caching, snapshot cache-eviction safeguard (`allRunningPids.Count > 0`), dynamic purge of `CollapsedSessionPids` against kernel PID reuse, launcher isolation `npx`/`uvx`, Go/Rust compiled MCP discovery via CLI markers, independent session boundary pruning, and orphan detection via `CollectOrphans` — runtime processes no live session claims whose parent is dead or whose parent PID was recycled), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
+  - `CpuCollector.cs`, `MemoryCollector.cs`, `DiskCollector.cs`, `NetworkCollector.cs`, `ProcessCollector.cs` (Thread-safe debounced delta % math with `_syncLock` and fast in-memory sorting), `AiAgentCollector.cs` (Atomic Win32 Toolhelp32 process tree scanner & MCP session aggregator hardened with `_sampleGate` anti-reentrancy lock, deterministic `SafeProcessHandle` disposal via `using`/`Dispose()`, cold-start PEB protection without premature negative caching, snapshot cache-eviction safeguard (`allRunningPids.Count > 0`), dynamic purge of `CollapsedSessionPids` against kernel PID reuse, launcher isolation `npx`/`uvx`, Go/Rust compiled MCP discovery via CLI markers, independent session boundary pruning, and orphan detection via `CollectOrphans`, which feeds each live session's descendants to `AgentLineageTracker` and reports what an ended session left behind, grouped per dead session in `AiAgentMetric.OrphanGroups`), `ServiceCollector.cs`, `TaskCollector.cs`, `HardwareCollector.cs`, `StartupCollector.cs`, `GpuCollector.cs`, `NpuCollector.cs`.
 - **`UI/` & `Views/`**:
   - `MainWindow.xaml` & `MainWindow.xaml.cs`: Interactive Bento HUD, Ribbon action buttons, AI Agents Tab with decoupled MCP / child process counter badges and dynamic `StatusBadgeColor` visual state binding (`#10B981` Emerald vs `#64748B` Slate), Drives storage visualizer, `WM_GETMINMAXINFO` multi-monitor DPI hook, and `ApplyProcessSortingFast`.
   - `ProcessDetailsWindow.xaml`: 360° modal inspector with two-phase graceful close for individual processes.
@@ -50,7 +53,7 @@ system-core-monitor/
 │   ├── SystemCoreMonitor.csproj   # C# WPF project file (.NET 9 SDK-style)
 │   ├── App.xaml / App.xaml.cs     # App entrypoint, CrashLogger traps, and 4-theme manager
 │   ├── app.manifest               # Per-Monitor DPI V2 & Windows 10/11 compatibility
-│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process & storage guards (24 modules)
+│   ├── Core/                      # Win32 P/Invoke, crash logging, power plans, process & storage guards (29 modules)
 │   ├── Models/                    # Telemetry data models and AI Agent / MCP structures
 │   ├── Modules/                   # Metric collectors (12 collectors: CPU, RAM, AI Agents, GPU, NPU, Disks...)
 │   ├── ViewModels/                # MVVM presentation layer (ViewModelBase, Main, Dashboard, AiAgents...)
@@ -59,7 +62,7 @@ system-core-monitor/
 ├── scripts/
 │   └── Build-Package.ps1          # Single-file .NET 9 publish and packaging pipeline
 ├── tests/
-│   ├── Metrics.Tests.ps1          # 21-Test Health & Reflection validation suite
+│   ├── Metrics.Tests.ps1          # 32-Test Health & Reflection validation suite
 │   ├── AiTranscript.Tests.ps1     # 5-Test AI Transcript Retention & Cleanup suite
 │   └── DeepStress.Tests.ps1       # 6-Test Live Process Tree, PID Reuse Guard, Handle Leak & 5s Smoke suite
 ├── releases/                      # Standalone executables, ZIPs, installers (gitignored)
@@ -103,9 +106,9 @@ system-core-monitor/
 dotnet build src\SystemCoreMonitor.csproj -c Release
 ```
 
-### Run Tests (32 Automated Tests)
+### Run Tests (43 Automated Tests)
 ```powershell
-# 1. Run Health & Architecture Tests (21 tests)
+# 1. Run Health & Architecture Tests (32 tests)
 pwsh -ExecutionPolicy Bypass -File tests\Metrics.Tests.ps1
 
 # 2. Run AI Transcript Retention & Cleanup Tests (5 tests)
