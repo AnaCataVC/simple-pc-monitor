@@ -18,11 +18,16 @@ namespace SystemCoreMonitor.Models
         public int ProcessorCount { get; set; }
         public string Status { get; set; }
         public string LoadDisplay => string.Format("{0:N1}%", LoadPercent);
-        public string CoreCountDisplay => string.Format("{0} Cores", ProcessorCount);
+        public int ActiveCoreCount { get; set; }
+        public List<double> CoreLoads { get; set; }
+        public string CoreCountDisplay => CoreLoads.Count > 0
+            ? string.Format("{0} / {1} Cores en uso", ActiveCoreCount, CoreLoads.Count)
+            : string.Format("{0} Cores", ProcessorCount);
 
         public CpuMetric()
         {
             Status = "Ok";
+            CoreLoads = new List<double>();
         }
     }
 

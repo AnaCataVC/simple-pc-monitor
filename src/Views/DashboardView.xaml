@@ -130,6 +130,22 @@
                         <!-- Progress Bar -->
                         <ProgressBar Style="{StaticResource PastelProgressBarStyle}" Value="{Binding Cpu.LoadPercent}" Foreground="{DynamicResource AccentCpu}" Height="8" Margin="0,0,0,10"/>
 
+                        <!-- Per-core load strip -->
+                        <ItemsControl ItemsSource="{Binding Cpu.CoreLoads}" Height="26" Margin="0,0,0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ProgressBar Orientation="Vertical" Value="{Binding Mode=OneWay}" Maximum="100" Margin="1,0"
+                                                 Foreground="{DynamicResource AccentCpu}" Background="#33808080"
+                                                 BorderThickness="0" ToolTip="{Binding StringFormat='{}{0:N0}%'}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                         <DockPanel LastChildFill="False">
                             <TextBlock Text="{Binding Cpu.CoreCountDisplay, FallbackValue='Núcleos lógicos activos'}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
                             <TextBlock DockPanel.Dock="Right" Text="{Binding Cpu.Status}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>

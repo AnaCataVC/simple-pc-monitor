@@ -12,7 +12,7 @@
 
 | Metric Subsystem | Primary Native API | C# Collector Module | Latency | CPU Overhead | Localization Safety | Ring-0 Requirement |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **CPU Usage %** | Win32 `GetSystemTimes` (P/Invoke) | `Modules/CpuCollector.cs` | **< 0.05 ms** | < 0.01% | 100% (Language Independent) | No |
+| **CPU Usage %** (total + per core) | Win32 `GetSystemTimes` + `NtQuerySystemInformation` (P/Invoke) | `Modules/CpuCollector.cs` | **< 0.05 ms** | < 0.01% | 100% (Language Independent) | No |
 | **RAM (Total/Free/Load)** | Win32 `GlobalMemoryStatusEx` | `Modules/MemoryCollector.cs` | **< 0.02 ms** | Zero | 100% | No |
 | **Disk Capacity & Free Space** | `System.IO.DriveInfo.GetDrives()` | `Modules/DiskCollector.cs` | **< 0.3 ms** | Zero | 100% | No |
 | **Disk I/O Activity** | `PerformanceCounter("PhysicalDisk")` | `Modules/DiskCollector.cs` | **~1.5 ms** | Low | High (Language Indexed) | No |

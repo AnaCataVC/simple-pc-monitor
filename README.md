@@ -54,6 +54,7 @@ System Core Monitor transitions from a passive observer to an **Active Command C
 | **🔍 Real-Time Search** | Process Tab Toolbar | 200 ms Debounced Filter | Reactively filters active tasks by executable name, PID, or friendly business metadata without UI thread jitter. |
 | **⚡ Fast In-Memory Sorting** | Process Tab Toolbar | `ApplyProcessSortingFast` + `_syncLock` | Instantly toggles between CPU % and RAM (MB) descending sorts in-memory without blocking the UI thread or triggering redundant OS process enumeration. |
 | **🎛️ Interactive Bento Cards** | Main HUD Dashboard | WPF Event Routing & Filter Dispatcher | Clicking any Bento tile (CPU, RAM, GPU, Disk, Network) redirects directly to the detailed view and applies the relevant sorting filter. |
+| **🧮 Per-Core CPU Load** | CPU Bento Card | Kernel `ntdll.dll` (`NtQuerySystemInformation`, `SystemProcessorPerformanceInformation`) | Shows one load bar per logical processor and how many cores are actually in use (busy ≥ 10% of the sample interval), not just the aggregate %. |
 | **⚡ Trim RAM** | Memory Card / Tray | Win32 `SetProcessWorkingSetSize` / `EmptyWorkingSet` | Trims unreferenced memory pages from the process working set and executes CLR Garbage Collection. |
 | **📌 Always on Top (Pin)** | Window Titlebar | WPF `Topmost` Property Toggle | Pins the telemetry window above fullscreen apps, games, or IDEs for uninterrupted monitoring. |
 | **🗖 Seamless Maximization** | Window Controls | Native Win32 `WM_GETMINMAXINFO` Hook | Intercepts `0x0024` message and calculates work area via `MonitorFromWindow`, eliminating taskbar clipping and multi-monitor bleed on borderless custom chrome. |
@@ -119,7 +120,7 @@ system-core-monitor/
 │   │   ├── AiAgentSession.cs       # AI Agent & MCP session and subprocess hierarchy models
 │   │   └── AiTranscriptModels.cs   # AI CLI transcript scanning & retention models
 │   ├── Modules/                    # Autonomous telemetry collectors (12 collectors)
-│   │   ├── CpuCollector.cs         # GetSystemTimes P/Invoke delta math
+│   │   ├── CpuCollector.cs         # GetSystemTimes delta math + per-core load (NtQuerySystemInformation)
 │   │   ├── MemoryCollector.cs      # GlobalMemoryStatusEx RAM & PageFile
 │   │   ├── DiskCollector.cs        # DriveInfo multi-volume evaluator
 │   │   ├── NetworkCollector.cs     # NetworkInterface live Rx/Tx & ICMP Ping
@@ -247,6 +248,7 @@ System Core Monitor evoluciona de un monitor pasivo a un **Centro de Mando Activ
 | **🔍 Búsqueda en Vivo** | Barra de Pestaña Procesos | Filtro Reactivo con Debounce de 200 ms | Filtra al instante por ejecutable, PID o nombre comercial de la aplicación sin congelar la interfaz. |
 | **⚡ Ordenación Rápida en Memoria** | Barra de Pestaña Procesos | `ApplyProcessSortingFast` + `_syncLock` | Alterna instantáneamente entre orden descendente por CPU % y RAM (MB) en memoria sin bloquear la interfaz ni repetir escaneos del sistema operativo. |
 | **🎛️ Tarjetas Bento Clicables** | Panel Principal (HUD) | Enrutamiento de Eventos WPF | Al hacer clic en cualquier tarjeta (CPU, RAM, GPU, Disco, Red) redirige a la pestaña de detalle y aplica el filtro relevante. |
+| **🧮 Carga de CPU por Núcleo** | Tarjeta Bento de CPU | Kernel `ntdll.dll` (`NtQuerySystemInformation`, `SystemProcessorPerformanceInformation`) | Muestra una barra de carga por procesador lógico y cuántos núcleos están realmente en uso (ocupados ≥ 10% del intervalo), no solo el % total. |
 | **⚡ Optimizar RAM** | Tarjeta Memoria / Bandeja | Win32 `SetProcessWorkingSetSize` / `EmptyWorkingSet` | Vierte las páginas de memoria no referenciadas del proceso físico al archivo de paginación y ejecuta recolección de basura CLR. |
 | **📌 Fijar Ventana (Pin)** | Barra de Título | Propiedad `Topmost` de WPF | Mantiene la ventana por encima de juegos o aplicaciones a pantalla completa para monitorización continua. |
 | **🗖 Maximizado Preciso** | Controles de Ventana | Hook Nativo Win32 `WM_GETMINMAXINFO` | Intercepta el mensaje `0x0024` y calcula el área de trabajo mediante `MonitorFromWindow`, evitando que la ventana tape la barra de tareas o se desborde en múltiples pantallas. |
@@ -312,7 +314,7 @@ system-core-monitor/
 │   │   ├── AiAgentSession.cs       # Modelos de sesión de Agentes IA y jerarquía de subprocesos MCP
 │   │   └── AiTranscriptModels.cs   # Modelos de escaneo y retención de transcripciones de IA
 │   ├── Modules/                    # Recolectores autónomos de telemetría (12 recolectores)
-│   │   ├── CpuCollector.cs         # Cálculo delta de CPU vía GetSystemTimes P/Invoke
+│   │   ├── CpuCollector.cs         # Cálculo delta de CPU vía GetSystemTimes + carga por núcleo (NtQuerySystemInformation)
 │   │   ├── MemoryCollector.cs      # Métricas de memoria física y archivo de paginación con GlobalMemoryStatusEx
 │   │   ├── DiskCollector.cs        # Evaluador de volúmenes de disco y unidades físicas
 │   │   ├── NetworkCollector.cs     # Tráfico de red en vivo Rx/Tx y latencia ping ICMP
