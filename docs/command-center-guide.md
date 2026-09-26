@@ -1,6 +1,6 @@
 # ⚡ System Core Monitor — Command Center & Action Buttons Technical Manual
 
-This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **System Core Monitor v3.3.0**.
+This document provides a comprehensive technical breakdown of the interactive controls, Win32 / NT kernel P/Invoke mechanisms, concurrency invariants, windowing architectures, crash resilience, and security guardrails implemented in **System Core Monitor v3.4.0**.
 
 ---
 
